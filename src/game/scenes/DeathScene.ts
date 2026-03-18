@@ -17,12 +17,19 @@ type DeathData = {
 
 export class DeathScene extends Phaser.Scene {
   private waiting = true
+  private nextZone?: Phaser.GameObjects.Zone
+  private menuZone?: Phaser.GameObjects.Zone
 
   public constructor() {
     super('Death')
   }
 
   public create(data: DeathData): void {
+    this.waiting = true
+    window.virtualInput.start = false
+    window.virtualInput.pause = false
+    window.virtualInput.dir = null
+
     const score = data.score ?? 0
     const reward = calculateRunReward(score, gameState.kills, gameState.floor)
     playerProfile.currency += reward
@@ -130,19 +137,25 @@ export class DeathScene extends Phaser.Scene {
       repeat: -1,
     })
 
-    const nextZone = this.add
+    this.nextZone = this.add
       .zone(WIDTH / 2 - 78 - 46, HEIGHT - 34, 92, 24)
       .setOrigin(0)
       .setInteractive()
-    nextZone.on('pointerdown', () => this.restart())
-    const menuZone = this.add
+    this.nextZone.on('pointerdown', () => this.restart())
+    this.nextZone.on('pointerup', () => this.restart())
+
+    this.menuZone = this.add
       .zone(WIDTH / 2 + 78 - 54, HEIGHT - 34, 108, 24)
       .setOrigin(0)
       .setInteractive()
-    menuZone.on('pointerdown', () => this.backToMenu())
+    this.menuZone.on('pointerdown', () => this.backToMenu())
+    this.menuZone.on('pointerup', () => this.backToMenu())
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (event.code === 'Enter' || event.code === 'Space') {
+        this.restart()
+      }
+      if (event.code === 'KeyN') {
         this.restart()
       }
       if (event.code === 'KeyM') {
@@ -151,6 +164,10 @@ export class DeathScene extends Phaser.Scene {
     })
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.keyboard?.removeAllListeners()
+      this.nextZone?.removeAllListeners()
+      this.menuZone?.removeAllListeners()
+      this.nextZone = undefined
+      this.menuZone = undefined
     })
 
     setHintText(getRestartHintText())

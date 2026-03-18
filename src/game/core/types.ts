@@ -33,6 +33,8 @@ export type Enemy = {
   body: SnakeSegment[]
   dir: Vec2
   alive: boolean
+  kind: 'normal' | 'stalker' | 'boss'
+  health: number
 }
 
 export type Particle = {
@@ -57,6 +59,12 @@ export type Powerup = {
   y: number
   pulse: number
   type: PowerupType
+}
+
+export type BiomeItem = {
+  x: number
+  y: number
+  pulse: number
 }
 
 export type GameState = {

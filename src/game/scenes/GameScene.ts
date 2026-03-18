@@ -4,6 +4,7 @@ import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH } from '../core/const
 import { applyRelicEffect, applyTalentEffects } from '../core/meta'
 import { gameState, playerProfile } from '../core/state'
 import type {
+  BiomeItem,
   Enemy,
   Food,
   Particle,
@@ -56,8 +57,13 @@ export class GameScene extends Phaser.Scene {
   private enemies: Enemy[] = []
   private food: Food | null = null
   private powerup: Powerup | null = null
+  private biomeItem: BiomeItem | null = null
   private enemyMoveTimer = 0
   private enemyInterval = 400
+  private riftTimer = 0
+  private riftCell: Vec2 | null = null
+  private stars: Array<{ x: number; y: number; size: number; alpha: number }> = []
+  private isBossFloor = false
   private floorTxt?: Phaser.GameObjects.Text
   private pauseText?: Phaser.GameObjects.Text
 
@@ -87,6 +93,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyCount = floorSetup.enemyCount
     this.foodToNextFloor = floorSetup.foodToNextFloor
     this.enemyInterval = floorSetup.enemyIntervalMs
+    this.isBossFloor = gameState.floor % BALANCE.biome.boss.floorInterval === 0
 
     this.bgGraphics = this.add.graphics()
     this.wallGraphics = this.add.graphics()
@@ -96,14 +103,26 @@ export class GameScene extends Phaser.Scene {
     this.walls = this.generateWalls()
     this.snake = this.spawnSnake()
     this.enemies = []
-    for (let i = 0; i < this.enemyCount; i += 1) {
-      this.spawnEnemy()
+    if (this.isBossFloor) {
+      this.enemyCount = 1
+      this.spawnEnemy('boss')
+    } else {
+      for (let i = 0; i < this.enemyCount; i += 1) {
+        this.spawnEnemy()
+      }
     }
 
     this.spawnFood()
     if (Math.random() < BALANCE.spawn.powerupAtFloorStartChance) {
       this.spawnPowerup()
     }
+    this.stars = Array.from({ length: BALANCE.biome.starCount }, () => ({
+      x: Math.floor(Math.random() * WIDTH),
+      y: Math.floor(Math.random() * HEIGHT),
+      size: Math.max(1, Math.floor(Math.random() * 2) + 1),
+      alpha: 0.15 + Math.random() * 0.4,
+    }))
+    this.riftCell = this.pickOpenCell()
 
     this.floorTxt = this.add
       .text(WIDTH - 6, 6, '', {
@@ -155,6 +174,7 @@ export class GameScene extends Phaser.Scene {
     const dt = delta / 1000
     this.updateCameraShake(dt)
     this.updateEnemyMovement(delta)
+    this.updateVoidRift(delta)
     this.updateRegen(delta)
     this.updateSnakeMovement(delta)
     this.updateMagnetFood()
@@ -166,8 +186,14 @@ export class GameScene extends Phaser.Scene {
     if (this.powerup) {
       this.powerup.pulse += dt * 4
     }
+    if (this.biomeItem) {
+      this.biomeItem.pulse += dt * 4.5
+    }
     if (this.floorTxt) {
-      this.floorTxt.setText(`FLOOR ${gameState.floor} - ${this.foodEaten}/${this.foodToNextFloor}`)
+      const bossTag = this.isBossFloor ? ' - BOSS' : ''
+      this.floorTxt.setText(
+        `${BALANCE.biome.name} - FLOOR ${gameState.floor}${bossTag} - ${this.foodEaten}/${this.foodToNextFloor}`,
+      )
     }
 
     this.drawFrame()
@@ -189,6 +215,11 @@ export class GameScene extends Phaser.Scene {
     this.foodEaten = 0
     this.pendingGrowth = 0
     this.enemyMoveTimer = 0
+    this.riftTimer = 0
+    this.riftCell = null
+    this.biomeItem = null
+    this.stars = []
+    this.isBossFloor = false
   }
 
   private pushDirection(next: Vec2): void {
@@ -242,8 +273,40 @@ export class GameScene extends Phaser.Scene {
     for (const enemy of this.enemies) {
       if (enemy.alive) {
         this.moveEnemy(enemy)
+        if (enemy.kind === 'stalker' && Math.random() < 1 - BALANCE.biome.stalker.speedMultiplier) {
+          this.moveEnemy(enemy)
+        }
       }
     }
+  }
+
+  private updateVoidRift(delta: number): void {
+    this.riftTimer += delta
+    if (this.riftTimer < BALANCE.biome.rift.tickMs) {
+      return
+    }
+    this.riftTimer = 0
+    const head = this.snake[0]
+    if (!head) {
+      return
+    }
+    this.score += BALANCE.biome.rift.scoreOnSurviveTick
+    updateHud(this.score)
+    this.riftCell = this.pickOpenCell()
+    if (!this.riftCell) {
+      return
+    }
+    if (head.x !== this.riftCell.x || head.y !== this.riftCell.y) {
+      return
+    }
+    if (this.shields > 0) {
+      this.shields -= 1
+      this.flashColor = COLORS.shield
+      this.flashTimer = 0.15
+      this.shakeTimer = 0.2
+      return
+    }
+    this.die()
   }
 
   private updateRegen(delta: number): void {
@@ -391,7 +454,29 @@ export class GameScene extends Phaser.Scene {
     this.powerup = { x, y, type, pulse: 0 }
   }
 
-  private spawnEnemy(): void {
+  private pickOpenCell(): Vec2 {
+    let x = 1
+    let y = 1
+    do {
+      x = 1 + Math.floor(Math.random() * (BASE_COLS - 2))
+      y = 1 + Math.floor(Math.random() * (BASE_ROWS - 2))
+    } while (!this.isSafe(x, y) || (this.food && this.food.x === x && this.food.y === y))
+    return { x, y }
+  }
+
+  private spawnBiomeItem(): void {
+    const canSpawn = gameState.floor >= BALANCE.biome.coreItem.spawnFloor && !this.biomeItem
+    if (!canSpawn) {
+      return
+    }
+    if (Math.random() >= BALANCE.biome.coreItem.spawnChanceOnFood) {
+      return
+    }
+    const cell = this.pickOpenCell()
+    this.biomeItem = { x: cell.x, y: cell.y, pulse: 0 }
+  }
+
+  private spawnEnemy(kind: Enemy['kind'] = 'normal'): void {
     let x = 1
     let y = 1
     const cx = Math.floor(BASE_COLS / 2)
@@ -403,15 +488,27 @@ export class GameScene extends Phaser.Scene {
         break
       }
     }
-    const len =
+    const randomLen =
       BALANCE.enemy.lengthBase +
       Math.floor(Math.random() * BALANCE.enemy.lengthRandomRange) +
       Math.floor(gameState.floor / BALANCE.enemy.lengthFloorStep)
+    const len =
+      kind === 'boss'
+        ? BALANCE.biome.boss.length
+        : Math.max(2, kind === 'stalker' ? randomLen + 1 : randomLen)
     const body = Array.from({ length: len }, (_, i) => ({ x: Math.max(0, x - i), y }))
+    const resolvedKind =
+      kind === 'normal' &&
+      gameState.floor >= BALANCE.biome.stalker.unlockFloor &&
+      Math.random() < BALANCE.biome.stalker.spawnChance
+        ? 'stalker'
+        : kind
     this.enemies.push({
       body,
       dir: { x: 1, y: 0 },
       alive: true,
+      kind: resolvedKind,
+      health: resolvedKind === 'boss' ? BALANCE.biome.boss.health : 1,
     })
   }
 
@@ -435,7 +532,8 @@ export class GameScene extends Phaser.Scene {
     const preferred = [...dirs].sort((a, b) => {
       const sa = a.x * Math.sign(dx) + a.y * Math.sign(dy)
       const sb = b.x * Math.sign(dx) + b.y * Math.sign(dy)
-      return sb - sa + (Math.random() - 0.5) * 0.5
+      const randomness = enemy.kind === 'stalker' ? 0 : (Math.random() - 0.5) * 0.5
+      return sb - sa + randomness
     })
 
     for (const dir of preferred) {
@@ -484,13 +582,27 @@ export class GameScene extends Phaser.Scene {
   }
 
   private killEnemy(enemy: Enemy): void {
+    enemy.health -= 1
+    if (enemy.health > 0) {
+      const head = enemy.body[0]
+      if (head) {
+        this.spawnParticles(head.x, head.y, COLORS.shield, 6)
+      }
+      return
+    }
     enemy.alive = false
     const head = enemy.body[0]
     if (head) {
       this.spawnParticles(head.x, head.y, COLORS.enemy, 10)
     }
     gameState.kills += 1
-    this.score += Math.floor(BALANCE.enemy.scoreOnKill * this.cfg.scoreMult)
+    if (enemy.kind === 'boss') {
+      this.score += Math.floor(BALANCE.biome.boss.scoreOnDefeat * this.cfg.scoreMult)
+    } else if (enemy.kind === 'stalker') {
+      this.score += Math.floor(BALANCE.biome.stalker.scoreOnKill * this.cfg.scoreMult)
+    } else {
+      this.score += Math.floor(BALANCE.enemy.scoreOnKill * this.cfg.scoreMult)
+    }
     updateHud(this.score)
   }
 
@@ -539,6 +651,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.snake.unshift({ x: nx, y: ny })
+    if (this.riftCell && nx === this.riftCell.x && ny === this.riftCell.y) {
+      if (this.shields > 0) {
+        this.shields -= 1
+        this.flashTimer = 0.15
+        this.flashColor = COLORS.shield
+      } else {
+        this.die()
+        return
+      }
+    }
+
     if (this.food && nx === this.food.x && ny === this.food.y) {
       this.score += Math.floor(BALANCE.food.scoreOnEat * this.cfg.scoreMult)
       this.foodEaten += 1
@@ -548,6 +671,7 @@ export class GameScene extends Phaser.Scene {
       if (Math.random() < BALANCE.spawn.powerupOnFoodChance) {
         this.spawnPowerup()
       }
+      this.spawnBiomeItem()
       updateHud(this.score)
       if (this.foodEaten >= this.foodToNextFloor) {
         this.scene.start('Upgrade', { score: this.score, floor: gameState.floor })
@@ -567,6 +691,13 @@ export class GameScene extends Phaser.Scene {
         })
       }
     }
+    if (this.biomeItem && nx === this.biomeItem.x && ny === this.biomeItem.y) {
+      this.score += Math.floor(BALANCE.biome.coreItem.scoreBonus * this.cfg.scoreMult)
+      this.pendingGrowth += BALANCE.biome.coreItem.growthBonus
+      this.spawnParticles(nx, ny, COLORS.snakeHead, 12)
+      this.biomeItem = null
+      updateHud(this.score)
+    }
 
     const enemyHit = this.checkEnemyCollision()
     if (enemyHit) {
@@ -576,7 +707,7 @@ export class GameScene extends Phaser.Scene {
         this.flashTimer = 0.15
         this.flashColor = COLORS.shield
         this.enemies = this.enemies.filter((enemy) => enemy.alive)
-        if (Math.random() < BALANCE.spawn.enemyRespawnOnShieldHitChance) {
+        if (!this.isBossFloor && Math.random() < BALANCE.spawn.enemyRespawnOnShieldHitChance) {
           this.spawnEnemy()
         }
       } else {
@@ -586,11 +717,17 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.enemies = this.enemies.filter((enemy) => enemy.alive)
       if (
+        !this.isBossFloor &&
         this.enemies.length < this.enemyCount &&
         Math.random() < BALANCE.spawn.enemyRespawnIdleChance
       ) {
         this.spawnEnemy()
       }
+    }
+    if (this.isBossFloor && this.enemies.length === 0) {
+      this.foodEaten = this.foodToNextFloor
+      this.scene.start('Upgrade', { score: this.score, floor: gameState.floor })
+      return
     }
 
     if (this.pendingGrowth > 0) {
@@ -634,6 +771,14 @@ export class GameScene extends Phaser.Scene {
     g.clear()
     g.fillStyle(COLORS.bg)
     g.fillRect(0, 0, WIDTH, HEIGHT)
+    g.fillStyle(0x0f0320, 0.5)
+    g.fillCircle(WIDTH * 0.22, HEIGHT * 0.3, 96)
+    g.fillStyle(0x130035, 0.35)
+    g.fillCircle(WIDTH * 0.78, HEIGHT * 0.72, 120)
+    for (const star of this.stars) {
+      g.fillStyle(0x99ccff, star.alpha)
+      g.fillRect(star.x, star.y, star.size, star.size)
+    }
     g.lineStyle(1, COLORS.grid, 0.25)
     for (let x = 0; x <= BASE_COLS; x += 1) {
       g.moveTo(x * CELL, 0)
@@ -685,6 +830,14 @@ export class GameScene extends Phaser.Scene {
       const s = CELL * 0.4 * pulse
       g.fillRect(fx + CELL / 2 - s / 2, fy + CELL / 2 - s / 2, s, s)
     }
+    if (this.riftCell) {
+      const rx = this.riftCell.x * CELL
+      const ry = this.riftCell.y * CELL
+      g.fillStyle(0x7a2fff, 0.22)
+      g.fillCircle(rx + CELL / 2, ry + CELL / 2, CELL * 0.9)
+      g.lineStyle(1, 0xaa66ff, 0.8)
+      g.strokeCircle(rx + CELL / 2, ry + CELL / 2, CELL * 0.45)
+    }
 
     if (this.powerup) {
       const pulse = Math.sin(this.powerup.pulse) * 0.3 + 0.7
@@ -710,19 +863,52 @@ export class GameScene extends Phaser.Scene {
         py + CELL / 2 + s / 2,
       )
     }
+    if (this.biomeItem) {
+      const pulse = Math.sin(this.biomeItem.pulse) * 0.3 + 0.7
+      const ix = this.biomeItem.x * CELL
+      const iy = this.biomeItem.y * CELL
+      g.fillStyle(0x7ef2ff, 0.18 * pulse)
+      g.fillCircle(ix + CELL / 2, iy + CELL / 2, CELL * 0.95)
+      g.fillStyle(0x2affff, 0.95)
+      const s = CELL * 0.34 * pulse
+      g.fillRect(ix + CELL / 2 - s / 2, iy + CELL / 2 - s / 2, s, s)
+    }
 
     for (const enemy of this.enemies) {
       if (!enemy.alive) {
         continue
       }
       for (const [i, segment] of enemy.body.entries()) {
-        const color = i === 0 ? COLORS.enemyHead : COLORS.enemy
+        const normalHead = COLORS.enemyHead
+        const normalBody = COLORS.enemy
+        const stalkerHead = 0xff33cc
+        const stalkerBody = 0xcc2288
+        const bossHead = 0xfff066
+        const bossBody = 0xbd6a13
+        const color =
+          enemy.kind === 'boss'
+            ? i === 0
+              ? bossHead
+              : bossBody
+            : enemy.kind === 'stalker'
+              ? i === 0
+                ? stalkerHead
+                : stalkerBody
+              : i === 0
+                ? normalHead
+                : normalBody
         g.fillStyle(color, i === 0 ? 1 : 0.7)
         if (i === 0) {
           g.fillRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)
           g.fillStyle(0x000000)
           g.fillCircle(segment.x * CELL + 5, segment.y * CELL + 5, 2)
           g.fillCircle(segment.x * CELL + CELL - 5, segment.y * CELL + 5, 2)
+          if (enemy.kind === 'boss') {
+            for (let hp = 0; hp < enemy.health; hp += 1) {
+              g.fillStyle(0xffcc55, 0.9)
+              g.fillRect(segment.x * CELL + 3 + hp * 5, segment.y * CELL - 3, 4, 2)
+            }
+          }
         } else {
           const pad = Math.min(5, Math.max(1, i * 0.2))
           g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, CELL - pad * 2)

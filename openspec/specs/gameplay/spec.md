@@ -64,57 +64,40 @@ The system SHALL spawn food on safe cells; magnet upgrade draws food toward snak
 
 ### Requirement: Powerup spawning and effects
 
-The system SHALL spawn powerups and apply runtime effects using configurable balance values.
+The system SHALL support a biome-exclusive collectible item with score and growth benefits.
 
-#### Scenario: Powerup spawn chances are configurable
+#### Scenario: Core item spawns from biome rules
 
-- **WHEN** floor starts, food is eaten, or post-pick respawn is evaluated
-- **THEN** spawn chances and respawn delay use centralized balance probabilities and timings
+- **WHEN** food is consumed on eligible floors and biome spawn chance succeeds
+- **THEN** a core item appears on a safe cell
 
-#### Scenario: Slow and score powerups use configurable multipliers
+#### Scenario: Core item collection grants biome bonus
 
-- **WHEN** player collects slow or score powerups
-- **THEN** enemy slow multiplier and score bonus come from centralized balance values
+- **WHEN** player collects biome core item
+- **THEN** score increases and pending growth increments by configured biome bonuses
 
 ### Requirement: Enemy AI and collision
 
-The system SHALL spawn enemy snakes that path toward player; head-on collision kills enemy (shield consumed or death).
+The system SHALL support biome-exclusive enemy variants and mini-boss behavior in addition to baseline enemies.
 
-#### Scenario: Enemies move toward player
+#### Scenario: Stalker variant can appear in mid floors
 
-- **WHEN** enemy move timer triggers
-- **THEN** each enemy moves head toward player (manhattan heuristic, avoids walls/self)
+- **WHEN** floor is at or above stalker unlock threshold and enemy spawn resolves variant chance
+- **THEN** a stalker enemy may spawn with more aggressive movement and higher kill reward
 
-#### Scenario: Player head-on kills enemy
+#### Scenario: Mini-boss floor encounter
 
-- **WHEN** player head moves onto enemy head cell
-- **THEN** enemy dies, kills++, score += 20×scoreMult, particles spawn
-
-#### Scenario: Enemy head-on with no shield causes death
-
-- **WHEN** enemy head moves onto player head and shields=0
-- **THEN** die() is called
-
-#### Scenario: Enemy head-on with shield consumes shield
-
-- **WHEN** enemy head moves onto player head and shields>0
-- **THEN** shields decrements, camera shakes, enemies filtered, possibly new enemy spawns
-
----
+- **WHEN** floor index matches configured boss interval
+- **THEN** run starts with a boss enemy that has multi-hit health and grants boss reward on defeat
 
 ### Requirement: Floor progression
 
-The system SHALL advance floor when enough food is eaten; floor affects difficulty and upgrade choice, using centralized balance configuration for progression values.
+The system SHALL include a biome hazard loop that applies recurring pressure during gameplay.
 
-#### Scenario: Floor clears after configured food threshold
+#### Scenario: Moving rift hazard pulses over time
 
-- **WHEN** `foodEaten` reaches the configured per-floor target
-- **THEN** scene transitions to Upgrade with score and floor
-
-#### Scenario: Floor difficulty derives from balance config
-
-- **WHEN** floor N starts
-- **THEN** wall count, enemy count, and enemy interval are computed through centralized floor setup values, not inline literals
+- **WHEN** biome rift timer ticks
+- **THEN** rift relocates and applies configured hazard outcome if player occupies rift cell
 
 ### Requirement: Snake body render continuity
 

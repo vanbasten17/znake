@@ -39,6 +39,33 @@ export const BALANCE = {
     lengthRandomRange: 2,
     lengthFloorStep: 3,
   },
+  biome: {
+    id: 'void-depths',
+    name: 'VOID DEPTHS',
+    starCount: 36,
+    rift: {
+      tickMs: 3200,
+      scoreOnSurviveTick: 4,
+    },
+    stalker: {
+      unlockFloor: 2,
+      spawnChance: 0.3,
+      scoreOnKill: 35,
+      speedMultiplier: 0.78,
+    },
+    coreItem: {
+      spawnFloor: 2,
+      spawnChanceOnFood: 0.18,
+      scoreBonus: 45,
+      growthBonus: 2,
+    },
+    boss: {
+      floorInterval: 3,
+      health: 3,
+      length: 7,
+      scoreOnDefeat: 140,
+    },
+  },
   food: {
     scoreOnEat: 10,
   },
