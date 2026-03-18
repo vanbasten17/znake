@@ -6,6 +6,7 @@ import { gameState, playerProfile } from '../core/state'
 import type {
   BiomeItem,
   Enemy,
+  EnemyKind,
   Food,
   Particle,
   Powerup,
@@ -13,6 +14,7 @@ import type {
   RunConfig,
   SnakeSegment,
   Vec2,
+  WorldItemType,
 } from '../core/types'
 import { getControlMode } from '../systems/controlScheme'
 import { getMoveHintText, getRestartHintText, setHintText, updateHud } from '../systems/domHud'
@@ -67,6 +69,7 @@ export class GameScene extends Phaser.Scene {
   private enemyMoveTimer = 0
   private enemyInterval = 400
   private riftTimer = 0
+  private riftSuppressionMsRemaining = 0
   private riftCell: Vec2 | null = null
   private stars: Array<{ x: number; y: number; size: number; alpha: number }> = []
   private isBossFloor = false
@@ -228,13 +231,21 @@ export class GameScene extends Phaser.Scene {
       this.floorTxt.setText(progressLabel)
       if (this.nextFloorTxt) {
         const remaining = Math.max(0, effectiveLengthGoal - this.snake.length)
-        this.nextFloorTxt.setText(
-          this.isBossFloor
-            ? t('game.bossAdvance')
-            : t('game.toNextFloor', {
-                remaining,
-              }),
-        )
+        if (this.riftSuppressionMsRemaining > 0) {
+          this.nextFloorTxt.setText(
+            t('game.riftSuppressed', {
+              seconds: Math.ceil(this.riftSuppressionMsRemaining / 1000),
+            }),
+          )
+        } else {
+          this.nextFloorTxt.setText(
+            this.isBossFloor
+              ? t('game.bossAdvance')
+              : t('game.toNextFloor', {
+                  remaining,
+                }),
+          )
+        }
       }
     }
 
@@ -259,6 +270,7 @@ export class GameScene extends Phaser.Scene {
     this.pendingGrowth = 0
     this.enemyMoveTimer = 0
     this.riftTimer = 0
+    this.riftSuppressionMsRemaining = 0
     this.riftCell = null
     this.biomeItem = null
     this.stars = []
@@ -317,7 +329,7 @@ export class GameScene extends Phaser.Scene {
     for (const enemy of this.enemies) {
       if (enemy.alive) {
         this.moveEnemy(enemy)
-        if (enemy.kind === 'stalker' && Math.random() < 1 - BALANCE.biome.stalker.speedMultiplier) {
+        if (enemy.kind === 'stalker' && Math.random() < 1 - BALANCE.elite.stalker.speedMultiplier) {
           this.moveEnemy(enemy)
         }
       }
@@ -325,6 +337,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateVoidRift(delta: number): void {
+    if (this.riftSuppressionMsRemaining > 0) {
+      const next = Math.max(0, this.riftSuppressionMsRemaining - delta)
+      this.riftSuppressionMsRemaining = next
+      this.riftCell = null
+      if (next === 0) {
+        trackRetentionEvent('rift_suppressed', {
+          phase: 'end',
+          floor: gameState.floor,
+          score: this.score,
+        })
+      }
+      return
+    }
+
     this.riftTimer += delta
     if (this.riftTimer < BALANCE.biome.rift.tickMs) {
       return
@@ -508,16 +534,57 @@ export class GameScene extends Phaser.Scene {
     return { x, y }
   }
 
+  private getEliteSpawnConfig(): (typeof BALANCE.elite.spawnByFloor)[number] {
+    const floor = gameState.floor
+    const sorted = [...BALANCE.elite.spawnByFloor].sort((a, b) => b.minFloor - a.minFloor)
+    return sorted.find((config) => floor >= config.minFloor) ?? BALANCE.elite.spawnByFloor[0]
+  }
+
+  private getItemSpawnConfig(): (typeof BALANCE.item.spawnByFloor)[number] {
+    const floor = gameState.floor
+    const sorted = [...BALANCE.item.spawnByFloor].sort((a, b) => b.minFloor - a.minFloor)
+    return sorted.find((config) => floor >= config.minFloor) ?? BALANCE.item.spawnByFloor[0]
+  }
+
+  private resolveEliteKind(): EnemyKind | null {
+    const config = this.getEliteSpawnConfig()
+    if (Math.random() >= config.spawnChance) {
+      return null
+    }
+    const totalWeight = config.kindWeights.stalker + config.kindWeights.ambusher
+    if (totalWeight <= 0) {
+      return null
+    }
+    const roll = Math.random() * totalWeight
+    return roll < config.kindWeights.stalker ? 'stalker' : 'ambusher'
+  }
+
+  private activateRiftSuppression(source: WorldItemType): void {
+    this.riftSuppressionMsRemaining = BALANCE.item.effectDurations.riftSuppressionMs
+    this.riftTimer = 0
+    this.riftCell = null
+    trackRetentionEvent('rift_suppressed', {
+      phase: 'start',
+      source,
+      floor: gameState.floor,
+      durationMs: BALANCE.item.effectDurations.riftSuppressionMs,
+    })
+  }
+
   private spawnBiomeItem(): void {
     const canSpawn = gameState.floor >= BALANCE.biome.coreItem.spawnFloor && !this.biomeItem
     if (!canSpawn) {
       return
     }
-    if (Math.random() >= BALANCE.biome.coreItem.spawnChanceOnFood) {
+    const cell = this.pickOpenCell()
+    const floorItemConfig = this.getItemSpawnConfig()
+    const riftBatteryRoll = Math.random() < floorItemConfig.riftBatteryOnFoodChance
+    const coreRoll = Math.random() < BALANCE.biome.coreItem.spawnChanceOnFood
+    const type: WorldItemType | null = riftBatteryRoll ? 'rift_battery' : coreRoll ? 'core' : null
+    if (!type) {
       return
     }
-    const cell = this.pickOpenCell()
-    this.biomeItem = { x: cell.x, y: cell.y, pulse: 0 }
+    this.biomeItem = { x: cell.x, y: cell.y, pulse: 0, type }
   }
 
   private spawnEnemy(kind: Enemy['kind'] = 'normal'): void {
@@ -536,23 +603,29 @@ export class GameScene extends Phaser.Scene {
       BALANCE.enemy.lengthBase +
       Math.floor(Math.random() * BALANCE.enemy.lengthRandomRange) +
       Math.floor(gameState.floor / BALANCE.enemy.lengthFloorStep)
+    const resolvedKind = kind === 'normal' ? (this.resolveEliteKind() ?? 'normal') : kind
     const len =
-      kind === 'boss'
+      resolvedKind === 'boss'
         ? BALANCE.biome.boss.length
-        : Math.max(2, kind === 'stalker' ? randomLen + 1 : randomLen)
+        : Math.max(
+            2,
+            resolvedKind === 'stalker' || resolvedKind === 'ambusher' ? randomLen + 1 : randomLen,
+          )
     const body = Array.from({ length: len }, (_, i) => ({ x: Math.max(0, x - i), y }))
-    const resolvedKind =
-      kind === 'normal' &&
-      gameState.floor >= BALANCE.biome.stalker.unlockFloor &&
-      Math.random() < BALANCE.biome.stalker.spawnChance
-        ? 'stalker'
-        : kind
+    if (resolvedKind !== 'normal') {
+      trackRetentionEvent('elite_spawned', {
+        kind: resolvedKind,
+        floor: gameState.floor,
+        score: this.score,
+      })
+    }
     this.enemies.push({
       body,
       dir: { x: 1, y: 0 },
       alive: true,
       kind: resolvedKind,
       health: resolvedKind === 'boss' ? BALANCE.biome.boss.health : 1,
+      dashCooldown: 0,
     })
   }
 
@@ -573,10 +646,16 @@ export class GameScene extends Phaser.Scene {
     ]
     const dx = playerHead.x - head.x
     const dy = playerHead.y - head.y
+
+    if (enemy.kind === 'ambusher' && this.tryAmbusherDash(enemy, playerHead)) {
+      return
+    }
+
     const preferred = [...dirs].sort((a, b) => {
       const sa = a.x * Math.sign(dx) + a.y * Math.sign(dy)
       const sb = b.x * Math.sign(dx) + b.y * Math.sign(dy)
-      const randomness = enemy.kind === 'stalker' ? 0 : (Math.random() - 0.5) * 0.5
+      const randomness =
+        enemy.kind === 'stalker' || enemy.kind === 'ambusher' ? 0 : (Math.random() - 0.5) * 0.5
       return sb - sa + randomness
     })
 
@@ -596,16 +675,80 @@ export class GameScene extends Phaser.Scene {
       if (hitsSelf) {
         continue
       }
-
-      enemy.dir = dir
-      enemy.body.unshift({ x: nx, y: ny })
-      if (this.food && nx === this.food.x && ny === this.food.y) {
-        this.spawnFood()
-      } else {
-        enemy.body.pop()
-      }
+      this.advanceEnemyStep(enemy, dir)
       break
     }
+  }
+
+  private advanceEnemyStep(enemy: Enemy, dir: Vec2): boolean {
+    const head = enemy.body[0]
+    if (!head) {
+      return false
+    }
+    const nx = head.x + dir.x
+    const ny = head.y + dir.y
+    if (this.isWall(nx, ny)) {
+      return false
+    }
+    const hitsSelf = enemy.body.slice(1, -1).some((segment) => segment.x === nx && segment.y === ny)
+    if (hitsSelf) {
+      return false
+    }
+    enemy.dir = dir
+    enemy.body.unshift({ x: nx, y: ny })
+    if (this.food && nx === this.food.x && ny === this.food.y) {
+      this.spawnFood()
+    } else {
+      enemy.body.pop()
+    }
+    return true
+  }
+
+  private tryAmbusherDash(enemy: Enemy, playerHead: SnakeSegment): boolean {
+    const head = enemy.body[0]
+    if (!head) {
+      return false
+    }
+    if (enemy.dashCooldown > 0) {
+      enemy.dashCooldown -= 1
+      return false
+    }
+
+    const alignedX = head.x === playerHead.x
+    const alignedY = head.y === playerHead.y
+    if (!alignedX && !alignedY) {
+      return false
+    }
+
+    const laneDistance = alignedX
+      ? Math.abs(head.y - playerHead.y)
+      : Math.abs(head.x - playerHead.x)
+    if (laneDistance < BALANCE.elite.ambusher.dashMinLaneDistance) {
+      return false
+    }
+    if (Math.random() >= BALANCE.elite.ambusher.dashChanceWhenAligned) {
+      return false
+    }
+
+    const dir: Vec2 = alignedX
+      ? { x: 0, y: Math.sign(playerHead.y - head.y) }
+      : { x: Math.sign(playerHead.x - head.x), y: 0 }
+    if (dir.x === -enemy.dir.x && dir.y === -enemy.dir.y) {
+      return false
+    }
+
+    let moved = false
+    for (let step = 0; step < BALANCE.elite.ambusher.dashSteps; step += 1) {
+      const advanced = this.advanceEnemyStep(enemy, dir)
+      if (!advanced) {
+        break
+      }
+      moved = true
+    }
+    if (moved) {
+      enemy.dashCooldown = BALANCE.elite.ambusher.dashCooldownTurns
+    }
+    return moved
   }
 
   private checkEnemyCollision(): boolean {
@@ -642,6 +785,11 @@ export class GameScene extends Phaser.Scene {
     gameState.kills += 1
     if (enemy.kind === 'boss') {
       gameState.eliteKills += 1
+      trackRetentionEvent('elite_defeated', {
+        kind: enemy.kind,
+        floor: gameState.floor,
+        score: this.score,
+      })
       trackRetentionEvent('goal_progressed', {
         goalId: 'elite_hunter_12',
         delta: 1,
@@ -649,15 +797,24 @@ export class GameScene extends Phaser.Scene {
         source: 'combat',
       })
       this.score += Math.floor(BALANCE.biome.boss.scoreOnDefeat * this.cfg.scoreMult)
-    } else if (enemy.kind === 'stalker') {
+    } else if (enemy.kind === 'stalker' || enemy.kind === 'ambusher') {
       gameState.eliteKills += 1
+      trackRetentionEvent('elite_defeated', {
+        kind: enemy.kind,
+        floor: gameState.floor,
+        score: this.score,
+      })
       trackRetentionEvent('goal_progressed', {
         goalId: 'elite_hunter_12',
         delta: 1,
         runEliteKills: gameState.eliteKills,
         source: 'combat',
       })
-      this.score += Math.floor(BALANCE.biome.stalker.scoreOnKill * this.cfg.scoreMult)
+      const eliteScore =
+        enemy.kind === 'stalker'
+          ? BALANCE.elite.stalker.scoreOnKill
+          : BALANCE.elite.ambusher.scoreOnKill
+      this.score += Math.floor(eliteScore * this.cfg.scoreMult)
     } else {
       this.score += Math.floor(BALANCE.enemy.scoreOnKill * this.cfg.scoreMult)
     }
@@ -748,11 +905,26 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.biomeItem && nx === this.biomeItem.x && ny === this.biomeItem.y) {
       emitFeedback('success')
-      this.score += Math.floor(BALANCE.biome.coreItem.scoreBonus * this.cfg.scoreMult)
-      this.pendingGrowth += BALANCE.biome.coreItem.growthBonus
-      this.spawnParticles(nx, ny, COLORS.snakeHead, 12)
+      if (this.biomeItem.type === 'rift_battery') {
+        this.activateRiftSuppression('rift_battery')
+        trackRetentionEvent('item_collected', {
+          item: 'rift_battery',
+          floor: gameState.floor,
+          score: this.score,
+        })
+        this.spawnParticles(nx, ny, COLORS.slow, 12)
+      } else {
+        this.score += Math.floor(BALANCE.biome.coreItem.scoreBonus * this.cfg.scoreMult)
+        this.pendingGrowth += BALANCE.biome.coreItem.growthBonus
+        trackRetentionEvent('item_collected', {
+          item: 'core',
+          floor: gameState.floor,
+          score: this.score,
+        })
+        this.spawnParticles(nx, ny, COLORS.snakeHead, 12)
+        updateHud(this.score)
+      }
       this.biomeItem = null
-      updateHud(this.score)
     }
 
     const enemyHit = this.checkEnemyCollision()
@@ -948,11 +1120,23 @@ export class GameScene extends Phaser.Scene {
       const pulse = Math.sin(this.biomeItem.pulse) * 0.3 + 0.7
       const ix = this.biomeItem.x * CELL
       const iy = this.biomeItem.y * CELL
-      g.fillStyle(0x7ef2ff, 0.18 * pulse)
+      const isRiftBattery = this.biomeItem.type === 'rift_battery'
+      g.fillStyle(isRiftBattery ? 0x8866ff : 0x7ef2ff, 0.18 * pulse)
       g.fillCircle(ix + CELL / 2, iy + CELL / 2, CELL * 0.95)
-      g.fillStyle(0x2affff, 0.95)
+      g.fillStyle(isRiftBattery ? 0xcf77ff : 0x2affff, 0.95)
       const s = CELL * 0.34 * pulse
-      g.fillRect(ix + CELL / 2 - s / 2, iy + CELL / 2 - s / 2, s, s)
+      if (isRiftBattery) {
+        g.fillTriangle(
+          ix + CELL / 2,
+          iy + CELL / 2 - s / 1.4,
+          ix + CELL / 2 - s / 1.1,
+          iy + CELL / 2 + s / 1.3,
+          ix + CELL / 2 + s / 1.1,
+          iy + CELL / 2 + s / 1.3,
+        )
+      } else {
+        g.fillRect(ix + CELL / 2 - s / 2, iy + CELL / 2 - s / 2, s, s)
+      }
     }
 
     for (const enemy of this.enemies) {
@@ -964,6 +1148,8 @@ export class GameScene extends Phaser.Scene {
         const normalBody = COLORS.enemy
         const stalkerHead = 0xff33cc
         const stalkerBody = 0xcc2288
+        const ambusherHead = 0xb86dff
+        const ambusherBody = 0x7a3fb8
         const bossHead = 0xfff066
         const bossBody = 0xbd6a13
         const color =
@@ -971,13 +1157,17 @@ export class GameScene extends Phaser.Scene {
             ? i === 0
               ? bossHead
               : bossBody
-            : enemy.kind === 'stalker'
+            : enemy.kind === 'ambusher'
               ? i === 0
-                ? stalkerHead
-                : stalkerBody
-              : i === 0
-                ? normalHead
-                : normalBody
+                ? ambusherHead
+                : ambusherBody
+              : enemy.kind === 'stalker'
+                ? i === 0
+                  ? stalkerHead
+                  : stalkerBody
+                : i === 0
+                  ? normalHead
+                  : normalBody
         g.fillStyle(color, i === 0 ? 1 : 0.7)
         if (i === 0) {
           g.fillRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)

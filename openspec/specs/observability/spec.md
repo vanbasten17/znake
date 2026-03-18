@@ -19,15 +19,15 @@ The system SHALL emit a stable minimum set of gameplay observability events for 
 
 ### Requirement: Progression telemetry
 
-The system SHALL emit progression and economy events needed for balancing analysis.
+The system SHALL emit telemetry for newly added elite and item interactions.
 
-#### Scenario: Run reward breakdown is tracked
+#### Scenario: Elite lifecycle is tracked
 
-- **WHEN** run reward is computed
-- **THEN** telemetry emits `run_reward_breakdown` with score/kill/floor components and final reward
+- **WHEN** ambusher (or other elite kind) is spawned and defeated
+- **THEN** telemetry emits `elite_spawned` and `elite_defeated` with elite kind and floor context
 
-#### Scenario: Goal transitions are tracked
+#### Scenario: Rift battery interaction is tracked
 
-- **WHEN** goal progress changes or a goal is claimed
-- **THEN** telemetry emits `goal_progressed` and `goal_claimed` with goal id and values
+- **WHEN** rift battery is collected and suppression starts/ends
+- **THEN** telemetry emits `item_collected` and `rift_suppressed` with duration/effect context
 

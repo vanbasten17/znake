@@ -78,42 +78,26 @@ The system SHALL support a biome-exclusive collectible item with score and growt
 
 ### Requirement: Enemy AI and collision
 
-The system SHALL support biome-exclusive enemy variants and mini-boss behavior in addition to baseline enemies.
+The system SHALL support an additional elite enemy pattern beyond stalker and boss.
 
-#### Scenario: Stalker variant can appear in mid floors
+#### Scenario: Ambusher elite can spawn
 
-- **WHEN** floor is at or above stalker unlock threshold and enemy spawn resolves variant chance
-- **THEN** a stalker enemy may spawn with more aggressive movement and higher kill reward
+- **WHEN** floor and spawn rules meet ambusher conditions
+- **THEN** ambusher enemy can be selected in enemy spawn resolution
 
-#### Scenario: Mini-boss floor encounter
+#### Scenario: Ambusher applies burst pressure
 
-- **WHEN** floor index matches configured boss interval
-- **THEN** run starts with a boss enemy that has multi-hit health and grants boss reward on defeat
+- **WHEN** ambusher movement updates during gameplay
+- **THEN** it can execute a short burst/dash behavior with safety constraints
 
 ### Requirement: Floor progression
 
-The system SHALL use snake-length targets for non-boss floor advancement and keep boss-clear routing on boss floors.
+The system SHALL support temporary hazard-pressure modulation through item interaction.
 
-#### Scenario: Non-boss floor clears by snake length
+#### Scenario: Rift battery suppresses hazard window
 
-- **WHEN** run is on a non-boss floor
-- **THEN** floor transitions after snake reaches configured total-length target
-
-#### Scenario: Start-length modifiers do not auto-clear floor
-
-- **WHEN** run starts with relic/talent bonuses that increase initial snake length
-- **THEN** non-boss floor is not auto-cleared until snake grows at least one segment in that floor
-
-#### Scenario: Boss floor still clears by boss defeat
-
-- **WHEN** run is on a boss floor
-- **THEN** floor transitions after boss encounter is resolved
-
-#### Scenario: In-run next-floor hint is explicit
-
-- **WHEN** player is in a non-boss floor
-- **THEN** HUD shows remaining segments needed for next floor
-- **AND** on boss floor HUD shows explicit boss-clear message
+- **WHEN** player collects a rift battery item
+- **THEN** rift pressure is reduced or paused for configured duration
 
 ### Requirement: Snake body render continuity
 

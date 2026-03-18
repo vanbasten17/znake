@@ -41,6 +41,64 @@ export const BALANCE = {
     lengthRandomRange: 2,
     lengthFloorStep: 3,
   },
+  elite: {
+    spawnByFloor: [
+      {
+        minFloor: 1,
+        spawnChance: 0,
+        kindWeights: {
+          stalker: 1,
+          ambusher: 0,
+        },
+      },
+      {
+        minFloor: 2,
+        spawnChance: 0.3,
+        kindWeights: {
+          stalker: 1,
+          ambusher: 0,
+        },
+      },
+      {
+        minFloor: 4,
+        spawnChance: 0.38,
+        kindWeights: {
+          stalker: 0.7,
+          ambusher: 0.3,
+        },
+      },
+      {
+        minFloor: 7,
+        spawnChance: 0.44,
+        kindWeights: {
+          stalker: 0.55,
+          ambusher: 0.45,
+        },
+      },
+    ],
+    stalker: {
+      scoreOnKill: 35,
+      speedMultiplier: 0.78,
+    },
+    ambusher: {
+      scoreOnKill: 55,
+      dashChanceWhenAligned: 0.75,
+      dashSteps: 2,
+      dashMinLaneDistance: 2,
+      dashCooldownTurns: 3,
+    },
+  },
+  item: {
+    spawnByFloor: [
+      { minFloor: 1, riftBatteryOnFoodChance: 0 },
+      { minFloor: 2, riftBatteryOnFoodChance: 0.08 },
+      { minFloor: 4, riftBatteryOnFoodChance: 0.14 },
+      { minFloor: 7, riftBatteryOnFoodChance: 0.2 },
+    ],
+    effectDurations: {
+      riftSuppressionMs: 9000,
+    },
+  },
   biome: {
     id: 'void-depths',
     name: 'VOID DEPTHS',
@@ -48,12 +106,6 @@ export const BALANCE = {
     rift: {
       tickMs: 3200,
       scoreOnSurviveTick: 4,
-    },
-    stalker: {
-      unlockFloor: 2,
-      spawnChance: 0.3,
-      scoreOnKill: 35,
-      speedMultiplier: 0.78,
     },
     coreItem: {
       spawnFloor: 2,
