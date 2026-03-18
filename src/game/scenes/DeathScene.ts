@@ -3,6 +3,7 @@ import { COLORS, HEIGHT, STORAGE_KEYS, WIDTH } from '../core/constants'
 import { calculateRunReward, saveProfile } from '../core/meta'
 import { gameState, playerProfile } from '../core/state'
 import type { Upgrade } from '../core/types'
+import { getControlMode } from '../systems/controlScheme'
 import {
   getMoveHintText,
   getRestartHintText,
@@ -13,6 +14,8 @@ import { trackRetentionEvent } from '../systems/telemetry'
 
 type DeathData = {
   score?: number
+  deathReason?: string
+  timeAliveMs?: number
 }
 
 export class DeathScene extends Phaser.Scene {
@@ -31,6 +34,8 @@ export class DeathScene extends Phaser.Scene {
     window.virtualInput.dir = null
 
     const score = data.score ?? 0
+    const deathReason = data.deathReason ?? 'unknown'
+    const timeAliveMs = Math.max(0, Math.floor(data.timeAliveMs ?? 0))
     const reward = calculateRunReward(score, gameState.kills, gameState.floor)
     playerProfile.currency += reward
     playerProfile.lifetimeStats.totalScore += score
@@ -46,6 +51,9 @@ export class DeathScene extends Phaser.Scene {
       floor: gameState.floor,
       reward,
       currencyTotal: playerProfile.currency,
+      deathReason,
+      timeAliveMs,
+      inputMode: getControlMode(),
     })
 
     const best = Math.max(
@@ -227,6 +235,11 @@ export class DeathScene extends Phaser.Scene {
       source: 'death_restart',
       currency: playerProfile.currency,
       unlockedTalents: playerProfile.unlockedTalents.length,
+    })
+    trackRetentionEvent('input_mode', {
+      mode: getControlMode(),
+      source: 'run_start_death_restart',
+      run: gameState.run,
     })
     setHintText(getMoveHintText())
     this.scene.start('RelicDraft')

@@ -4,6 +4,7 @@ import { gameState } from '../core/state'
 import type { Upgrade } from '../core/types'
 import { UPGRADE_POOL } from '../core/upgrades'
 import { getMoveHintText, getUpgradeHintText, setHintText } from '../systems/domHud'
+import { trackRetentionEvent } from '../systems/telemetry'
 
 type UpgradeData = {
   score?: number
@@ -135,8 +136,18 @@ export class UpgradeScene extends Phaser.Scene {
       return
     }
     this.picked = true
+    trackRetentionEvent('upgrade_picked', {
+      upgradeId: upgrade.id,
+      floor: gameState.floor,
+      score: this.score,
+    })
     gameState.persistentUpgrades.push(upgrade)
     gameState.floor += 1
+    trackRetentionEvent('floor_reached', {
+      floor: gameState.floor,
+      score: this.score,
+      kills: gameState.kills,
+    })
     setHintText(getMoveHintText())
     this.scene.start('Game', { score: this.score })
   }

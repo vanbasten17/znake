@@ -14,11 +14,15 @@ import type {
   SnakeSegment,
   Vec2,
 } from '../core/types'
+import { getControlMode } from '../systems/controlScheme'
 import { getMoveHintText, getRestartHintText, setHintText, updateHud } from '../systems/domHud'
+import { trackRetentionEvent } from '../systems/telemetry'
 
 type GameSceneData = {
   score?: number
 }
+
+type DeathReason = 'wall' | 'self' | 'enemy' | 'rift'
 
 const directionMap: Record<string, Vec2> = {
   ArrowUp: { x: 0, y: -1 },
@@ -64,6 +68,8 @@ export class GameScene extends Phaser.Scene {
   private riftCell: Vec2 | null = null
   private stars: Array<{ x: number; y: number; size: number; alpha: number }> = []
   private isBossFloor = false
+  private runStartMs = 0
+  private isDying = false
   private floorTxt?: Phaser.GameObjects.Text
   private pauseText?: Phaser.GameObjects.Text
 
@@ -79,6 +85,8 @@ export class GameScene extends Phaser.Scene {
   public create(data: GameSceneData): void {
     this.score = data.score ?? 0
     this.resetLocalState()
+    this.runStartMs = this.time.now
+    this.isDying = false
 
     applyTalentEffects(this.cfg, playerProfile)
     applyRelicEffect(this.cfg, gameState.selectedRelicId)
@@ -220,6 +228,7 @@ export class GameScene extends Phaser.Scene {
     this.biomeItem = null
     this.stars = []
     this.isBossFloor = false
+    this.isDying = false
   }
 
   private pushDirection(next: Vec2): void {
@@ -306,7 +315,7 @@ export class GameScene extends Phaser.Scene {
       this.shakeTimer = 0.2
       return
     }
-    this.die()
+    this.die('rift')
   }
 
   private updateRegen(delta: number): void {
@@ -634,19 +643,19 @@ export class GameScene extends Phaser.Scene {
         nx = (nx + BASE_COLS) % BASE_COLS
         ny = (ny + BASE_ROWS) % BASE_ROWS
         if (this.isWall(nx, ny)) {
-          this.die()
+          this.die('wall')
           return
         }
         this.ghostCharges -= 1
         this.spawnParticles(head.x, head.y, COLORS.shield, 8)
       } else {
-        this.die()
+        this.die('wall')
         return
       }
     }
 
     if (this.snake.slice(1, -1).some((segment) => segment.x === nx && segment.y === ny)) {
-      this.die()
+      this.die('self')
       return
     }
 
@@ -657,7 +666,7 @@ export class GameScene extends Phaser.Scene {
         this.flashTimer = 0.15
         this.flashColor = COLORS.shield
       } else {
-        this.die()
+        this.die('rift')
         return
       }
     }
@@ -711,7 +720,7 @@ export class GameScene extends Phaser.Scene {
           this.spawnEnemy()
         }
       } else {
-        this.die()
+        this.die('enemy')
         return
       }
     } else {
@@ -754,7 +763,11 @@ export class GameScene extends Phaser.Scene {
     updateHud(this.score)
   }
 
-  private die(): void {
+  private die(reason: DeathReason): void {
+    if (this.isDying) {
+      return
+    }
+    this.isDying = true
     const head = this.snake[0]
     if (head) {
       this.spawnParticles(head.x, head.y, COLORS.food, 20)
@@ -762,7 +775,24 @@ export class GameScene extends Phaser.Scene {
     this.shakeTimer = 0.4
     this.drawFrame()
     this.input.keyboard?.removeAllListeners()
-    this.time.delayedCall(600, () => this.scene.start('Death', { score: this.score }))
+    const timeAliveMs = Math.max(0, Math.floor(this.time.now - this.runStartMs))
+    trackRetentionEvent('death_reason', {
+      reason,
+      floor: gameState.floor,
+      score: this.score,
+      kills: gameState.kills,
+      inputMode: getControlMode(),
+    })
+    trackRetentionEvent('time_alive', {
+      timeAliveMs,
+      floor: gameState.floor,
+      score: this.score,
+      kills: gameState.kills,
+      inputMode: getControlMode(),
+    })
+    this.time.delayedCall(600, () =>
+      this.scene.start('Death', { score: this.score, deathReason: reason, timeAliveMs }),
+    )
     setHintText(getRestartHintText())
   }
 

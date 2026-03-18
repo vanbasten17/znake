@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, STORAGE_KEYS, WIDTH } from '../core/constants'
 import { TALENT_TREE, saveProfile, unlockTalent } from '../core/meta'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
+import { getControlMode } from '../systems/controlScheme'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 export class MenuScene extends Phaser.Scene {
@@ -240,6 +241,11 @@ export class MenuScene extends Phaser.Scene {
       source: 'menu',
       currency: playerProfile.currency,
       unlockedTalents: playerProfile.unlockedTalents.length,
+    })
+    trackRetentionEvent('input_mode', {
+      mode: getControlMode(),
+      source: 'run_start_menu',
+      run: gameState.run,
     })
     this.scene.start('RelicDraft')
   }
