@@ -28,7 +28,7 @@ export const getStartHintText = (): string =>
   isKeyboardMode() ? 'PRESS ENTER OR SPACE TO START' : 'TAP START TO PLAY'
 
 export const getRestartHintText = (): string =>
-  isKeyboardMode() ? 'PRESS ENTER OR SPACE TO PLAY AGAIN' : 'PRESS START TO PLAY AGAIN'
+  isKeyboardMode() ? 'ENTER/SPACE: NEXT RUN - M: MAIN MENU' : 'TAP NEXT RUN OR MAIN MENU'
 
 export const getUpgradeHintText = (): string =>
   isKeyboardMode() ? 'PRESS 1, 2 OR 3 TO PICK AN UPGRADE' : 'TAP AN UPGRADE CARD TO CONTINUE'
