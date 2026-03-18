@@ -1,4 +1,4 @@
-# Serpent Void
+# Znake
 
 Roguelite Snake prototype restructured as a production-ready TypeScript project with Phaser, `pnpm`, and Biome.
 
