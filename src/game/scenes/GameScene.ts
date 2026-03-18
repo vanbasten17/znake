@@ -55,8 +55,8 @@ export class GameScene extends Phaser.Scene {
   private regenTimer = 0
   private wallCount = 0
   private enemyCount = 0
-  private foodToNextFloor = 0
-  private foodEaten = 0
+  private snakeLengthGoal = 0
+  private floorStartLength = 0
   private pendingGrowth = 0
   private snake: SnakeSegment[] = []
   private walls = new Set<string>()
@@ -73,6 +73,7 @@ export class GameScene extends Phaser.Scene {
   private runStartMs = 0
   private isDying = false
   private floorTxt?: Phaser.GameObjects.Text
+  private nextFloorTxt?: Phaser.GameObjects.Text
   private pauseText?: Phaser.GameObjects.Text
 
   private bgGraphics!: Phaser.GameObjects.Graphics
@@ -101,7 +102,7 @@ export class GameScene extends Phaser.Scene {
     const floorSetup = getFloorSetup(gameState.floor, this.cfg.enemySlow)
     this.wallCount = floorSetup.wallCount
     this.enemyCount = floorSetup.enemyCount
-    this.foodToNextFloor = floorSetup.foodToNextFloor
+    this.snakeLengthGoal = floorSetup.snakeLengthGoal
     this.enemyInterval = floorSetup.enemyIntervalMs
     this.isBossFloor = gameState.floor % BALANCE.biome.boss.floorInterval === 0
 
@@ -112,6 +113,7 @@ export class GameScene extends Phaser.Scene {
 
     this.walls = this.generateWalls()
     this.snake = this.spawnSnake()
+    this.floorStartLength = this.snake.length
     this.enemies = []
     if (this.isBossFloor) {
       this.enemyCount = 1
@@ -138,6 +140,12 @@ export class GameScene extends Phaser.Scene {
       .text(WIDTH - 6, 6, '', {
         font: '9px Share Tech Mono',
         color: '#334455',
+      })
+      .setOrigin(1, 0)
+    this.nextFloorTxt = this.add
+      .text(WIDTH - 6, 17, '', {
+        font: '8px Share Tech Mono',
+        color: '#4a6a88',
       })
       .setOrigin(1, 0)
 
@@ -203,15 +211,31 @@ export class GameScene extends Phaser.Scene {
       const localizedBiome = t(`biome.${BALANCE.biome.id.replaceAll('-', '_')}`, {
         defaultValue: BALANCE.biome.name,
       })
-      this.floorTxt.setText(
-        t('game.floorProgress', {
-          biome: localizedBiome,
-          floor: gameState.floor,
-          bossTag: this.isBossFloor ? t('game.bossTag') : '',
-          progress: this.foodEaten,
-          goal: this.foodToNextFloor,
-        }),
-      )
+      const effectiveLengthGoal = Math.max(this.snakeLengthGoal, this.floorStartLength + 1)
+      const progressLabel = this.isBossFloor
+        ? t('game.floorProgressBoss', {
+            biome: localizedBiome,
+            floor: gameState.floor,
+            bossTag: t('game.bossTag'),
+          })
+        : t('game.floorProgress', {
+            biome: localizedBiome,
+            floor: gameState.floor,
+            bossTag: '',
+            progress: Math.min(this.snake.length, effectiveLengthGoal),
+            goal: effectiveLengthGoal,
+          })
+      this.floorTxt.setText(progressLabel)
+      if (this.nextFloorTxt) {
+        const remaining = Math.max(0, effectiveLengthGoal - this.snake.length)
+        this.nextFloorTxt.setText(
+          this.isBossFloor
+            ? t('game.bossAdvance')
+            : t('game.toNextFloor', {
+                remaining,
+              }),
+        )
+      }
     }
 
     this.drawFrame()
@@ -230,7 +254,8 @@ export class GameScene extends Phaser.Scene {
     this.shields = 0
     this.ghostCharges = 0
     this.regenTimer = 0
-    this.foodEaten = 0
+    this.snakeLengthGoal = 0
+    this.floorStartLength = 0
     this.pendingGrowth = 0
     this.enemyMoveTimer = 0
     this.riftTimer = 0
@@ -616,8 +641,22 @@ export class GameScene extends Phaser.Scene {
     }
     gameState.kills += 1
     if (enemy.kind === 'boss') {
+      gameState.eliteKills += 1
+      trackRetentionEvent('goal_progressed', {
+        goalId: 'elite_hunter_12',
+        delta: 1,
+        runEliteKills: gameState.eliteKills,
+        source: 'combat',
+      })
       this.score += Math.floor(BALANCE.biome.boss.scoreOnDefeat * this.cfg.scoreMult)
     } else if (enemy.kind === 'stalker') {
+      gameState.eliteKills += 1
+      trackRetentionEvent('goal_progressed', {
+        goalId: 'elite_hunter_12',
+        delta: 1,
+        runEliteKills: gameState.eliteKills,
+        source: 'combat',
+      })
       this.score += Math.floor(BALANCE.biome.stalker.scoreOnKill * this.cfg.scoreMult)
     } else {
       this.score += Math.floor(BALANCE.enemy.scoreOnKill * this.cfg.scoreMult)
@@ -684,7 +723,6 @@ export class GameScene extends Phaser.Scene {
     if (this.food && nx === this.food.x && ny === this.food.y) {
       emitFeedback('success')
       this.score += Math.floor(BALANCE.food.scoreOnEat * this.cfg.scoreMult)
-      this.foodEaten += 1
       this.pendingGrowth += 1
       this.spawnParticles(nx, ny, COLORS.food, 8)
       this.spawnFood()
@@ -693,10 +731,6 @@ export class GameScene extends Phaser.Scene {
       }
       this.spawnBiomeItem()
       updateHud(this.score)
-      if (this.foodEaten >= this.foodToNextFloor) {
-        this.scene.start('Upgrade', { score: this.score, floor: gameState.floor })
-        return
-      }
     }
 
     if (this.powerup && nx === this.powerup.x && ny === this.powerup.y) {
@@ -747,7 +781,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (this.isBossFloor && this.enemies.length === 0) {
-      this.foodEaten = this.foodToNextFloor
       this.scene.start('Upgrade', { score: this.score, floor: gameState.floor })
       return
     }
@@ -756,6 +789,10 @@ export class GameScene extends Phaser.Scene {
       this.pendingGrowth -= 1
     } else {
       this.snake.pop()
+    }
+    const effectiveLengthGoal = Math.max(this.snakeLengthGoal, this.floorStartLength + 1)
+    if (!this.isBossFloor && this.snake.length >= effectiveLengthGoal) {
+      this.scene.start('Upgrade', { score: this.score, floor: gameState.floor })
     }
   }
 

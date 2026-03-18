@@ -19,15 +19,15 @@ The system SHALL emit a stable minimum set of gameplay observability events for 
 
 ### Requirement: Progression telemetry
 
-The system SHALL emit progression events for floor transitions and upgrade choices.
+The system SHALL emit progression and economy events needed for balancing analysis.
 
-#### Scenario: Upgrade selection is tracked
+#### Scenario: Run reward breakdown is tracked
 
-- **WHEN** player picks an upgrade card
-- **THEN** telemetry emits `upgrade_picked` with upgrade id and run context
+- **WHEN** run reward is computed
+- **THEN** telemetry emits `run_reward_breakdown` with score/kill/floor components and final reward
 
-#### Scenario: Floor advance is tracked
+#### Scenario: Goal transitions are tracked
 
-- **WHEN** floor increments after upgrade selection
-- **THEN** telemetry emits `floor_reached` with the new floor value
+- **WHEN** goal progress changes or a goal is claimed
+- **THEN** telemetry emits `goal_progressed` and `goal_claimed` with goal id and values
 

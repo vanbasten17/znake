@@ -21,6 +21,8 @@ export const BALANCE = {
     enemyCap: 4,
     foodGoalBase: 7,
     foodGoalPerFloor: 2,
+    lengthGoalBase: 8,
+    lengthGoalPerFloor: 1,
     enemyIntervalBaseMs: 550,
     enemyIntervalPerFloorMs: 30,
     enemyIntervalMinMs: 350,
@@ -77,19 +79,29 @@ export const BALANCE = {
     intervalMs: 5000,
   },
   economy: {
-    rewardScoreDivisor: 30,
-    rewardKillValue: 3,
-    rewardFloorValue: 6,
-    rewardMin: 3,
+    rewardScoreDivisor: 26,
+    rewardKillValue: 4,
+    rewardFloorValue: 8,
+    rewardMin: 4,
+    goals: {
+      floor_5: {
+        target: 5,
+        reward: 35,
+      },
+      elite_hunter_12: {
+        target: 12,
+        reward: 45,
+      },
+    },
   },
   talents: {
     costs: {
-      speed_1: 20,
-      speed_2: 55,
-      survival_1: 25,
-      survival_2: 50,
-      hunt_1: 30,
-      hunt_2: 60,
+      speed_1: 15,
+      speed_2: 40,
+      survival_1: 20,
+      survival_2: 40,
+      hunt_1: 25,
+      hunt_2: 50,
     } satisfies Record<TalentId, number>,
   },
 } as const
@@ -108,12 +120,13 @@ export const createBaseRunConfig = (): RunConfig => ({
 export type FloorSetup = {
   wallCount: number
   enemyCount: number
-  foodToNextFloor: number
+  snakeLengthGoal: number
   enemyIntervalMs: number
 }
 
 export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetup => {
   const clampedFloor = Math.max(1, Math.floor(floor))
+  const isBossFloor = clampedFloor % BALANCE.biome.boss.floorInterval === 0
   const wallCount = Math.min(
     BALANCE.floor.wallBase + clampedFloor * BALANCE.floor.wallPerFloor,
     BALANCE.floor.wallCap,
@@ -122,7 +135,10 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
     BALANCE.floor.enemyBase + Math.floor(clampedFloor / BALANCE.floor.enemyPerFloorStep),
     BALANCE.floor.enemyCap,
   )
-  const foodToNextFloor = BALANCE.floor.foodGoalBase + clampedFloor * BALANCE.floor.foodGoalPerFloor
+  const progressOffset = (clampedFloor - 1) % BALANCE.biome.boss.floorInterval
+  const snakeLengthGoal = isBossFloor
+    ? 0
+    : BALANCE.floor.lengthGoalBase + progressOffset * BALANCE.floor.lengthGoalPerFloor
   const enemyIntervalMs =
     Math.max(
       BALANCE.floor.enemyIntervalMinMs,
@@ -132,7 +148,7 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
   return {
     wallCount,
     enemyCount,
-    foodToNextFloor,
+    snakeLengthGoal,
     enemyIntervalMs,
   }
 }

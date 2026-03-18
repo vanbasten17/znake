@@ -24,28 +24,12 @@ The system SHALL register scenes in order Menu → Game → Upgrade → Death an
 
 ### Requirement: Menu scene
 
-The system SHALL render menu text in the active locale.
+The system SHALL surface compact progression-goal status in menu.
 
-#### Scenario: Menu texts localized
+#### Scenario: Menu shows active goals
 
 - **WHEN** menu scene is created
-- **THEN** title/subtitle, best-score line, talent-shop prompt, and start prompt are localized
-
-#### Scenario: Talent labels localized in menu
-
-- **WHEN** menu scene renders talent rows
-- **THEN** talent names and prerequisite labels are rendered in the selected locale
-
-#### Scenario: Player can switch locale in menu
-
-- **WHEN** player triggers the language toggle in the menu
-- **THEN** menu text is re-rendered in the new locale
-- **AND** selected locale is persisted for next app load
-
-#### Scenario: Relic card name/description localized
-
-- **WHEN** relic draft scene is shown
-- **THEN** each relic card name and description is rendered in the selected locale
+- **THEN** current goal progress and claim-ready states are visible to the player
 
 ### Requirement: Game scene
 

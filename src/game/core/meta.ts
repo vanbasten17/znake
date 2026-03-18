@@ -1,6 +1,8 @@
 import { BALANCE } from './balance'
 import { STORAGE_KEYS } from './constants'
 import type {
+  GoalDefinition,
+  GoalId,
   PlayerProfile,
   RelicDefinition,
   RelicId,
@@ -9,7 +11,33 @@ import type {
   TalentId,
 } from './types'
 
-const PROFILE_VERSION = 1
+const PROFILE_VERSION = 2
+
+const createDefaultGoalProgress = (): PlayerProfile['goalProgress'] => ({
+  floor_5: 0,
+  elite_hunter_12: 0,
+})
+
+const createDefaultClaimedGoals = (): PlayerProfile['claimedGoals'] => ({
+  floor_5: false,
+  elite_hunter_12: false,
+})
+
+export const PROGRESSION_GOALS: GoalDefinition[] = [
+  {
+    id: 'floor_5',
+    target: BALANCE.economy.goals.floor_5.target,
+    reward: BALANCE.economy.goals.floor_5.reward,
+  },
+  {
+    id: 'elite_hunter_12',
+    target: BALANCE.economy.goals.elite_hunter_12.target,
+    reward: BALANCE.economy.goals.elite_hunter_12.reward,
+  },
+]
+
+const isGoalId = (value: unknown): value is GoalId =>
+  PROGRESSION_GOALS.some((goal) => goal.id === value)
 
 const defaultProfile = (): PlayerProfile => ({
   profileVersion: PROFILE_VERSION,
@@ -19,8 +47,11 @@ const defaultProfile = (): PlayerProfile => ({
     runsPlayed: 0,
     totalScore: 0,
     totalKills: 0,
+    eliteKills: 0,
     bestFloor: 1,
   },
+  goalProgress: createDefaultGoalProgress(),
+  claimedGoals: createDefaultClaimedGoals(),
 })
 
 export const TALENT_TREE: TalentDefinition[] = [
@@ -121,10 +152,11 @@ export const getRelicById = (id: RelicId | null): RelicDefinition | null =>
 const parseProfile = (raw: string): PlayerProfile | null => {
   try {
     const parsed = JSON.parse(raw) as Partial<PlayerProfile>
+    if (typeof parsed.currency !== 'number' || !Array.isArray(parsed.unlockedTalents)) {
+      return null
+    }
+
     if (
-      parsed.profileVersion !== PROFILE_VERSION ||
-      typeof parsed.currency !== 'number' ||
-      !Array.isArray(parsed.unlockedTalents) ||
       !parsed.lifetimeStats ||
       typeof parsed.lifetimeStats.runsPlayed !== 'number' ||
       typeof parsed.lifetimeStats.totalScore !== 'number' ||
@@ -133,16 +165,52 @@ const parseProfile = (raw: string): PlayerProfile | null => {
     ) {
       return null
     }
+
+    const baseLifetimeStats = {
+      runsPlayed: Math.max(0, Math.floor(parsed.lifetimeStats.runsPlayed)),
+      totalScore: Math.max(0, Math.floor(parsed.lifetimeStats.totalScore)),
+      totalKills: Math.max(0, Math.floor(parsed.lifetimeStats.totalKills)),
+      eliteKills: Math.max(
+        0,
+        Math.floor(
+          typeof parsed.lifetimeStats.eliteKills === 'number' ? parsed.lifetimeStats.eliteKills : 0,
+        ),
+      ),
+      bestFloor: Math.max(1, Math.floor(parsed.lifetimeStats.bestFloor)),
+    }
+
+    const resolvedGoalProgress = createDefaultGoalProgress()
+    const resolvedClaimedGoals = createDefaultClaimedGoals()
+
+    if (parsed.profileVersion === PROFILE_VERSION) {
+      const progressEntries = Object.entries(parsed.goalProgress ?? {})
+      for (const [goalId, value] of progressEntries) {
+        if (isGoalId(goalId) && typeof value === 'number') {
+          resolvedGoalProgress[goalId] = Math.max(0, Math.floor(value))
+        }
+      }
+      const claimedEntries = Object.entries(parsed.claimedGoals ?? {})
+      for (const [goalId, value] of claimedEntries) {
+        if (isGoalId(goalId) && typeof value === 'boolean') {
+          resolvedClaimedGoals[goalId] = value
+        }
+      }
+    }
+
+    if (parsed.profileVersion === 1) {
+      resolvedGoalProgress.floor_5 = Math.max(
+        resolvedGoalProgress.floor_5,
+        baseLifetimeStats.bestFloor,
+      )
+    }
+
     return {
       profileVersion: PROFILE_VERSION,
       currency: Math.max(0, Math.floor(parsed.currency)),
       unlockedTalents: parsed.unlockedTalents.filter(isTalentId),
-      lifetimeStats: {
-        runsPlayed: Math.max(0, Math.floor(parsed.lifetimeStats.runsPlayed)),
-        totalScore: Math.max(0, Math.floor(parsed.lifetimeStats.totalScore)),
-        totalKills: Math.max(0, Math.floor(parsed.lifetimeStats.totalKills)),
-        bestFloor: Math.max(1, Math.floor(parsed.lifetimeStats.bestFloor)),
-      },
+      lifetimeStats: baseLifetimeStats,
+      goalProgress: resolvedGoalProgress,
+      claimedGoals: resolvedClaimedGoals,
     }
   } catch {
     return null
@@ -247,10 +315,102 @@ export const unlockTalent = (
 }
 
 export const calculateRunReward = (score: number, kills: number, floor: number): number => {
+  const breakdown = calculateRunRewardBreakdown(score, kills, floor)
+  return breakdown.finalReward
+}
+
+export const calculateRunRewardBreakdown = (score: number, kills: number, floor: number) => {
   const scorePart = Math.floor(score / BALANCE.economy.rewardScoreDivisor)
   const killPart = kills * BALANCE.economy.rewardKillValue
   const floorPart = Math.max(0, floor - 1) * BALANCE.economy.rewardFloorValue
-  return Math.max(BALANCE.economy.rewardMin, scorePart + killPart + floorPart)
+  const baseReward = scorePart + killPart + floorPart
+  const finalReward = Math.max(BALANCE.economy.rewardMin, baseReward)
+  return {
+    scorePart,
+    killPart,
+    floorPart,
+    baseReward,
+    finalReward,
+  }
 }
 
 export const createDefaultProfileForTests = defaultProfile
+
+export const applyRunGoalProgress = (
+  profile: PlayerProfile,
+  payload: { floorReached: number; eliteKills: number },
+): {
+  profile: PlayerProfile
+  transitions: Array<{
+    goalId: GoalId
+    from: number
+    to: number
+    target: number
+    claimed: boolean
+  }>
+} => {
+  const nextProgress = {
+    ...profile.goalProgress,
+  }
+  const transitions: Array<{
+    goalId: GoalId
+    from: number
+    to: number
+    target: number
+    claimed: boolean
+  }> = []
+
+  for (const goal of PROGRESSION_GOALS) {
+    const from = nextProgress[goal.id]
+    const to =
+      goal.id === 'floor_5'
+        ? Math.min(goal.target, Math.max(from, payload.floorReached))
+        : Math.min(goal.target, from + Math.max(0, payload.eliteKills))
+    if (to !== from) {
+      nextProgress[goal.id] = to
+      transitions.push({
+        goalId: goal.id,
+        from,
+        to,
+        target: goal.target,
+        claimed: profile.claimedGoals[goal.id],
+      })
+    }
+  }
+
+  return {
+    profile: {
+      ...profile,
+      goalProgress: nextProgress,
+    },
+    transitions,
+  }
+}
+
+export const claimGoalReward = (
+  profile: PlayerProfile,
+  goalId: GoalId,
+): { ok: boolean; reward: number; profile: PlayerProfile } => {
+  const goal = PROGRESSION_GOALS.find((item) => item.id === goalId)
+  if (!goal) {
+    return { ok: false, reward: 0, profile }
+  }
+  if (profile.claimedGoals[goalId]) {
+    return { ok: false, reward: 0, profile }
+  }
+  if (profile.goalProgress[goalId] < goal.target) {
+    return { ok: false, reward: 0, profile }
+  }
+  return {
+    ok: true,
+    reward: goal.reward,
+    profile: {
+      ...profile,
+      currency: profile.currency + goal.reward,
+      claimedGoals: {
+        ...profile.claimedGoals,
+        [goalId]: true,
+      },
+    },
+  }
+}

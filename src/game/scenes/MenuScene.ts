@@ -1,7 +1,14 @@
 import Phaser from 'phaser'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, STORAGE_KEYS, WIDTH } from '../core/constants'
-import { TALENT_TREE, saveProfile, unlockTalent } from '../core/meta'
+import {
+  PROGRESSION_GOALS,
+  TALENT_TREE,
+  claimGoalReward,
+  saveProfile,
+  unlockTalent,
+} from '../core/meta'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
+import type { GoalId } from '../core/types'
 import { getControlMode } from '../systems/controlScheme'
 import { emitFeedback } from '../systems/feedback'
 import { getLanguage, t, toggleLanguage } from '../systems/i18n'
@@ -10,8 +17,10 @@ import { trackRetentionEvent } from '../systems/telemetry'
 export class MenuScene extends Phaser.Scene {
   private waiting = true
   private currencyText?: Phaser.GameObjects.Text
+  private goalsTitleText?: Phaser.GameObjects.Text
   private languageText?: Phaser.GameObjects.Text
   private talentRowRefreshers: Array<() => void> = []
+  private goalRowRefreshers: Array<() => void> = []
 
   public constructor() {
     super('Menu')
@@ -20,6 +29,7 @@ export class MenuScene extends Phaser.Scene {
   public create(): void {
     this.waiting = true
     this.talentRowRefreshers = []
+    this.goalRowRefreshers = []
 
     const g = this.add.graphics()
     g.fillStyle(COLORS.bg)
@@ -88,6 +98,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.renderTalentShop()
+    this.renderGoals()
     this.refreshMetaUi()
 
     const startTxt = this.add
@@ -245,7 +256,13 @@ export class MenuScene extends Phaser.Scene {
     if (this.currencyText) {
       this.currencyText.setText(t('menu.currency', { value: playerProfile.currency }))
     }
+    if (this.goalsTitleText) {
+      this.goalsTitleText.setText(t('menu.goalsTitle'))
+    }
     for (const refresh of this.talentRowRefreshers) {
+      refresh()
+    }
+    for (const refresh of this.goalRowRefreshers) {
       refresh()
     }
   }
@@ -263,6 +280,65 @@ export class MenuScene extends Phaser.Scene {
     this.scene.restart()
   }
 
+  private renderGoals(): void {
+    const titleY = HEIGHT - 58
+    this.goalsTitleText = this.add
+      .text(WIDTH / 2, titleY, t('menu.goalsTitle'), {
+        font: '8px Share Tech Mono',
+        color: '#4b6a88',
+      })
+      .setOrigin(0.5)
+
+    for (const [index, goal] of PROGRESSION_GOALS.entries()) {
+      const y = titleY + 12 + index * 14
+      const rowText = this.add.text(10, y, '', {
+        font: '8px Share Tech Mono',
+        color: '#8aa4bb',
+      })
+      rowText.setOrigin(0, 0.5)
+
+      const rowZone = this.add
+        .zone(8, y - 6, WIDTH - 16, 12)
+        .setOrigin(0)
+        .setInteractive()
+      rowZone.on('pointerdown', () => this.tryClaimGoal(goal.id))
+
+      const refresh = (): void => {
+        const progress = Math.min(goal.target, playerProfile.goalProgress[goal.id])
+        const claimed = playerProfile.claimedGoals[goal.id]
+        const ready = !claimed && progress >= goal.target
+        const goalLabel = t(`goal.${goal.id}_name`)
+        const status = claimed
+          ? t('menu.goalClaimed')
+          : ready
+            ? t('menu.goalReady', { reward: goal.reward })
+            : t('menu.goalProgress', { progress, target: goal.target })
+        rowText.setText(`${goalLabel} · ${status}`)
+        rowText.setColor(claimed ? '#5f7f93' : ready ? '#9fffcf' : '#8aa4bb')
+      }
+
+      refresh()
+      this.goalRowRefreshers.push(refresh)
+    }
+  }
+
+  private tryClaimGoal(goalId: GoalId): void {
+    const result = claimGoalReward(playerProfile, goalId)
+    if (!result.ok) {
+      emitFeedback('tap')
+      return
+    }
+    setPlayerProfile(result.profile)
+    saveProfile(result.profile)
+    emitFeedback('success')
+    trackRetentionEvent('goal_claimed', {
+      goalId,
+      reward: result.reward,
+      currencyTotal: result.profile.currency,
+    })
+    this.refreshMetaUi()
+  }
+
   private startRun(): void {
     if (!this.waiting) {
       return
@@ -272,6 +348,7 @@ export class MenuScene extends Phaser.Scene {
     gameState.run = 1
     gameState.totalScore = 0
     gameState.kills = 0
+    gameState.eliteKills = 0
     gameState.floor = 1
     gameState.persistentUpgrades = []
     gameState.selectedRelicId = null

@@ -1,8 +1,5 @@
-# balance-config Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change znake-data-driven-balance-v1. Update Purpose after archive.
-## Requirements
 ### Requirement: Central balance source
 
 The system SHALL include economy and talent-cadence tuning values in centralized balance configuration.
@@ -16,4 +13,3 @@ The system SHALL include economy and talent-cadence tuning values in centralized
 
 - **WHEN** menu talent prices are evaluated
 - **THEN** talent costs are read from centralized balance config and not scene literals
-

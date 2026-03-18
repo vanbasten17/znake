@@ -71,6 +71,7 @@ export type GameState = {
   run: number
   totalScore: number
   kills: number
+  eliteKills: number
   floor: number
   persistentUpgrades: Upgrade[]
   selectedRelicId: RelicId | null
@@ -106,7 +107,19 @@ export type LifetimeStats = {
   runsPlayed: number
   totalScore: number
   totalKills: number
+  eliteKills: number
   bestFloor: number
+}
+
+export type GoalId = 'floor_5' | 'elite_hunter_12'
+
+export type GoalProgress = Record<GoalId, number>
+export type ClaimedGoals = Record<GoalId, boolean>
+
+export type GoalDefinition = {
+  id: GoalId
+  target: number
+  reward: number
 }
 
 export type PlayerProfile = {
@@ -114,4 +127,6 @@ export type PlayerProfile = {
   currency: number
   unlockedTalents: TalentId[]
   lifetimeStats: LifetimeStats
+  goalProgress: GoalProgress
+  claimedGoals: ClaimedGoals
 }

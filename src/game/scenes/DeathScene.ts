@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { COLORS, HEIGHT, STORAGE_KEYS, WIDTH } from '../core/constants'
-import { calculateRunReward, saveProfile } from '../core/meta'
-import { gameState, playerProfile } from '../core/state'
+import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
+import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { Upgrade } from '../core/types'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -38,21 +38,54 @@ export class DeathScene extends Phaser.Scene {
     const score = data.score ?? 0
     const deathReason = data.deathReason ?? 'unknown'
     const timeAliveMs = Math.max(0, Math.floor(data.timeAliveMs ?? 0))
-    const reward = calculateRunReward(score, gameState.kills, gameState.floor)
-    playerProfile.currency += reward
-    playerProfile.lifetimeStats.totalScore += score
-    playerProfile.lifetimeStats.totalKills += gameState.kills
-    playerProfile.lifetimeStats.bestFloor = Math.max(
-      playerProfile.lifetimeStats.bestFloor,
-      gameState.floor,
-    )
-    saveProfile(playerProfile)
+    const rewardBreakdown = calculateRunRewardBreakdown(score, gameState.kills, gameState.floor)
+    const reward = rewardBreakdown.finalReward
+
+    const profileAfterRun = {
+      ...playerProfile,
+      currency: playerProfile.currency + reward,
+      lifetimeStats: {
+        ...playerProfile.lifetimeStats,
+        totalScore: playerProfile.lifetimeStats.totalScore + score,
+        totalKills: playerProfile.lifetimeStats.totalKills + gameState.kills,
+        eliteKills: playerProfile.lifetimeStats.eliteKills + gameState.eliteKills,
+        bestFloor: Math.max(playerProfile.lifetimeStats.bestFloor, gameState.floor),
+      },
+    }
+    const goalProgressResult = applyRunGoalProgress(profileAfterRun, {
+      floorReached: gameState.floor,
+      eliteKills: gameState.eliteKills,
+    })
+    setPlayerProfile(goalProgressResult.profile)
+    saveProfile(goalProgressResult.profile)
+
+    trackRetentionEvent('run_reward_breakdown', {
+      scorePart: rewardBreakdown.scorePart,
+      killPart: rewardBreakdown.killPart,
+      floorPart: rewardBreakdown.floorPart,
+      baseReward: rewardBreakdown.baseReward,
+      finalReward: rewardBreakdown.finalReward,
+      floor: gameState.floor,
+      kills: gameState.kills,
+      score,
+    })
+    for (const transition of goalProgressResult.transitions) {
+      trackRetentionEvent('goal_progressed', {
+        goalId: transition.goalId,
+        from: transition.from,
+        to: transition.to,
+        target: transition.target,
+        claimed: transition.claimed,
+        source: 'run_end',
+      })
+    }
+
     trackRetentionEvent('run_end', {
       score,
       kills: gameState.kills,
       floor: gameState.floor,
       reward,
-      currencyTotal: playerProfile.currency,
+      currencyTotal: goalProgressResult.profile.currency,
       deathReason,
       timeAliveMs,
       inputMode: getControlMode(),
@@ -110,10 +143,15 @@ export class DeathScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
     this.add
-      .text(WIDTH / 2, 208, t('death.totalCurrency', { currency: playerProfile.currency }), {
-        font: '11px Share Tech Mono',
-        color: '#88aabb',
-      })
+      .text(
+        WIDTH / 2,
+        208,
+        t('death.totalCurrency', { currency: goalProgressResult.profile.currency }),
+        {
+          font: '11px Share Tech Mono',
+          color: '#88aabb',
+        },
+      )
       .setOrigin(0.5)
 
     if (score >= best && score > 0) {
@@ -230,6 +268,7 @@ export class DeathScene extends Phaser.Scene {
     emitFeedback('confirm')
     gameState.run += 1
     gameState.kills = 0
+    gameState.eliteKills = 0
     gameState.floor = 1
     gameState.persistentUpgrades = []
     gameState.selectedRelicId = null
