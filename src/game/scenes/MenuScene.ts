@@ -3,6 +3,7 @@ import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, STORAGE_KEYS, WIDTH } from 
 import { TALENT_TREE, saveProfile, unlockTalent } from '../core/meta'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import { getControlMode } from '../systems/controlScheme'
+import { emitFeedback } from '../systems/feedback'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 export class MenuScene extends Phaser.Scene {
@@ -229,6 +230,7 @@ export class MenuScene extends Phaser.Scene {
       return
     }
     this.waiting = false
+    emitFeedback('confirm')
     gameState.run = 1
     gameState.totalScore = 0
     gameState.kills = 0

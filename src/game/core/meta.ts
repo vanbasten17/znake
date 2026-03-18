@@ -118,12 +118,7 @@ export const RELIC_POOL: RelicDefinition[] = [
 export const getRelicById = (id: RelicId | null): RelicDefinition | null =>
   RELIC_POOL.find((relic) => relic.id === id) ?? null
 
-export const loadProfile = (): PlayerProfile => {
-  const raw = localStorage.getItem(STORAGE_KEYS.profile)
-  if (!raw) {
-    return defaultProfile()
-  }
-
+const parseProfile = (raw: string): PlayerProfile | null => {
   try {
     const parsed = JSON.parse(raw) as Partial<PlayerProfile>
     if (
@@ -136,7 +131,7 @@ export const loadProfile = (): PlayerProfile => {
       typeof parsed.lifetimeStats.totalKills !== 'number' ||
       typeof parsed.lifetimeStats.bestFloor !== 'number'
     ) {
-      return defaultProfile()
+      return null
     }
     return {
       profileVersion: PROFILE_VERSION,
@@ -150,12 +145,42 @@ export const loadProfile = (): PlayerProfile => {
       },
     }
   } catch {
-    return defaultProfile()
+    return null
   }
 }
 
+export const loadProfile = (): PlayerProfile => {
+  const primaryRaw = localStorage.getItem(STORAGE_KEYS.profile)
+  if (primaryRaw) {
+    const profile = parseProfile(primaryRaw)
+    if (profile) {
+      return profile
+    }
+  }
+
+  const backupRaw = localStorage.getItem(STORAGE_KEYS.profileBackup)
+  if (backupRaw) {
+    const profile = parseProfile(backupRaw)
+    if (profile) {
+      return profile
+    }
+  }
+
+  return defaultProfile()
+}
+
 export const saveProfile = (profile: PlayerProfile): void => {
-  localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(profile))
+  const payload = JSON.stringify(profile)
+  try {
+    localStorage.setItem(STORAGE_KEYS.profile, payload)
+    localStorage.setItem(STORAGE_KEYS.profileBackup, payload)
+  } catch {
+    try {
+      localStorage.setItem(STORAGE_KEYS.profileBackup, payload)
+    } catch {
+      console.warn('[profile] failed to persist profile payload')
+    }
+  }
 }
 
 const isTalentId = (value: unknown): value is TalentId =>

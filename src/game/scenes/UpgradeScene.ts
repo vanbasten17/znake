@@ -4,6 +4,7 @@ import { gameState } from '../core/state'
 import type { Upgrade } from '../core/types'
 import { UPGRADE_POOL } from '../core/upgrades'
 import { getMoveHintText, getUpgradeHintText, setHintText } from '../systems/domHud'
+import { emitFeedback } from '../systems/feedback'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 type UpgradeData = {
@@ -136,6 +137,7 @@ export class UpgradeScene extends Phaser.Scene {
       return
     }
     this.picked = true
+    emitFeedback('confirm')
     trackRetentionEvent('upgrade_picked', {
       upgradeId: upgrade.id,
       floor: gameState.floor,

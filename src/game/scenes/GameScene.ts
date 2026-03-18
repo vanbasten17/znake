@@ -16,6 +16,7 @@ import type {
 } from '../core/types'
 import { getControlMode } from '../systems/controlScheme'
 import { getMoveHintText, getRestartHintText, setHintText, updateHud } from '../systems/domHud'
+import { emitFeedback } from '../systems/feedback'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 type GameSceneData = {
@@ -672,6 +673,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.food && nx === this.food.x && ny === this.food.y) {
+      emitFeedback('success')
       this.score += Math.floor(BALANCE.food.scoreOnEat * this.cfg.scoreMult)
       this.foodEaten += 1
       this.pendingGrowth += 1
@@ -689,6 +691,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.powerup && nx === this.powerup.x && ny === this.powerup.y) {
+      emitFeedback('confirm')
       this.applyPowerup(this.powerup.type)
       this.spawnParticles(nx, ny, COLORS.powerup, 10)
       this.powerup = null
@@ -701,6 +704,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (this.biomeItem && nx === this.biomeItem.x && ny === this.biomeItem.y) {
+      emitFeedback('success')
       this.score += Math.floor(BALANCE.biome.coreItem.scoreBonus * this.cfg.scoreMult)
       this.pendingGrowth += BALANCE.biome.coreItem.growthBonus
       this.spawnParticles(nx, ny, COLORS.snakeHead, 12)
@@ -793,6 +797,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(600, () =>
       this.scene.start('Death', { score: this.score, deathReason: reason, timeAliveMs }),
     )
+    emitFeedback('danger')
     setHintText(getRestartHintText())
   }
 

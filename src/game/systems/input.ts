@@ -1,4 +1,5 @@
 import type { DirectionName, VirtualInput } from '../core/types'
+import { emitFeedback } from './feedback'
 
 declare global {
   interface Window {
@@ -11,6 +12,7 @@ window.virtualInput = { dir: null, start: false, pause: false }
 const bindPointerPress = (element: HTMLElement, onPress: () => void): void => {
   const trigger = (event: Event): void => {
     event.preventDefault()
+    emitFeedback('tap')
     onPress()
   }
   element.addEventListener('touchstart', trigger, { passive: false })
@@ -67,6 +69,7 @@ const setupDpad = (): void => {
     const press = (event: Event): void => {
       event.preventDefault()
       window.virtualInput.dir = dir
+      emitFeedback('tap')
       button.classList.add('pressed')
     }
 

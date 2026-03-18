@@ -238,3 +238,31 @@ body.keyboard-controls #controls {
   padding: 4px;
   background: #020208;
 }
+
+@media (pointer: coarse), (hover: none) {
+  body.touch-controls #dpad {
+    width: 164px;
+    height: 164px;
+  }
+
+  body.touch-controls .dpad-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 11px;
+  }
+
+  body.touch-controls .dpad-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  body.touch-controls #dpad-center {
+    width: 46px;
+    height: 46px;
+  }
+
+  body.touch-controls .action-btn {
+    width: 62px;
+    height: 62px;
+  }
+}

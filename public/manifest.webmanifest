@@ -1,0 +1,10 @@
+{
+  "name": "Znake",
+  "short_name": "Znake",
+  "description": "Roguelite snake run with relics, upgrades, and biome challenges.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020208",
+  "theme_color": "#020208",
+  "orientation": "portrait"
+}

@@ -10,6 +10,7 @@ import {
   getStartHintText,
   setHintText,
 } from '../systems/domHud'
+import { emitFeedback } from '../systems/feedback'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 type DeathData = {
@@ -224,6 +225,7 @@ export class DeathScene extends Phaser.Scene {
       return
     }
     this.waiting = false
+    emitFeedback('confirm')
     gameState.run += 1
     gameState.kills = 0
     gameState.floor = 1
@@ -250,6 +252,7 @@ export class DeathScene extends Phaser.Scene {
       return
     }
     this.waiting = false
+    emitFeedback('tap')
     setHintText(getStartHintText())
     this.scene.start('Menu')
   }

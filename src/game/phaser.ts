@@ -18,6 +18,10 @@ export const createGame = (): Phaser.Game =>
       antialias: false,
       pixelArt: true,
     },
+    fps: {
+      target: 60,
+      smoothStep: true,
+    },
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,

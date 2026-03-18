@@ -24,4 +24,5 @@ export const STORAGE_KEYS = {
   bestScore: 'znake_best',
   legacyBestScore: 'serpent_best',
   profile: 'znake_profile_v1',
+  profileBackup: 'znake_profile_v1_backup',
 } as const
