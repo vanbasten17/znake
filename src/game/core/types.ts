@@ -65,10 +65,45 @@ export type GameState = {
   kills: number
   floor: number
   persistentUpgrades: Upgrade[]
+  selectedRelicId: RelicId | null
 }
 
 export type VirtualInput = {
   dir: DirectionName | null
   start: boolean
   pause: boolean
+}
+
+export type TalentId = 'speed_1' | 'speed_2' | 'survival_1' | 'survival_2' | 'hunt_1' | 'hunt_2'
+
+export type RelicId = 'plasma_core' | 'void_shadow' | 'symbiont'
+
+export type TalentDefinition = {
+  id: TalentId
+  name: string
+  description: string
+  cost: number
+  requires: TalentId | null
+  apply: (cfg: RunConfig) => void
+}
+
+export type RelicDefinition = {
+  id: RelicId
+  name: string
+  description: string
+  apply: (cfg: RunConfig) => void
+}
+
+export type LifetimeStats = {
+  runsPlayed: number
+  totalScore: number
+  totalKills: number
+  bestFloor: number
+}
+
+export type PlayerProfile = {
+  profileVersion: number
+  currency: number
+  unlockedTalents: TalentId[]
+  lifetimeStats: LifetimeStats
 }

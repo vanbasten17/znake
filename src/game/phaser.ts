@@ -3,6 +3,7 @@ import { HEIGHT, WIDTH } from './core/constants'
 import { DeathScene } from './scenes/DeathScene'
 import { GameScene } from './scenes/GameScene'
 import { MenuScene } from './scenes/MenuScene'
+import { RelicDraftScene } from './scenes/RelicDraftScene'
 import { UpgradeScene } from './scenes/UpgradeScene'
 
 export const createGame = (): Phaser.Game =>
@@ -12,7 +13,7 @@ export const createGame = (): Phaser.Game =>
     height: HEIGHT,
     backgroundColor: '#020208',
     parent: 'phaser-container',
-    scene: [MenuScene, GameScene, UpgradeScene, DeathScene],
+    scene: [MenuScene, RelicDraftScene, GameScene, UpgradeScene, DeathScene],
     render: {
       antialias: false,
       pixelArt: true,

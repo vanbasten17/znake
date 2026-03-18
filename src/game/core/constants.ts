@@ -23,4 +23,5 @@ export const COLORS = {
 export const STORAGE_KEYS = {
   bestScore: 'znake_best',
   legacyBestScore: 'serpent_best',
+  profile: 'znake_profile_v1',
 } as const

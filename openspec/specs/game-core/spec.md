@@ -2,8 +2,10 @@
 
 Core domain types, constants, and persistent state for the znake roguelite.
 
-## Requirements
+## Purpose
 
+Define the foundational domain contracts for constants, shared state, and run configuration behavior.
+## Requirements
 ### Requirement: Grid and visual constants
 
 The system SHALL define immutable grid dimensions (20×16 cells, 20px per cell) and color palette for game entities (snake, food, walls, enemies, powerups).
@@ -22,24 +24,17 @@ The system SHALL define immutable grid dimensions (20×16 cells, 20px per cell) 
 
 ### Requirement: Persistent game state
 
-The system SHALL maintain cross-run game state (run number, total score, kills, floor, persistent upgrades) in memory for the current session.
+The system SHALL separate run-scoped state from profile-scoped persistent state.
 
-#### Scenario: State resets on new run from menu
+#### Scenario: New run resets run state only
 
-- **WHEN** the user starts a new run from the menu
-- **THEN** run=1, totalScore=0, kills=0, floor=1, persistentUpgrades=[]
+- **WHEN** a new run starts
+- **THEN** run counters and temporary upgrades reset, while profile currency and unlocked talents remain unchanged
 
-#### Scenario: State persists across floor clears
+#### Scenario: Profile survives app reload
 
-- **WHEN** the user completes a floor and picks an upgrade
-- **THEN** floor increments and upgrade is appended to persistentUpgrades
-
-#### Scenario: State carries to death summary
-
-- **WHEN** the user dies
-- **THEN** death screen displays kills and floor from gameState
-
----
+- **WHEN** the app is reloaded
+- **THEN** profile currency, unlocked talents, and lifetime stats are restored from persistence
 
 ### Requirement: Run configuration
 
@@ -70,3 +65,4 @@ The system SHALL define an upgrade pool with id, name, desc, icon, color, and ap
 
 - **WHEN** upgrade.apply(config) is called
 - **THEN** the config is mutated (e.g., moveInterval reduced, bonusShields increased)
+

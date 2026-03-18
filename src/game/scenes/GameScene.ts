@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH } from '../core/constants'
-import { gameState } from '../core/state'
+import { applyRelicEffect, applyTalentEffects } from '../core/meta'
+import { gameState, playerProfile } from '../core/state'
 import type {
   Enemy,
   Food,
@@ -81,6 +82,8 @@ export class GameScene extends Phaser.Scene {
     this.score = data.score ?? 0
     this.resetLocalState()
 
+    applyTalentEffects(this.cfg, playerProfile)
+    applyRelicEffect(this.cfg, gameState.selectedRelicId)
     for (const upgrade of gameState.persistentUpgrades) {
       upgrade.apply(this.cfg)
     }

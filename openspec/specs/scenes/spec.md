@@ -2,8 +2,10 @@
 
 Phaser scene flow and lifecycle (Menu, Game, Upgrade, Death).
 
-## Requirements
+## Purpose
 
+Define expected scene sequencing, transitions, and lifecycle responsibilities for core gameplay flow.
+## Requirements
 ### Requirement: Scene order and bootstrap
 
 The system SHALL register scenes in order Menu → Game → Upgrade → Death and start with Menu.
@@ -22,19 +24,17 @@ The system SHALL register scenes in order Menu → Game → Upgrade → Death an
 
 ### Requirement: Menu scene
 
-The system SHALL display title, best score, and wait for start input to begin a new run.
+The system SHALL include a pre-run relic draft scene or panel before entering gameplay.
 
-#### Scenario: Best score from localStorage
+#### Scenario: Menu start enters relic draft
 
-- **WHEN** Menu creates
-- **THEN** best score is read from znake_best or serpent_best (legacy)
+- **WHEN** the player confirms run start from menu
+- **THEN** the game transitions to relic draft instead of entering gameplay directly
 
-#### Scenario: Start begins run
+#### Scenario: Draft selection enters gameplay
 
-- **WHEN** user presses Enter, Space, or virtualInput.start
-- **THEN** gameState is reset, scene transitions to Game
-
----
+- **WHEN** the player selects one relic
+- **THEN** gameplay starts with that relic in run context
 
 ### Requirement: Game scene
 
@@ -85,19 +85,15 @@ The system SHALL present 3 random upgrade choices; picking one adds to persisten
 
 ### Requirement: Death scene
 
-The system SHALL show score, floor, kills, best; update localStorage best; offer new run.
+The system SHALL provide post-death routing options for both immediate continuation and menu return.
 
-#### Scenario: Best score persisted
+#### Scenario: Next run route
 
-- **WHEN** Death creates with score
-- **THEN** best = max(score, stored best), localStorage.znake_best updated
+- **WHEN** player selects Next Run from death scene (or presses Enter/Space/Start)
+- **THEN** run counter advances and the game transitions to relic draft
 
-#### Scenario: New run from death
+#### Scenario: Return to menu route
 
-- **WHEN** user triggers start (Enter/Space/virtualInput.start)
-- **THEN** gameState.run++, kills=0, floor=1, persistentUpgrades=[], scene.start('Game')
+- **WHEN** player selects Main Menu from death scene (or presses `M`)
+- **THEN** game transitions to Menu scene without starting a new run
 
-#### Scenario: Upgrades earned displayed
-
-- **WHEN** persistentUpgrades is non-empty
-- **THEN** "UPGRADES EARNED:" and list of upgrade icons/names shown

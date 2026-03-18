@@ -1,8 +1,15 @@
 import Phaser from 'phaser'
 import { COLORS, HEIGHT, STORAGE_KEYS, WIDTH } from '../core/constants'
-import { gameState } from '../core/state'
+import { calculateRunReward, saveProfile } from '../core/meta'
+import { gameState, playerProfile } from '../core/state'
 import type { Upgrade } from '../core/types'
-import { getMoveHintText, getRestartHintText, setHintText } from '../systems/domHud'
+import {
+  getMoveHintText,
+  getRestartHintText,
+  getStartHintText,
+  setHintText,
+} from '../systems/domHud'
+import { trackRetentionEvent } from '../systems/telemetry'
 
 type DeathData = {
   score?: number
@@ -17,6 +24,23 @@ export class DeathScene extends Phaser.Scene {
 
   public create(data: DeathData): void {
     const score = data.score ?? 0
+    const reward = calculateRunReward(score, gameState.kills, gameState.floor)
+    playerProfile.currency += reward
+    playerProfile.lifetimeStats.totalScore += score
+    playerProfile.lifetimeStats.totalKills += gameState.kills
+    playerProfile.lifetimeStats.bestFloor = Math.max(
+      playerProfile.lifetimeStats.bestFloor,
+      gameState.floor,
+    )
+    saveProfile(playerProfile)
+    trackRetentionEvent('run_end', {
+      score,
+      kills: gameState.kills,
+      floor: gameState.floor,
+      reward,
+      currencyTotal: playerProfile.currency,
+    })
+
     const best = Math.max(
       score,
       Number.parseInt(
@@ -62,10 +86,22 @@ export class DeathScene extends Phaser.Scene {
         color: '#334455',
       })
       .setOrigin(0.5)
+    this.add
+      .text(WIDTH / 2, 193, `RUN REWARD: +${reward} C`, {
+        font: '12px Share Tech Mono',
+        color: '#99ffcc',
+      })
+      .setOrigin(0.5)
+    this.add
+      .text(WIDTH / 2, 208, `TOTAL CURRENCY: ${playerProfile.currency}`, {
+        font: '11px Share Tech Mono',
+        color: '#88aabb',
+      })
+      .setOrigin(0.5)
 
     if (score >= best && score > 0) {
       this.add
-        .text(WIDTH / 2, 193, 'NEW RECORD', {
+        .text(WIDTH / 2, 223, 'NEW RECORD', {
           font: '12px Share Tech Mono',
           color: '#ffdd00',
         })
@@ -74,22 +110,48 @@ export class DeathScene extends Phaser.Scene {
 
     this.renderUpgrades(gameState.persistentUpgrades)
 
-    const startText = this.add
-      .text(WIDTH / 2, HEIGHT - 22, 'PRESS START > NEW RUN', {
+    const nextText = this.add
+      .text(WIDTH / 2 - 78, HEIGHT - 22, 'NEXT RUN', {
         font: '12px Share Tech Mono',
         color: '#00ff88',
       })
       .setOrigin(0.5)
+    const menuText = this.add
+      .text(WIDTH / 2 + 78, HEIGHT - 22, 'MAIN MENU', {
+        font: '12px Share Tech Mono',
+        color: '#99aabb',
+      })
+      .setOrigin(0.5)
     this.tweens.add({
-      targets: startText,
+      targets: nextText,
       alpha: 0.2,
       duration: 700,
       yoyo: true,
       repeat: -1,
     })
 
-    this.input.keyboard?.once('keydown-ENTER', () => this.restart())
-    this.input.keyboard?.once('keydown-SPACE', () => this.restart())
+    const nextZone = this.add
+      .zone(WIDTH / 2 - 78 - 46, HEIGHT - 34, 92, 24)
+      .setOrigin(0)
+      .setInteractive()
+    nextZone.on('pointerdown', () => this.restart())
+    const menuZone = this.add
+      .zone(WIDTH / 2 + 78 - 54, HEIGHT - 34, 108, 24)
+      .setOrigin(0)
+      .setInteractive()
+    menuZone.on('pointerdown', () => this.backToMenu())
+
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      if (event.code === 'Enter' || event.code === 'Space') {
+        this.restart()
+      }
+      if (event.code === 'KeyM') {
+        this.backToMenu()
+      }
+    })
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.removeAllListeners()
+    })
 
     setHintText(getRestartHintText())
   }
@@ -133,12 +195,32 @@ export class DeathScene extends Phaser.Scene {
   }
 
   private restart(): void {
+    if (!this.waiting) {
+      return
+    }
     this.waiting = false
     gameState.run += 1
     gameState.kills = 0
     gameState.floor = 1
     gameState.persistentUpgrades = []
+    gameState.selectedRelicId = null
+    playerProfile.lifetimeStats.runsPlayed += 1
+    saveProfile(playerProfile)
+    trackRetentionEvent('run_start', {
+      source: 'death_restart',
+      currency: playerProfile.currency,
+      unlockedTalents: playerProfile.unlockedTalents.length,
+    })
     setHintText(getMoveHintText())
-    this.scene.start('Game')
+    this.scene.start('RelicDraft')
+  }
+
+  private backToMenu(): void {
+    if (!this.waiting) {
+      return
+    }
+    this.waiting = false
+    setHintText(getStartHintText())
+    this.scene.start('Menu')
   }
 }

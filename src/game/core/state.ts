@@ -1,4 +1,6 @@
+import { loadProfile } from './meta'
 import type { GameState } from './types'
+import type { PlayerProfile } from './types'
 
 export const gameState: GameState = {
   run: 1,
@@ -6,4 +8,11 @@ export const gameState: GameState = {
   kills: 0,
   floor: 1,
   persistentUpgrades: [],
+  selectedRelicId: null,
+}
+
+export let playerProfile: PlayerProfile = loadProfile()
+
+export const setPlayerProfile = (profile: PlayerProfile): void => {
+  playerProfile = profile
 }
