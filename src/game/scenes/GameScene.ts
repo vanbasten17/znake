@@ -57,6 +57,7 @@ export class GameScene extends Phaser.Scene {
   private enemyCount = 0
   private foodToNextFloor = 0
   private foodEaten = 0
+  private pendingGrowth = 0
   private snake: SnakeSegment[] = []
   private walls = new Set<string>()
   private enemies: Enemy[] = []
@@ -200,6 +201,7 @@ export class GameScene extends Phaser.Scene {
     this.ghostCharges = 0
     this.regenTimer = 0
     this.foodEaten = 0
+    this.pendingGrowth = 0
     this.enemyMoveTimer = 0
   }
 
@@ -545,12 +547,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.snake.unshift({ x: nx, y: ny })
-    let ateFood = false
-
     if (this.food && nx === this.food.x && ny === this.food.y) {
-      ateFood = true
       this.score += Math.floor(10 * this.cfg.scoreMult)
       this.foodEaten += 1
+      this.pendingGrowth += 1
       this.spawnParticles(nx, ny, COLORS.food, 8)
       this.spawnFood()
       if (Math.random() < 0.3) {
@@ -598,7 +598,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (!ateFood) {
+    if (this.pendingGrowth > 0) {
+      this.pendingGrowth -= 1
+    } else {
       this.snake.pop()
     }
   }
@@ -743,7 +745,7 @@ export class GameScene extends Phaser.Scene {
           g.lineStyle(2, COLORS.shield, 0.8)
           g.strokeRect(segment.x * CELL - 2, segment.y * CELL - 2, CELL + 4, CELL + 4)
         }
-        return
+        continue
       }
       const alpha = Math.max(0.3, 1 - i * 0.025)
       const pad = Math.min(4, 1 + i * 0.12)

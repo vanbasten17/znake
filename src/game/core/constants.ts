@@ -21,5 +21,6 @@ export const COLORS = {
 } as const
 
 export const STORAGE_KEYS = {
-  bestScore: 'serpent_best',
+  bestScore: 'znake_best',
+  legacyBestScore: 'serpent_best',
 } as const

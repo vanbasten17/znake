@@ -25,15 +25,9 @@ export class MenuScene extends Phaser.Scene {
     g.strokePath()
 
     this.add
-      .text(WIDTH / 2, 70, 'SERPENT', {
-        font: '900 44px Orbitron',
+      .text(WIDTH / 2, 92, 'ZNAKE', {
+        font: '900 52px Orbitron',
         color: '#00ff88',
-      })
-      .setOrigin(0.5)
-    this.add
-      .text(WIDTH / 2, 115, 'VOID', {
-        font: '900 44px Orbitron',
-        color: '#ffffff',
       })
       .setOrigin(0.5)
     this.add
@@ -43,7 +37,12 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    const best = Number.parseInt(localStorage.getItem(STORAGE_KEYS.bestScore) ?? '0', 10)
+    const best = Number.parseInt(
+      localStorage.getItem(STORAGE_KEYS.bestScore) ??
+        localStorage.getItem(STORAGE_KEYS.legacyBestScore) ??
+        '0',
+      10,
+    )
     this.add
       .text(WIDTH / 2, 185, `BEST SCORE: ${best}`, {
         font: '11px Share Tech Mono',

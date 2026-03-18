@@ -19,7 +19,12 @@ export class DeathScene extends Phaser.Scene {
     const score = data.score ?? 0
     const best = Math.max(
       score,
-      Number.parseInt(localStorage.getItem(STORAGE_KEYS.bestScore) ?? '0', 10),
+      Number.parseInt(
+        localStorage.getItem(STORAGE_KEYS.bestScore) ??
+          localStorage.getItem(STORAGE_KEYS.legacyBestScore) ??
+          '0',
+        10,
+      ),
     )
     localStorage.setItem(STORAGE_KEYS.bestScore, String(best))
 
