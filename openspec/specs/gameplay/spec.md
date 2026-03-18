@@ -78,17 +78,18 @@ The system SHALL support a biome-exclusive collectible item with score and growt
 
 ### Requirement: Enemy AI and collision
 
-The system SHALL support an additional elite enemy pattern beyond stalker and boss.
+The system SHALL provide explicit feedback for lethal collision outcomes.
 
-#### Scenario: Ambusher elite can spawn
+#### Scenario: Lethal collision emits crash cue
 
-- **WHEN** floor and spawn rules meet ambusher conditions
-- **THEN** ambusher enemy can be selected in enemy spawn resolution
+- **WHEN** player death reason is `wall`, `self`, or `enemy`
+- **THEN** feedback system emits a dedicated `crash` cue
+- **AND** the cue is distinct from generic success/confirm interactions
 
-#### Scenario: Ambusher applies burst pressure
+#### Scenario: Non-collision lethal hazard preserves danger cue
 
-- **WHEN** ambusher movement updates during gameplay
-- **THEN** it can execute a short burst/dash behavior with safety constraints
+- **WHEN** player death reason is `rift`
+- **THEN** feedback system keeps using `danger` cue semantics
 
 ### Requirement: Floor progression
 

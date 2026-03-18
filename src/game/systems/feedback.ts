@@ -1,4 +1,4 @@
-type FeedbackKind = 'tap' | 'confirm' | 'success' | 'danger' | 'pause'
+type FeedbackKind = 'tap' | 'confirm' | 'success' | 'danger' | 'pause' | 'crash'
 
 let audioContext: AudioContext | null = null
 let audioUnlocked = false
@@ -8,6 +8,7 @@ const vibrationForKind = (kind: FeedbackKind): number | number[] => {
   if (kind === 'confirm') return [10, 20, 10]
   if (kind === 'success') return [12, 18, 18]
   if (kind === 'danger') return [25, 20, 25]
+  if (kind === 'crash') return [35, 25, 35, 25, 50]
   return 10
 }
 
@@ -16,6 +17,7 @@ const toneForKind = (kind: FeedbackKind): { freq: number; durationMs: number; ga
   if (kind === 'confirm') return { freq: 600, durationMs: 70, gain: 0.016 }
   if (kind === 'success') return { freq: 740, durationMs: 85, gain: 0.017 }
   if (kind === 'danger') return { freq: 220, durationMs: 120, gain: 0.02 }
+  if (kind === 'crash') return { freq: 130, durationMs: 190, gain: 0.028 }
   return { freq: 360, durationMs: 60, gain: 0.013 }
 }
 
@@ -53,8 +55,11 @@ const playTone = (kind: FeedbackKind): void => {
   const now = ctx.currentTime
   const oscillator = ctx.createOscillator()
   const gainNode = ctx.createGain()
-  oscillator.type = 'square'
+  oscillator.type = kind === 'crash' ? 'sawtooth' : 'square'
   oscillator.frequency.value = tone.freq
+  if (kind === 'crash') {
+    oscillator.frequency.exponentialRampToValueAtTime(85, now + tone.durationMs / 1000)
+  }
   gainNode.gain.value = 0
   gainNode.gain.setValueAtTime(0, now)
   gainNode.gain.linearRampToValueAtTime(tone.gain, now + 0.005)

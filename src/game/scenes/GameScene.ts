@@ -1015,7 +1015,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(600, () =>
       this.scene.start('Death', { score: this.score, deathReason: reason, timeAliveMs }),
     )
-    emitFeedback('danger')
+    emitFeedback(reason === 'rift' ? 'danger' : 'crash')
     setHintText(getRestartHintText())
   }
 
