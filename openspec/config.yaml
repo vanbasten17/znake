@@ -1,20 +1,22 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+# Project context — shown to AI when creating artifacts
+context: |
+  Project: znake — roguelite Snake prototype
+  Tech stack: Phaser 3, Vite, TypeScript (strict), Biome
+  Structure: src/game/{core,scenes,systems}, phaser.ts bootstrap
+  Scenes: MenuScene, GameScene, UpgradeScene, DeathScene
+  Conventions: pixel art rendering, mobile-first DOM HUD
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+# Per-artifact rules — all diagrams must be Mermaid, never ASCII
+rules:
+  proposal:
+    - Use Mermaid diagrams (flowchart, sequenceDiagram) for workflows and flows — never ASCII
+    - For architecture or state visuals, use Mermaid code blocks only
+  design:
+    - All diagrams MUST be Mermaid (flowchart, sequenceDiagram, stateDiagram, classDiagram, etc.) — never ASCII box drawings
+    - Use ```mermaid blocks for system architecture, data flow, and component relationships
+  tasks:
+    - Use Mermaid diagrams when visualizing task dependencies or workflow — never ASCII
+  specs:
+    - Use Mermaid for scenario flows, state machines, or interaction sequences — never ASCII
