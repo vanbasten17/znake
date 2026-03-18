@@ -3,6 +3,7 @@ import { saveProfile } from '../core/meta'
 import { playerProfile } from '../core/state'
 import { setHintText } from './domHud'
 import { emitFeedback } from './feedback'
+import { t } from './i18n'
 
 let autoPausedByLifecycle = false
 
@@ -12,7 +13,7 @@ const pauseGameScene = (game: Phaser.Game): void => {
   }
   game.scene.pause('Game')
   autoPausedByLifecycle = true
-  setHintText('AUTO-PAUSED (APP BACKGROUND) - TAP PAUSE/START TO CONTINUE')
+  setHintText(t('hint.autoPaused'))
   emitFeedback('pause')
 }
 

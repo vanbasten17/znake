@@ -5,6 +5,7 @@ import type { Upgrade } from '../core/types'
 import { UPGRADE_POOL } from '../core/upgrades'
 import { getMoveHintText, getUpgradeHintText, setHintText } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
+import { t } from '../systems/i18n'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 type UpgradeData = {
@@ -40,13 +41,13 @@ export class UpgradeScene extends Phaser.Scene {
     g.strokePath()
 
     this.add
-      .text(WIDTH / 2, 28, 'FLOOR CLEARED', {
+      .text(WIDTH / 2, 28, t('upgrade.floorCleared'), {
         font: '700 22px Orbitron',
         color: '#00ff88',
       })
       .setOrigin(0.5)
     this.add
-      .text(WIDTH / 2, 55, 'CHOOSE ONE UPGRADE', {
+      .text(WIDTH / 2, 55, t('upgrade.chooseOne'), {
         font: '10px Share Tech Mono',
         color: '#334455',
       })
@@ -86,13 +87,13 @@ export class UpgradeScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
       this.add
-        .text(cardX + 65, cardY + 16, upg.name, {
+        .text(cardX + 65, cardY + 16, this.getUpgradeName(upg), {
           font: '700 10px Orbitron',
           color: colorHex,
         })
         .setOrigin(0, 0.5)
       this.add
-        .text(cardX + 65, cardY + 36, upg.desc, {
+        .text(cardX + 65, cardY + 36, this.getUpgradeDescription(upg), {
           font: '10px Share Tech Mono',
           color: '#667788',
         })
@@ -123,13 +124,26 @@ export class UpgradeScene extends Phaser.Scene {
     })
 
     this.add
-      .text(WIDTH / 2, HEIGHT - 12, `SCORE: ${this.score}  -  FLOOR: ${this.floor}`, {
-        font: '9px Share Tech Mono',
-        color: '#222244',
-      })
+      .text(
+        WIDTH / 2,
+        HEIGHT - 12,
+        t('upgrade.scoreFloor', { score: this.score, floor: this.floor }),
+        {
+          font: '9px Share Tech Mono',
+          color: '#222244',
+        },
+      )
       .setOrigin(0.5)
 
     setHintText(getUpgradeHintText())
+  }
+
+  private getUpgradeName(upgrade: Upgrade): string {
+    return t(`upgrade.${upgrade.id}_name`, { defaultValue: upgrade.name })
+  }
+
+  private getUpgradeDescription(upgrade: Upgrade): string {
+    return t(`upgrade.${upgrade.id}_desc`, { defaultValue: upgrade.desc })
   }
 
   private pick(upgrade: Upgrade | undefined): void {

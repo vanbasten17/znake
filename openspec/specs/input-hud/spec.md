@@ -56,19 +56,23 @@ The system SHALL map DOM d-pad buttons (btn-up, btn-down, btn-left, btn-right) t
 
 ### Requirement: Action buttons
 
-The system SHALL map Start and Pause buttons to virtualInput.start and virtualInput.pause.
+The system SHALL expose localized labels and aria text for Start/Pause and movement controls.
 
-#### Scenario: Pause button sets pause flag
+#### Scenario: Control labels follow locale
 
-- **WHEN** user taps btn-pause
-- **THEN** virtualInput.pause = true
+- **WHEN** locale changes at startup
+- **THEN** control text and aria labels reflect selected locale
 
-#### Scenario: Start button sets start flag
+#### Scenario: Control labels update after manual language switch
 
-- **WHEN** user taps btn-start
-- **THEN** virtualInput.start = true
+- **WHEN** player changes language from menu
+- **THEN** Start/Pause labels and control aria text are updated to the selected locale
 
----
+#### Scenario: Neutral bootstrap copy before i18n init
+
+- **WHEN** app HTML is first painted before i18n initialization
+- **THEN** HUD/control/hint placeholders are language-neutral
+- **AND** localized copy replaces placeholders after i18n initializes
 
 ### Requirement: HUD display
 
@@ -95,15 +99,10 @@ The system SHALL derive a control mode at runtime and apply UI behavior accordin
 
 ### Requirement: Mode-aware hint messaging
 
-The system SHALL present hint text consistent with the active control mode.
+The system SHALL present hint text consistent with active control mode and selected locale.
 
-#### Scenario: Keyboard hint text shown
+#### Scenario: Hints follow locale
 
-- **WHEN** keyboard mode is active
-- **THEN** move/start/restart/upgrade hints reference keyboard controls (arrows/WASD, Enter/Space)
-
-#### Scenario: Touch hint text shown
-
-- **WHEN** touch mode is active
-- **THEN** move/start/restart/upgrade hints reference swipe, d-pad, and start button behavior
+- **WHEN** locale is English or Catalan
+- **THEN** move/start/restart/upgrade hints are rendered in that locale
 

@@ -4,11 +4,13 @@ import { TALENT_TREE, saveProfile, unlockTalent } from '../core/meta'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import { getControlMode } from '../systems/controlScheme'
 import { emitFeedback } from '../systems/feedback'
+import { getLanguage, t, toggleLanguage } from '../systems/i18n'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 export class MenuScene extends Phaser.Scene {
   private waiting = true
   private currencyText?: Phaser.GameObjects.Text
+  private languageText?: Phaser.GameObjects.Text
   private talentRowRefreshers: Array<() => void> = []
 
   public constructor() {
@@ -39,12 +41,24 @@ export class MenuScene extends Phaser.Scene {
         color: '#00ff88',
       })
       .setOrigin(0.5)
-    this.add
-      .text(WIDTH / 2, 48, '- ROGUELITE -', {
+    this.languageText = this.add
+      .text(WIDTH - 10, 12, `${t('menu.language')}: ${getLanguage().toUpperCase()}`, {
+        font: '10px Share Tech Mono',
+        color: '#66aacc',
+      })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true })
+    this.languageText.on('pointerdown', () => {
+      void this.switchLanguage()
+    })
+
+    const subtitle = this.add
+      .text(WIDTH / 2, 48, t('menu.subtitle'), {
         font: '10px Share Tech Mono',
         color: '#444466',
       })
       .setOrigin(0.5)
+    subtitle.setDepth(1)
 
     const best = Number.parseInt(
       localStorage.getItem(STORAGE_KEYS.bestScore) ??
@@ -53,7 +67,7 @@ export class MenuScene extends Phaser.Scene {
       10,
     )
     this.add
-      .text(WIDTH / 2, 66, `BEST SCORE: ${best}`, {
+      .text(WIDTH / 2, 66, t('menu.bestScore', { best }), {
         font: '10px Share Tech Mono',
         color: '#8899aa',
       })
@@ -67,7 +81,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
 
     this.add
-      .text(WIDTH / 2, 101, 'TALENT SHOP (TAP OR PRESS 1-6)', {
+      .text(WIDTH / 2, 101, t('menu.talentShop'), {
         font: '9px Share Tech Mono',
         color: '#335577',
       })
@@ -77,7 +91,7 @@ export class MenuScene extends Phaser.Scene {
     this.refreshMetaUi()
 
     const startTxt = this.add
-      .text(WIDTH / 2, HEIGHT - 22, 'PRESS START > RELIC DRAFT', {
+      .text(WIDTH / 2, HEIGHT - 22, t('menu.startPrompt'), {
         font: '12px Share Tech Mono',
         color: '#00ff88',
       })
@@ -134,19 +148,26 @@ export class MenuScene extends Phaser.Scene {
         row.lineStyle(1, actionable ? 0x00cc88 : 0x334466, 0.9)
         row.strokeRoundedRect(10, y + 2, WIDTH - 20, 18, 5)
 
-        titleText.setText(`${index + 1}. ${talent.name}`)
+        titleText.setText(`${index + 1}. ${this.getTalentLabel(talent.id, talent.name)}`)
 
         if (unlocked) {
-          statusText.setText('UNLOCKED')
+          statusText.setText(t('menu.unlocked'))
           statusText.setColor('#66ffaa')
         } else if (!prereqOk) {
-          statusText.setText(`REQ ${talent.requires?.toUpperCase() ?? 'NONE'}`)
+          const prereq = TALENT_TREE.find((item) => item.id === talent.requires)
+          statusText.setText(
+            t('menu.req', {
+              value: prereq
+                ? this.getTalentLabel(prereq.id, prereq.name)
+                : (talent.requires?.toUpperCase() ?? 'NONE'),
+            }),
+          )
           statusText.setColor('#667788')
         } else if (!affordable) {
-          statusText.setText(`COST ${talent.cost}`)
+          statusText.setText(t('menu.cost', { value: talent.cost }))
           statusText.setColor('#887788')
         } else {
-          statusText.setText(`BUY ${talent.cost}`)
+          statusText.setText(t('menu.buy', { value: talent.cost }))
           statusText.setColor('#99ffcc')
         }
       }
@@ -170,6 +191,10 @@ export class MenuScene extends Phaser.Scene {
   private onKeyDown(event: KeyboardEvent): void {
     if (event.code === 'Enter' || event.code === 'Space') {
       this.startRun()
+      return
+    }
+    if (event.code === 'KeyL') {
+      void this.switchLanguage()
       return
     }
 
@@ -218,11 +243,24 @@ export class MenuScene extends Phaser.Scene {
 
   private refreshMetaUi(): void {
     if (this.currencyText) {
-      this.currencyText.setText(`CURRENCY: ${playerProfile.currency}`)
+      this.currencyText.setText(t('menu.currency', { value: playerProfile.currency }))
     }
     for (const refresh of this.talentRowRefreshers) {
       refresh()
     }
+  }
+
+  private getTalentLabel(talentId: string, fallbackName: string): string {
+    return t(`talent.${talentId}_name`, { defaultValue: fallbackName })
+  }
+
+  private async switchLanguage(): Promise<void> {
+    if (!this.waiting) {
+      return
+    }
+    emitFeedback('confirm')
+    await toggleLanguage()
+    this.scene.restart()
   }
 
   private startRun(): void {

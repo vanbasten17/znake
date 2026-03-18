@@ -17,6 +17,7 @@ import type {
 import { getControlMode } from '../systems/controlScheme'
 import { getMoveHintText, getRestartHintText, setHintText, updateHud } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
+import { t } from '../systems/i18n'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 type GameSceneData = {
@@ -199,9 +200,17 @@ export class GameScene extends Phaser.Scene {
       this.biomeItem.pulse += dt * 4.5
     }
     if (this.floorTxt) {
-      const bossTag = this.isBossFloor ? ' - BOSS' : ''
+      const localizedBiome = t(`biome.${BALANCE.biome.id.replaceAll('-', '_')}`, {
+        defaultValue: BALANCE.biome.name,
+      })
       this.floorTxt.setText(
-        `${BALANCE.biome.name} - FLOOR ${gameState.floor}${bossTag} - ${this.foodEaten}/${this.foodToNextFloor}`,
+        t('game.floorProgress', {
+          biome: localizedBiome,
+          floor: gameState.floor,
+          bossTag: this.isBossFloor ? t('game.bossTag') : '',
+          progress: this.foodEaten,
+          goal: this.foodToNextFloor,
+        }),
       )
     }
 
@@ -247,7 +256,7 @@ export class GameScene extends Phaser.Scene {
     this.paused = !this.paused
     if (this.paused) {
       this.pauseText = this.add
-        .text(WIDTH / 2, HEIGHT / 2, 'PAUSED', {
+        .text(WIDTH / 2, HEIGHT / 2, t('controls.pause'), {
           font: '900 36px Orbitron',
           color: '#ffffff',
         })

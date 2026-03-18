@@ -4,6 +4,7 @@ import { drawRelicDraft } from '../core/meta'
 import { gameState } from '../core/state'
 import type { RelicDefinition } from '../core/types'
 import { getUpgradeHintText, setHintText } from '../systems/domHud'
+import { t } from '../systems/i18n'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 export class RelicDraftScene extends Phaser.Scene {
@@ -37,7 +38,7 @@ export class RelicDraftScene extends Phaser.Scene {
     g.strokePath()
 
     this.add
-      .text(WIDTH / 2, 24, 'SELECT A RELIC', {
+      .text(WIDTH / 2, 24, t('relic.selectTitle'), {
         font: '700 20px Orbitron',
         color: '#00ff88',
       })
@@ -86,15 +87,20 @@ export class RelicDraftScene extends Phaser.Scene {
       })
       .setOrigin(0, 0)
 
+    const relicName = t(`relic.${relic.id}_name`, { defaultValue: relic.name })
+    const relicDescription = t(`relic.${relic.id}_description`, {
+      defaultValue: relic.description,
+    })
+
     this.add
-      .text(cardX + 44, cardY + 14, relic.name, {
+      .text(cardX + 44, cardY + 14, relicName, {
         font: '700 12px Orbitron',
         color: '#99ffcc',
       })
       .setOrigin(0, 0)
 
     this.add
-      .text(cardX + 44, cardY + 36, relic.description, {
+      .text(cardX + 44, cardY + 36, relicDescription, {
         font: '10px Share Tech Mono',
         color: '#88aabb',
       })

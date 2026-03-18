@@ -11,6 +11,7 @@ import {
   setHintText,
 } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
+import { t } from '../systems/i18n'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 type DeathData = {
@@ -73,43 +74,43 @@ export class DeathScene extends Phaser.Scene {
     g.fillRect(0, 0, WIDTH, HEIGHT)
 
     this.add
-      .text(WIDTH / 2, 50, 'THE VOID CLAIMED YOU', {
+      .text(WIDTH / 2, 50, t('death.title'), {
         font: '700 18px Orbitron',
         color: '#ff4466',
       })
       .setOrigin(0.5)
     this.add
-      .text(WIDTH / 2, 95, `SCORE: ${score}`, {
+      .text(WIDTH / 2, 95, t('death.score', { score }), {
         font: '700 20px Orbitron',
         color: '#ffffff',
       })
       .setOrigin(0.5)
     this.add
-      .text(WIDTH / 2, 125, `FINAL FLOOR: ${gameState.floor}`, {
+      .text(WIDTH / 2, 125, t('death.finalFloor', { floor: gameState.floor }), {
         font: '13px Share Tech Mono',
         color: '#556677',
       })
       .setOrigin(0.5)
     this.add
-      .text(WIDTH / 2, 148, `ENEMIES DEFEATED: ${gameState.kills}`, {
+      .text(WIDTH / 2, 148, t('death.enemiesDefeated', { kills: gameState.kills }), {
         font: '13px Share Tech Mono',
         color: '#556677',
       })
       .setOrigin(0.5)
     this.add
-      .text(WIDTH / 2, 170, `BEST: ${best}`, {
+      .text(WIDTH / 2, 170, t('death.best', { best }), {
         font: '13px Share Tech Mono',
         color: '#334455',
       })
       .setOrigin(0.5)
     this.add
-      .text(WIDTH / 2, 193, `RUN REWARD: +${reward} C`, {
+      .text(WIDTH / 2, 193, t('death.runReward', { reward }), {
         font: '12px Share Tech Mono',
         color: '#99ffcc',
       })
       .setOrigin(0.5)
     this.add
-      .text(WIDTH / 2, 208, `TOTAL CURRENCY: ${playerProfile.currency}`, {
+      .text(WIDTH / 2, 208, t('death.totalCurrency', { currency: playerProfile.currency }), {
         font: '11px Share Tech Mono',
         color: '#88aabb',
       })
@@ -117,7 +118,7 @@ export class DeathScene extends Phaser.Scene {
 
     if (score >= best && score > 0) {
       this.add
-        .text(WIDTH / 2, 223, 'NEW RECORD', {
+        .text(WIDTH / 2, 223, t('death.newRecord'), {
           font: '12px Share Tech Mono',
           color: '#ffdd00',
         })
@@ -127,13 +128,13 @@ export class DeathScene extends Phaser.Scene {
     this.renderUpgrades(gameState.persistentUpgrades)
 
     const nextText = this.add
-      .text(WIDTH / 2 - 78, HEIGHT - 22, 'NEXT RUN', {
+      .text(WIDTH / 2 - 78, HEIGHT - 22, t('death.nextRun'), {
         font: '12px Share Tech Mono',
         color: '#00ff88',
       })
       .setOrigin(0.5)
     const menuText = this.add
-      .text(WIDTH / 2 + 78, HEIGHT - 22, 'MAIN MENU', {
+      .text(WIDTH / 2 + 78, HEIGHT - 22, t('death.mainMenu'), {
         font: '12px Share Tech Mono',
         color: '#99aabb',
       })
@@ -199,7 +200,7 @@ export class DeathScene extends Phaser.Scene {
 
     let y = 215
     this.add
-      .text(WIDTH / 2, y, 'UPGRADES EARNED:', {
+      .text(WIDTH / 2, y, t('death.upgradesEarned'), {
         font: '9px Share Tech Mono',
         color: '#334455',
       })
@@ -207,8 +208,9 @@ export class DeathScene extends Phaser.Scene {
     y += 16
 
     for (const upgrade of upgrades) {
+      const upgradeName = t(`upgrade.${upgrade.id}_name`, { defaultValue: upgrade.name })
       this.add
-        .text(WIDTH / 2, y, `${upgrade.icon} ${upgrade.name}`, {
+        .text(WIDTH / 2, y, `${upgrade.icon} ${upgradeName}`, {
           font: '11px Share Tech Mono',
           color: '#445566',
         })

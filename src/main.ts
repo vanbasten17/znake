@@ -2,15 +2,16 @@ import './styles/app.css'
 import { setupControlScheme } from './game/systems/controlScheme'
 import { getStartHintText, setHintText } from './game/systems/domHud'
 import { setupFeedback } from './game/systems/feedback'
+import { initI18n, t } from './game/systems/i18n'
 import { setupInput } from './game/systems/input'
 
 setupControlScheme()
 setupFeedback()
 setupInput()
-setHintText(getStartHintText())
 
 const boot = async (): Promise<void> => {
-  setHintText('LOADING ZNAKE ENGINE...')
+  await initI18n()
+  setHintText(t('hint.loading'))
   try {
     const [{ createGame }, { setupLifecycle }] = await Promise.all([
       import('./game/phaser'),
@@ -20,7 +21,7 @@ const boot = async (): Promise<void> => {
     setupLifecycle(game)
     setHintText(getStartHintText())
   } catch {
-    setHintText('LOAD FAILED - REFRESH TO RETRY')
+    setHintText(t('hint.loadFailed'))
   }
 }
 
