@@ -32,6 +32,8 @@ body {
   align-items: center;
   justify-content: flex-start;
   font-family: "Share Tech Mono", monospace;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 #hud {
@@ -40,7 +42,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 12px;
+  padding: calc(6px + env(safe-area-inset-top) * 0.15) 12px 6px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
@@ -106,7 +108,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px 12px;
+  padding: 8px 16px calc(12px + env(safe-area-inset-bottom) * 0.4);
   background: var(--panel);
   border-top: 1px solid var(--line);
   flex-shrink: 0;
@@ -235,7 +237,7 @@ body.keyboard-controls #controls {
   font-size: 9px;
   color: #222244;
   letter-spacing: 2px;
-  padding: 4px;
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom) * 0.45);
   background: #020208;
 }
 

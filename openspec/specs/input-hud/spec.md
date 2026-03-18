@@ -72,17 +72,12 @@ The system SHALL map Start and Pause buttons to virtualInput.start and virtualIn
 
 ### Requirement: HUD display
 
-The system SHALL display score, floor, kills, run number in DOM elements and a hint bar.
+The system SHALL keep HUD controls readable and reachable on mobile screen-edge devices.
 
-#### Scenario: HUD updates on score change
+#### Scenario: Bottom UI avoids home indicator overlap
 
-- **WHEN** updateHud(score) is called
-- **THEN** score-disp, floor-disp, kills-disp, run-num reflect gameState
-
-#### Scenario: Hint bar shows contextual text
-
-- **WHEN** setHintText(text) is called
-- **THEN** hint-bar textContent is updated with text matching the active control mode
+- **WHEN** app runs on mobile devices with bottom safe-area inset
+- **THEN** controls and hint bar apply additional bottom padding from safe-area env values
 
 ### Requirement: Adaptive control-mode selection
 

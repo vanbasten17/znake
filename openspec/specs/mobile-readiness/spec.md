@@ -5,17 +5,17 @@ TBD - created by archiving change znake-mobile-readiness-v1. Update Purpose afte
 ## Requirements
 ### Requirement: Lifecycle-safe gameplay pause
 
-The system SHALL pause active gameplay when app visibility/focus is lost and safely resume when focus returns.
+The system SHALL preserve mobile UX quality with safe-area-aware UI placement and lightweight startup behavior.
 
-#### Scenario: Backgrounding pauses active gameplay
+#### Scenario: Safe-area spacing is respected
 
-- **WHEN** document becomes hidden or window loses focus during gameplay
-- **THEN** the game scene is paused and profile state is flushed
+- **WHEN** app runs on devices with notches or home indicators
+- **THEN** HUD, controls, and hint sections include safe-area inset padding
 
-#### Scenario: Foreground resumes lifecycle pause only
+#### Scenario: Engine boot is deferred
 
-- **WHEN** document regains visibility or window focus
-- **THEN** the game scene resumes only if lifecycle logic initiated the pause
+- **WHEN** app entry script executes
+- **THEN** Phaser bootstrap loads through dynamic import and handles load failure gracefully
 
 ### Requirement: Mobile feedback and persistence hardening
 
