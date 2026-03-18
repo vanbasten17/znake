@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { BALANCE, createBaseRunConfig, getFloorSetup } from '../core/balance'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH } from '../core/constants'
 import { applyRelicEffect, applyTalentEffects } from '../core/meta'
 import { gameState, playerProfile } from '../core/state'
@@ -40,16 +41,7 @@ export class GameScene extends Phaser.Scene {
   private flashTimer = 0
   private flashColor = 0xffffff
 
-  private cfg: RunConfig = {
-    moveInterval: 160,
-    bonusStartLength: 0,
-    bonusShields: 0,
-    hasMagnet: false,
-    ghostCharges: 0,
-    scoreMult: 1,
-    enemySlow: 1,
-    hasRegen: false,
-  }
+  private cfg: RunConfig = createBaseRunConfig()
 
   private shields = 0
   private ghostCharges = 0
@@ -90,11 +82,11 @@ export class GameScene extends Phaser.Scene {
     this.shields = this.cfg.bonusShields
     this.ghostCharges = this.cfg.ghostCharges
 
-    const floor = gameState.floor
-    this.wallCount = Math.min(2 + floor, 7)
-    this.enemyCount = Math.min(1 + Math.floor(floor / 2), 4)
-    this.foodToNextFloor = 7 + floor * 2
-    this.enemyInterval = Math.max(350, 550 - floor * 30) * this.cfg.enemySlow
+    const floorSetup = getFloorSetup(gameState.floor, this.cfg.enemySlow)
+    this.wallCount = floorSetup.wallCount
+    this.enemyCount = floorSetup.enemyCount
+    this.foodToNextFloor = floorSetup.foodToNextFloor
+    this.enemyInterval = floorSetup.enemyIntervalMs
 
     this.bgGraphics = this.add.graphics()
     this.wallGraphics = this.add.graphics()
@@ -109,7 +101,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.spawnFood()
-    if (Math.random() < 0.4) {
+    if (Math.random() < BALANCE.spawn.powerupAtFloorStartChance) {
       this.spawnPowerup()
     }
 
@@ -190,16 +182,7 @@ export class GameScene extends Phaser.Scene {
     this.shakeTimer = 0
     this.flashTimer = 0
     this.flashColor = 0xffffff
-    this.cfg = {
-      moveInterval: 160,
-      bonusStartLength: 0,
-      bonusShields: 0,
-      hasMagnet: false,
-      ghostCharges: 0,
-      scoreMult: 1,
-      enemySlow: 1,
-      hasRegen: false,
-    }
+    this.cfg = createBaseRunConfig()
     this.shields = 0
     this.ghostCharges = 0
     this.regenTimer = 0
@@ -268,7 +251,10 @@ export class GameScene extends Phaser.Scene {
       return
     }
     this.regenTimer += delta
-    if (this.regenTimer > 5000 && this.snake.length > 4) {
+    if (
+      this.regenTimer > BALANCE.regen.intervalMs &&
+      this.snake.length > BALANCE.run.baseSnakeLength
+    ) {
       this.snake.pop()
       this.regenTimer = 0
     }
@@ -327,7 +313,7 @@ export class GameScene extends Phaser.Scene {
   private spawnSnake(): SnakeSegment[] {
     const cx = Math.floor(BASE_COLS / 2)
     const cy = Math.floor(BASE_ROWS / 2)
-    const len = 4 + this.cfg.bonusStartLength
+    const len = BALANCE.run.baseSnakeLength + this.cfg.bonusStartLength
     return Array.from({ length: len }, (_, i) => ({ x: cx - i, y: cy }))
   }
 
@@ -417,7 +403,10 @@ export class GameScene extends Phaser.Scene {
         break
       }
     }
-    const len = 2 + Math.floor(Math.random() * 2) + Math.floor(gameState.floor / 3)
+    const len =
+      BALANCE.enemy.lengthBase +
+      Math.floor(Math.random() * BALANCE.enemy.lengthRandomRange) +
+      Math.floor(gameState.floor / BALANCE.enemy.lengthFloorStep)
     const body = Array.from({ length: len }, (_, i) => ({ x: Math.max(0, x - i), y }))
     this.enemies.push({
       body,
@@ -501,7 +490,7 @@ export class GameScene extends Phaser.Scene {
       this.spawnParticles(head.x, head.y, COLORS.enemy, 10)
     }
     gameState.kills += 1
-    this.score += Math.floor(20 * this.cfg.scoreMult)
+    this.score += Math.floor(BALANCE.enemy.scoreOnKill * this.cfg.scoreMult)
     updateHud(this.score)
   }
 
@@ -551,12 +540,12 @@ export class GameScene extends Phaser.Scene {
 
     this.snake.unshift({ x: nx, y: ny })
     if (this.food && nx === this.food.x && ny === this.food.y) {
-      this.score += Math.floor(10 * this.cfg.scoreMult)
+      this.score += Math.floor(BALANCE.food.scoreOnEat * this.cfg.scoreMult)
       this.foodEaten += 1
       this.pendingGrowth += 1
       this.spawnParticles(nx, ny, COLORS.food, 8)
       this.spawnFood()
-      if (Math.random() < 0.3) {
+      if (Math.random() < BALANCE.spawn.powerupOnFoodChance) {
         this.spawnPowerup()
       }
       updateHud(this.score)
@@ -570,8 +559,8 @@ export class GameScene extends Phaser.Scene {
       this.applyPowerup(this.powerup.type)
       this.spawnParticles(nx, ny, COLORS.powerup, 10)
       this.powerup = null
-      if (Math.random() < 0.5) {
-        this.time.delayedCall(5000, () => {
+      if (Math.random() < BALANCE.spawn.powerupRespawnChance) {
+        this.time.delayedCall(BALANCE.spawn.powerupRespawnDelayMs, () => {
           if (this.scene.isActive('Game')) {
             this.spawnPowerup()
           }
@@ -587,7 +576,7 @@ export class GameScene extends Phaser.Scene {
         this.flashTimer = 0.15
         this.flashColor = COLORS.shield
         this.enemies = this.enemies.filter((enemy) => enemy.alive)
-        if (Math.random() < 0.3) {
+        if (Math.random() < BALANCE.spawn.enemyRespawnOnShieldHitChance) {
           this.spawnEnemy()
         }
       } else {
@@ -596,7 +585,10 @@ export class GameScene extends Phaser.Scene {
       }
     } else {
       this.enemies = this.enemies.filter((enemy) => enemy.alive)
-      if (this.enemies.length < this.enemyCount && Math.random() < 0.05) {
+      if (
+        this.enemies.length < this.enemyCount &&
+        Math.random() < BALANCE.spawn.enemyRespawnIdleChance
+      ) {
         this.spawnEnemy()
       }
     }
@@ -614,14 +606,14 @@ export class GameScene extends Phaser.Scene {
       return
     }
     if (type === 'slow') {
-      this.enemyInterval *= 1.5
+      this.enemyInterval *= BALANCE.powerup.slowMultiplier
       return
     }
     if (type === 'ghost') {
       this.ghostCharges += 1
       return
     }
-    this.score += Math.floor(30 * this.cfg.scoreMult)
+    this.score += Math.floor(BALANCE.powerup.scoreBonus * this.cfg.scoreMult)
     updateHud(this.score)
   }
 

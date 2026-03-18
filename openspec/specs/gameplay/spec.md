@@ -64,34 +64,17 @@ The system SHALL spawn food on safe cells; magnet upgrade draws food toward snak
 
 ### Requirement: Powerup spawning and effects
 
-The system SHALL spawn powerups (shield, slow, ghost, score) on safe cells; collecting applies the effect.
+The system SHALL spawn powerups and apply runtime effects using configurable balance values.
 
-#### Scenario: Powerup spawns alongside or after food
+#### Scenario: Powerup spawn chances are configurable
 
-- **WHEN** food eaten and random < 0.3, or 40% chance at level start
-- **THEN** a powerup appears on a safe cell
+- **WHEN** floor starts, food is eaten, or post-pick respawn is evaluated
+- **THEN** spawn chances and respawn delay use centralized balance probabilities and timings
 
-#### Scenario: Shield powerup grants shield
+#### Scenario: Slow and score powerups use configurable multipliers
 
-- **WHEN** snake collects shield powerup
-- **THEN** shields count increments by 1
-
-#### Scenario: Slow powerup slows enemies
-
-- **WHEN** snake collects slow powerup
-- **THEN** enemyInterval is multiplied by 1.5
-
-#### Scenario: Ghost powerup grants ghost charge
-
-- **WHEN** snake collects ghost powerup
-- **THEN** ghostCharges increments by 1
-
-#### Scenario: Score powerup grants points
-
-- **WHEN** snake collects score powerup
-- **THEN** score increases by 30×scoreMult
-
----
+- **WHEN** player collects slow or score powerups
+- **THEN** enemy slow multiplier and score bonus come from centralized balance values
 
 ### Requirement: Enemy AI and collision
 
@@ -121,22 +104,17 @@ The system SHALL spawn enemy snakes that path toward player; head-on collision k
 
 ### Requirement: Floor progression
 
-The system SHALL advance floor when enough food is eaten; floor affects difficulty and upgrade choice.
+The system SHALL advance floor when enough food is eaten; floor affects difficulty and upgrade choice, using centralized balance configuration for progression values.
 
-#### Scenario: Floor clears after food threshold
+#### Scenario: Floor clears after configured food threshold
 
-- **WHEN** foodEaten >= 7 + floor*2
+- **WHEN** `foodEaten` reaches the configured per-floor target
 - **THEN** scene transitions to Upgrade with score and floor
 
-#### Scenario: Floor increases walls and enemies
+#### Scenario: Floor difficulty derives from balance config
 
 - **WHEN** floor N starts
-- **THEN** wallCount = min(2+N, 7), enemyCount = min(1+floor(N/2), 4), enemyInterval scales with floor
-
-#### Scenario: Cell regen degrades tail
-
-- **WHEN** hasRegen and regenTimer > 5000 and snake length > 4
-- **THEN** tail segment is removed, regenTimer resets
+- **THEN** wall count, enemy count, and enemy interval are computed through centralized floor setup values, not inline literals
 
 ### Requirement: Snake body render continuity
 

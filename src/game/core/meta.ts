@@ -1,3 +1,4 @@
+import { BALANCE } from './balance'
 import { STORAGE_KEYS } from './constants'
 import type {
   PlayerProfile,
@@ -27,7 +28,7 @@ export const TALENT_TREE: TalentDefinition[] = [
     id: 'speed_1',
     name: 'Speed I',
     description: 'Start 5% faster.',
-    cost: 20,
+    cost: BALANCE.talents.costs.speed_1,
     requires: null,
     apply: (cfg) => {
       cfg.moveInterval = Math.max(90, Math.floor(cfg.moveInterval * 0.95))
@@ -37,7 +38,7 @@ export const TALENT_TREE: TalentDefinition[] = [
     id: 'speed_2',
     name: 'Speed II',
     description: 'Start 10% faster.',
-    cost: 55,
+    cost: BALANCE.talents.costs.speed_2,
     requires: 'speed_1',
     apply: (cfg) => {
       cfg.moveInterval = Math.max(80, Math.floor(cfg.moveInterval * 0.9))
@@ -47,7 +48,7 @@ export const TALENT_TREE: TalentDefinition[] = [
     id: 'survival_1',
     name: 'Survival I',
     description: 'Start with +1 shield.',
-    cost: 25,
+    cost: BALANCE.talents.costs.survival_1,
     requires: null,
     apply: (cfg) => {
       cfg.bonusShields += 1
@@ -57,7 +58,7 @@ export const TALENT_TREE: TalentDefinition[] = [
     id: 'survival_2',
     name: 'Survival II',
     description: 'Start with +2 length.',
-    cost: 50,
+    cost: BALANCE.talents.costs.survival_2,
     requires: 'survival_1',
     apply: (cfg) => {
       cfg.bonusStartLength += 2
@@ -67,7 +68,7 @@ export const TALENT_TREE: TalentDefinition[] = [
     id: 'hunt_1',
     name: 'Hunt I',
     description: 'Higher score multiplier.',
-    cost: 30,
+    cost: BALANCE.talents.costs.hunt_1,
     requires: null,
     apply: (cfg) => {
       cfg.scoreMult *= 1.2
@@ -77,7 +78,7 @@ export const TALENT_TREE: TalentDefinition[] = [
     id: 'hunt_2',
     name: 'Hunt II',
     description: 'Enemies move slower.',
-    cost: 60,
+    cost: BALANCE.talents.costs.hunt_2,
     requires: 'hunt_1',
     apply: (cfg) => {
       cfg.enemySlow *= 1.1
@@ -221,10 +222,10 @@ export const unlockTalent = (
 }
 
 export const calculateRunReward = (score: number, kills: number, floor: number): number => {
-  const scorePart = Math.floor(score / 30)
-  const killPart = kills * 3
-  const floorPart = Math.max(0, floor - 1) * 6
-  return Math.max(3, scorePart + killPart + floorPart)
+  const scorePart = Math.floor(score / BALANCE.economy.rewardScoreDivisor)
+  const killPart = kills * BALANCE.economy.rewardKillValue
+  const floorPart = Math.max(0, floor - 1) * BALANCE.economy.rewardFloorValue
+  return Math.max(BALANCE.economy.rewardMin, scorePart + killPart + floorPart)
 }
 
 export const createDefaultProfileForTests = defaultProfile

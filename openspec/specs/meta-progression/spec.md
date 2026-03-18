@@ -47,29 +47,19 @@ The system SHALL present exactly three relic options before each run and require
 
 ### Requirement: End-of-run currency rewards
 
-The system SHALL convert run performance into persistent currency at run end.
+The system SHALL convert run performance into persistent currency using centralized economy coefficients.
 
-#### Scenario: Currency granted on death summary
+#### Scenario: Currency formula reads central economy config
 
-- **WHEN** a run ends
-- **THEN** currency gain is computed from run performance inputs and added to persistent profile
-
-#### Scenario: Lifetime stats update
-
-- **WHEN** currency reward is granted
-- **THEN** lifetime counters (runs played, total score, total kills, best floor) are updated
+- **WHEN** run reward is computed from score, kills, and floor
+- **THEN** score divisor, kill value, floor value, and minimum reward are read from centralized balance config
 
 ### Requirement: Talent unlock spending
 
-The system SHALL allow spending persistent currency on talent nodes in a capped tree.
+The system SHALL allow spending persistent currency on talent nodes with centralized talent cost values.
 
-#### Scenario: Unlock successful
+#### Scenario: Talent costs read central config
 
-- **WHEN** player has enough currency and talent prerequisites are met
-- **THEN** currency is deducted and the talent is marked unlocked in profile
-
-#### Scenario: Unlock blocked
-
-- **WHEN** player attempts to unlock without enough currency or missing prerequisites
-- **THEN** the unlock is rejected and profile state remains unchanged
+- **WHEN** talent tree is loaded in menu and unlock checks run
+- **THEN** each talent cost is sourced from centralized balance config
 
