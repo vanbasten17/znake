@@ -11,7 +11,7 @@ import type {
   SnakeSegment,
   Vec2,
 } from '../core/types'
-import { setHintText, updateHud } from '../systems/domHud'
+import { getMoveHintText, getRestartHintText, setHintText, updateHud } from '../systems/domHud'
 
 type GameSceneData = {
   score?: number
@@ -130,7 +130,7 @@ export class GameScene extends Phaser.Scene {
     this.drawBackground()
     this.drawWalls()
     updateHud(this.score)
-    setHintText('SWIPE OR D-PAD TO MOVE - PAUSE II')
+    setHintText(getMoveHintText())
   }
 
   public update(_time: number, delta: number): void {
@@ -631,7 +631,7 @@ export class GameScene extends Phaser.Scene {
     this.drawFrame()
     this.input.keyboard?.removeAllListeners()
     this.time.delayedCall(600, () => this.scene.start('Death', { score: this.score }))
-    setHintText('PRESS START TO PLAY AGAIN')
+    setHintText(getRestartHintText())
   }
 
   private drawBackground(): void {

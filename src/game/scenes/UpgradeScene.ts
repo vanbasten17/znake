@@ -3,7 +3,7 @@ import { BASE_COLS, BASE_ROWS, CELL, HEIGHT, WIDTH } from '../core/constants'
 import { gameState } from '../core/state'
 import type { Upgrade } from '../core/types'
 import { UPGRADE_POOL } from '../core/upgrades'
-import { setHintText } from '../systems/domHud'
+import { getMoveHintText, getUpgradeHintText, setHintText } from '../systems/domHud'
 
 type UpgradeData = {
   score?: number
@@ -127,7 +127,7 @@ export class UpgradeScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    setHintText('TAP AN UPGRADE CARD TO CONTINUE')
+    setHintText(getUpgradeHintText())
   }
 
   private pick(upgrade: Upgrade | undefined): void {
@@ -137,7 +137,7 @@ export class UpgradeScene extends Phaser.Scene {
     this.picked = true
     gameState.persistentUpgrades.push(upgrade)
     gameState.floor += 1
-    setHintText('SWIPE OR D-PAD TO MOVE - PAUSE II')
+    setHintText(getMoveHintText())
     this.scene.start('Game', { score: this.score })
   }
 }

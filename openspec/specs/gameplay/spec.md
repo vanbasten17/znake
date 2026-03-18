@@ -2,8 +2,10 @@
 
 Core gameplay mechanics: snake movement, collision, food, powerups, enemies, floor progression.
 
-## Requirements
+## Purpose
 
+Define the expected gameplay behavior for snake movement, combat interactions, progression, and power systems in Znake.
+## Requirements
 ### Requirement: Snake movement
 
 The system SHALL move the player snake by one cell per tick in the current direction, with queued inputs allowing up to 2 direction changes between moves.
@@ -22,8 +24,6 @@ The system SHALL move the player snake by one cell per tick in the current direc
 
 - **WHEN** snake moves and pendingGrowth is 0
 - **THEN** tail segment is removed
-
----
 
 ### Requirement: Wall and self collision
 
@@ -137,3 +137,18 @@ The system SHALL advance floor when enough food is eaten; floor affects difficul
 
 - **WHEN** hasRegen and regenTimer > 5000 and snake length > 4
 - **THEN** tail segment is removed, regenTimer resets
+
+### Requirement: Snake body render continuity
+
+The system SHALL render snake head and all remaining body segments in every frame where those segments exist.
+
+#### Scenario: Head render does not abort tail render
+
+- **WHEN** drawFrame renders the head segment
+- **THEN** rendering continues for all remaining segments without exiting the full frame draw
+
+#### Scenario: Tail is visible after movement
+
+- **WHEN** snake length is greater than one
+- **THEN** at least one non-head body segment is visible in the rendered frame
+

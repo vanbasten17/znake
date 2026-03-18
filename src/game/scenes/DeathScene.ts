@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { COLORS, HEIGHT, STORAGE_KEYS, WIDTH } from '../core/constants'
 import { gameState } from '../core/state'
 import type { Upgrade } from '../core/types'
-import { setHintText } from '../systems/domHud'
+import { getMoveHintText, getRestartHintText, setHintText } from '../systems/domHud'
 
 type DeathData = {
   score?: number
@@ -91,7 +91,7 @@ export class DeathScene extends Phaser.Scene {
     this.input.keyboard?.once('keydown-ENTER', () => this.restart())
     this.input.keyboard?.once('keydown-SPACE', () => this.restart())
 
-    setHintText('PRESS START TO PLAY AGAIN')
+    setHintText(getRestartHintText())
   }
 
   public update(): void {
@@ -138,7 +138,7 @@ export class DeathScene extends Phaser.Scene {
     gameState.kills = 0
     gameState.floor = 1
     gameState.persistentUpgrades = []
-    setHintText('SWIPE OR D-PAD TO MOVE - PAUSE II')
+    setHintText(getMoveHintText())
     this.scene.start('Game')
   }
 }

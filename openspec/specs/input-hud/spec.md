@@ -2,8 +2,10 @@
 
 Input handling (touch, keyboard, DOM controls) and DOM HUD display.
 
-## Requirements
+## Purpose
 
+Define how player input is captured across platforms and how HUD/UI feedback is presented.
+## Requirements
 ### Requirement: Virtual input bridge
 
 The system SHALL expose a virtualInput object (dir, start, pause) on window for DOM and touch to communicate with Phaser scenes.
@@ -80,4 +82,33 @@ The system SHALL display score, floor, kills, run number in DOM elements and a h
 #### Scenario: Hint bar shows contextual text
 
 - **WHEN** setHintText(text) is called
-- **THEN** hint-bar textContent is updated (e.g., "SWIPE OR D-PAD TO MOVE - PAUSE II")
+- **THEN** hint-bar textContent is updated with text matching the active control mode
+
+### Requirement: Adaptive control-mode selection
+
+The system SHALL derive a control mode at runtime and apply UI behavior accordingly.
+
+#### Scenario: Touch controls mode is selected
+
+- **WHEN** runtime context indicates touch-first input and non-large screen
+- **THEN** the system enables touch mode and exposes touch HUD controls
+
+#### Scenario: Keyboard controls mode is selected
+
+- **WHEN** runtime context does not match touch-first small-screen conditions
+- **THEN** the system enables keyboard mode and hides touch HUD controls
+
+### Requirement: Mode-aware hint messaging
+
+The system SHALL present hint text consistent with the active control mode.
+
+#### Scenario: Keyboard hint text shown
+
+- **WHEN** keyboard mode is active
+- **THEN** move/start/restart/upgrade hints reference keyboard controls (arrows/WASD, Enter/Space)
+
+#### Scenario: Touch hint text shown
+
+- **WHEN** touch mode is active
+- **THEN** move/start/restart/upgrade hints reference swipe, d-pad, and start button behavior
+
