@@ -15,94 +15,60 @@ export const resetVirtualInput = (): void => {
 
 window.virtualInput = { dir: null, start: false, pause: false }
 
-const bindPointerPress = (element: HTMLElement, onPress: () => void): void => {
-  const trigger = (event: Event): void => {
-    event.preventDefault()
-    emitFeedback('tap')
-    onPress()
-  }
-  element.addEventListener('touchstart', trigger, { passive: false })
-  element.addEventListener('mousedown', trigger)
-}
-
 export const setupInput = (): void => {
   resetVirtualInput()
-  setupSwipe()
-  setupDpad()
-  setupActionButtons()
+  setupTapQuadrant()
 }
 
-const setupSwipe = (): void => {
-  let touchX = 0
-  let touchY = 0
+const resolveQuadrantDirection = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): DirectionName => {
+  const clampedX = Math.max(0, Math.min(width, x))
+  const clampedY = Math.max(0, Math.min(height, y))
+  const downSlope = (height / width) * clampedX
+  const upSlope = height - (height / width) * clampedX
 
-  const onTouchStart = (event: TouchEvent): void => {
-    const touch = event.touches[0]
-    if (!touch) {
-      return
-    }
-    touchX = touch.clientX
-    touchY = touch.clientY
+  if (clampedY < downSlope && clampedY < upSlope) {
+    return 'up'
   }
-
-  const onTouchEnd = (event: TouchEvent): void => {
-    const touch = event.changedTouches[0]
-    if (!touch) {
-      return
-    }
-    const dx = touch.clientX - touchX
-    const dy = touch.clientY - touchY
-    const distance = Math.sqrt(dx * dx + dy * dy)
-    if (distance < 15) {
-      return
-    }
-    window.virtualInput.dir =
-      Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'
+  if (clampedY > downSlope && clampedY > upSlope) {
+    return 'down'
   }
-
-  document.addEventListener('touchstart', onTouchStart, { passive: true })
-  document.addEventListener('touchend', onTouchEnd, { passive: true })
+  if (clampedY > downSlope && clampedY < upSlope) {
+    return 'left'
+  }
+  return 'right'
 }
 
-const setupDpad = (): void => {
-  const dirs: DirectionName[] = ['up', 'down', 'left', 'right']
-
-  for (const dir of dirs) {
-    const button = document.getElementById(`btn-${dir}`)
-    if (!(button instanceof HTMLButtonElement)) {
-      continue
-    }
-
-    const press = (event: Event): void => {
-      event.preventDefault()
-      window.virtualInput.dir = dir
-      emitFeedback('tap')
-      button.classList.add('pressed')
-    }
-
-    const release = (): void => {
-      button.classList.remove('pressed')
-    }
-
-    button.addEventListener('touchstart', press, { passive: false })
-    button.addEventListener('mousedown', press)
-    button.addEventListener('touchend', release, { passive: true })
-    button.addEventListener('mouseup', release)
-    button.addEventListener('mouseleave', release)
+const setupTapQuadrant = (): void => {
+  const gameArea = document.getElementById('game-area')
+  if (!(gameArea instanceof HTMLElement)) {
+    return
   }
-}
 
-const setupActionButtons = (): void => {
-  const pauseButton = document.getElementById('btn-pause')
-  const startButton = document.getElementById('btn-start')
-  if (pauseButton instanceof HTMLElement) {
-    bindPointerPress(pauseButton, () => {
-      window.virtualInput.pause = true
-    })
+  const press = (event: MouseEvent | TouchEvent): void => {
+    if (document.body.dataset.uiShell !== 'run') {
+      return
+    }
+    const target = event.target
+    if (target instanceof Element && target.closest('button')) {
+      return
+    }
+    const rect = gameArea.getBoundingClientRect()
+    const point =
+      event instanceof TouchEvent ? (event.touches[0] ?? event.changedTouches[0]) : event
+    if (!point) {
+      return
+    }
+    const localX = point.clientX - rect.left
+    const localY = point.clientY - rect.top
+    window.virtualInput.dir = resolveQuadrantDirection(localX, localY, rect.width, rect.height)
+    emitFeedback('tap')
   }
-  if (startButton instanceof HTMLElement) {
-    bindPointerPress(startButton, () => {
-      window.virtualInput.start = true
-    })
-  }
+
+  gameArea.addEventListener('touchstart', press, { passive: true })
+  gameArea.addEventListener('mousedown', press)
 }

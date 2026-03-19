@@ -15,7 +15,7 @@ type HudNodes = {
   floorDisp: HTMLSpanElement
   killsDisp: HTMLSpanElement
   runNum: HTMLSpanElement
-  hintBar: HTMLDivElement
+  hintBar: HTMLDivElement | null
   runStatus: HTMLDivElement
 }
 
@@ -30,7 +30,7 @@ const resolveHudNodes = (): HudNodes => {
     floorDisp: byId<HTMLSpanElement>('floor-disp'),
     killsDisp: byId<HTMLSpanElement>('kills-disp'),
     runNum: byId<HTMLSpanElement>('run-num'),
-    hintBar: byId<HTMLDivElement>('hint-bar'),
+    hintBar: document.getElementById('hint-bar') as HTMLDivElement | null,
     runStatus: byId<HTMLDivElement>('run-status'),
   }
   return hudNodes
@@ -68,7 +68,10 @@ export const setSceneChrome = (mode: UiShellMode): void => {
 }
 
 export const setHintText = (value: string): void => {
-  resolveHudNodes().hintBar.textContent = value
+  const hintBar = resolveHudNodes().hintBar
+  if (hintBar) {
+    hintBar.textContent = value
+  }
 }
 
 export const setRunStatusText = (value: string): void => {
