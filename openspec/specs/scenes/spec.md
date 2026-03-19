@@ -43,6 +43,13 @@ The system SHALL support a reference-driven polished menu visual identity withou
 - **THEN** menu composition is rendered via DOM overlay in game area
 - **AND** keyboard shortcuts and touch interactions remain equivalent
 
+#### Scenario: Menu exposes voice toggle while visual accessibility remains dark-launched
+
+- **WHEN** menu scene is active
+- **THEN** player can toggle voice input mode from menu
+- **AND** high-contrast / large-text / reduced-effects remain implemented but hidden from menu UI
+- **AND** the next run uses the configured visible accessibility/input preferences
+
 ### Requirement: Game scene
 
 The system SHALL render gameplay UI text in the active locale.

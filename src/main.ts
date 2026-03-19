@@ -1,17 +1,21 @@
 import './styles/tokens.css'
 import './styles/shell.css'
 import './styles/app.css'
+import { setupAccessibility } from './game/systems/accessibility'
 import { setupControlScheme } from './game/systems/controlScheme'
 import { getStartHintText, setHintText } from './game/systems/domHud'
 import { setupFeedback } from './game/systems/feedback'
 import { initI18n, t } from './game/systems/i18n'
 import { setupInput } from './game/systems/input'
+import { setupVoiceInput } from './game/systems/voiceInput'
 import { mountShell } from './ui/mountShell'
 
 mountShell()
 setupControlScheme()
+setupAccessibility()
 setupFeedback()
 setupInput()
+setupVoiceInput()
 
 const boot = async (): Promise<void> => {
   await initI18n()

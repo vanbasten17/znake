@@ -11,6 +11,7 @@ import {
 import { getFloorObjective, rollRunObjectiveOffset } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { GoalId } from '../core/types'
+import { getAccessibilitySettings, updateAccessibilitySettings } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import { setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
@@ -18,6 +19,7 @@ import { getLanguage, t, toggleLanguage } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
 import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
+import { getVoiceAvailability, syncVoiceInput } from '../systems/voiceInput'
 
 export class MenuScene extends Phaser.Scene {
   private waiting = true
@@ -27,6 +29,7 @@ export class MenuScene extends Phaser.Scene {
   private languageEl: HTMLButtonElement | null = null
   private talentRowRefreshers: Array<() => void> = []
   private goalRowRefreshers: Array<() => void> = []
+  private accessibilityRefreshers: Array<() => void> = []
 
   public constructor() {
     super('Menu')
@@ -37,6 +40,7 @@ export class MenuScene extends Phaser.Scene {
     this.waiting = true
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
+    this.accessibilityRefreshers = []
     gameState.runObjectiveOffset = rollRunObjectiveOffset()
     setSceneChrome('menu')
     this.mountOverlay()
@@ -107,6 +111,71 @@ export class MenuScene extends Phaser.Scene {
     this.currencyValueEl.className = styles.currencyValue
     currencyText.append(this.currencyValueEl)
     stats.append(currencyText)
+
+    const accessibility = document.createElement('div')
+    accessibility.className = styles.accessibility
+    root.append(accessibility)
+
+    const accessibilityTitle = document.createElement('p')
+    accessibilityTitle.className = styles.accessibilityTitle
+    accessibility.append(accessibilityTitle)
+
+    const createToggleRow = (
+      labelKey: string,
+      readValue: () => boolean,
+      onToggle: () => void,
+      options?: { disabled?: boolean },
+    ): void => {
+      const row = document.createElement('button')
+      row.type = 'button'
+      row.className = styles.accessibilityRow
+      row.disabled = options?.disabled === true
+      row.addEventListener('click', onToggle)
+      accessibility.append(row)
+
+      const labelEl = document.createElement('span')
+      labelEl.className = styles.accessibilityLabel
+      row.append(labelEl)
+
+      const statusEl = document.createElement('span')
+      statusEl.className = styles.accessibilityStatus
+      row.append(statusEl)
+
+      const refresh = (): void => {
+        labelEl.textContent = t(labelKey)
+        if (options?.disabled) {
+          statusEl.textContent = t('menu.unavailable')
+          row.classList.add(styles.accessibilityRowDisabled)
+          return
+        }
+        statusEl.textContent = readValue() ? t('menu.on') : t('menu.off')
+        row.classList.remove(styles.accessibilityRowDisabled)
+      }
+      this.accessibilityRefreshers.push(refresh)
+      refresh()
+    }
+
+    this.accessibilityRefreshers.push(() => {
+      accessibilityTitle.textContent = t('menu.accessibility')
+    })
+
+    const voiceSupported = getVoiceAvailability() === 'supported'
+    createToggleRow(
+      'menu.a11yVoice',
+      () => getAccessibilitySettings().voiceEnabled,
+      () => {
+        if (!voiceSupported) {
+          emitFeedback('tap')
+          return
+        }
+        const { voiceEnabled } = getAccessibilitySettings()
+        updateAccessibilitySettings({ voiceEnabled: !voiceEnabled })
+        syncVoiceInput()
+        this.refreshMetaUi()
+        emitFeedback('confirm')
+      },
+      { disabled: !voiceSupported },
+    )
 
     const talentTitle = document.createElement('p')
     talentTitle.className = styles.shopTitle
@@ -227,6 +296,7 @@ export class MenuScene extends Phaser.Scene {
     this.languageEl = null
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
+    this.accessibilityRefreshers = []
   }
 
   private onKeyDown(event: KeyboardEvent): void {
@@ -298,6 +368,9 @@ export class MenuScene extends Phaser.Scene {
     for (const refresh of this.goalRowRefreshers) {
       refresh()
     }
+    for (const refresh of this.accessibilityRefreshers) {
+      refresh()
+    }
   }
 
   private getTalentLabel(talentId: string, fallbackName: string): string {
@@ -324,6 +397,7 @@ export class MenuScene extends Phaser.Scene {
     }
     emitFeedback('confirm')
     await toggleLanguage()
+    syncVoiceInput()
     this.scene.restart()
   }
 

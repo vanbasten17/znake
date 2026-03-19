@@ -18,6 +18,7 @@ import type {
   Vec2,
   WorldItemType,
 } from '../core/types'
+import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import {
   getMoveHintText,
@@ -341,6 +342,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateCameraShake(dt: number): void {
+    if (isReducedEffectsEnabled()) {
+      this.shakeTimer = 0
+      this.cameras.main.setScroll(0, 0)
+      return
+    }
     if (this.shakeTimer <= 0) {
       return
     }
@@ -1014,7 +1020,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnParticles(cx: number, cy: number, color: number, count: number): void {
+    const finalCount = isReducedEffectsEnabled() ? Math.max(2, Math.ceil(count * 0.35)) : count
     for (let i = 0; i < count; i += 1) {
+      if (i >= finalCount) {
+        break
+      }
       this.particles.push({
         x: cx * CELL + CELL / 2,
         y: cy * CELL + CELL / 2,
@@ -1325,7 +1335,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.gameGraphics
     g.clear()
 
-    if (this.flashTimer > 0) {
+    if (!isReducedEffectsEnabled() && this.flashTimer > 0) {
       this.fxGraphics.clear()
       this.fxGraphics.fillStyle(this.flashColor, this.flashTimer * 0.3)
       this.fxGraphics.fillRect(0, 0, WIDTH, HEIGHT)
