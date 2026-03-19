@@ -1,0 +1,36 @@
+{
+  "title": "Sample Stitch Screen",
+  "width": 768,
+  "height": 1376,
+  "children": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 48,
+      "y": 72,
+      "width": 320,
+      "height": 64,
+      "text": "ZNAKE"
+    },
+    {
+      "id": "card_1",
+      "kind": "rectangle",
+      "x": 40,
+      "y": 260,
+      "width": 688,
+      "height": 72,
+      "fillColor": "#0a1f32",
+      "strokeColor": "#79ffa0",
+      "borderRadius": 8
+    },
+    {
+      "id": "card_1_text",
+      "type": "text",
+      "x": 64,
+      "y": 286,
+      "width": 320,
+      "height": 24,
+      "text": "1. Speed I"
+    }
+  ]
+}
