@@ -1,6 +1,7 @@
 export type DevScenarioId =
   | 'boss_shield_collision'
   | 'darkness_preboss'
+  | 'ice_slide_modifier'
   | 'magnet_food_lock'
   | 'portal_final_seconds'
 
@@ -12,6 +13,7 @@ export type DevScenario = {
   startShields?: number
   forceMagnet?: boolean
   forceDarkness?: boolean
+  forceIce?: boolean
   portalCountdownMs?: number
   placeFoodNearHead?: boolean
 }
@@ -30,6 +32,13 @@ export const DEV_SCENARIOS: DevScenario[] = [
     floor: 2,
     score: 80,
     forceDarkness: true,
+  },
+  {
+    id: 'ice_slide_modifier',
+    label: 'Ice Slide Modifier',
+    floor: 2,
+    score: 65,
+    forceIce: true,
   },
   {
     id: 'magnet_food_lock',

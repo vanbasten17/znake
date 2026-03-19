@@ -48,6 +48,14 @@ export const BALANCE = {
       minAlphaEdge: 0.16,
       maxAlphaEdge: 0.44,
     },
+    ice: {
+      enabled: true,
+      startFloor: 2,
+      cadence: 1,
+      minTileCount: 5,
+      maxTileCount: 11,
+      slideSteps: 1,
+    },
   },
   objectives: {
     rotation: ['portal', 'score', 'kills'] satisfies ReadonlyArray<NonBossObjectiveKind>,
@@ -211,6 +219,9 @@ export type FloorSetup = {
   darknessEdgeFalloff: number
   darknessAlphaOuter: number
   darknessAlphaEdge: number
+  iceActive: boolean
+  iceTileCount: number
+  iceSlideSteps: number
 }
 
 export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetup => {
@@ -235,6 +246,7 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
       BALANCE.floor.enemyIntervalBaseMs - clampedFloor * BALANCE.floor.enemyIntervalPerFloorMs,
     ) * enemySlowMultiplier
   const darknessConfig = BALANCE.modifiers.darkness
+  const iceConfig = BALANCE.modifiers.ice
   const bossInterval = Math.max(2, BALANCE.biome.boss.floorInterval)
   const cycleStep = (clampedFloor - 1) % bossInterval
   const preBossSteps = Math.max(1, bossInterval - 1)
@@ -244,7 +256,13 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
     !isBossFloor &&
     clampedFloor >= darknessConfig.startFloor &&
     cycleStep < preBossSteps
+  const iceActive =
+    iceConfig.enabled &&
+    !isBossFloor &&
+    clampedFloor >= iceConfig.startFloor &&
+    (clampedFloor - iceConfig.startFloor) % Math.max(1, iceConfig.cadence) === 0
   const darknessT = darknessActive ? Math.min(1, Math.max(0, preBossProgress)) : 0
+  const iceT = iceActive ? Math.min(1, Math.max(0, preBossProgress)) : 0
 
   return {
     wallCount,
@@ -261,5 +279,8 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
     ),
     darknessAlphaOuter: lerp(darknessConfig.minAlphaOuter, darknessConfig.maxAlphaOuter, darknessT),
     darknessAlphaEdge: lerp(darknessConfig.minAlphaEdge, darknessConfig.maxAlphaEdge, darknessT),
+    iceActive,
+    iceTileCount: Math.round(lerp(iceConfig.minTileCount, iceConfig.maxTileCount, iceT)),
+    iceSlideSteps: Math.max(0, Math.floor(iceConfig.slideSteps)),
   }
 }

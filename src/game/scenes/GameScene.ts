@@ -103,6 +103,10 @@ export class GameScene extends Phaser.Scene {
   private darknessEdgeFalloff = 0
   private darknessAlphaOuter = 0
   private darknessAlphaEdge = 0
+  private iceTiles = new Set<string>()
+  private iceActive = false
+  private iceTileCount = 0
+  private iceSlideSteps = 0
   private runStartMs = 0
   private isDying = false
   private pauseText?: Phaser.GameObjects.Text
@@ -151,6 +155,14 @@ export class GameScene extends Phaser.Scene {
     this.darknessEdgeFalloff = floorSetup.darknessEdgeFalloff
     this.darknessAlphaOuter = floorSetup.darknessAlphaOuter
     this.darknessAlphaEdge = floorSetup.darknessAlphaEdge
+    this.iceActive = floorSetup.iceActive
+    this.iceTileCount = floorSetup.iceTileCount
+    this.iceSlideSteps = floorSetup.iceSlideSteps
+    if (debugScenario?.forceIce) {
+      this.iceActive = true
+      this.iceTileCount = Math.max(this.iceTileCount, 8)
+      this.iceSlideSteps = Math.max(this.iceSlideSteps, 1)
+    }
     this.isBossFloor = gameState.floor % BALANCE.biome.boss.floorInterval === 0
     const floorObjective = getFloorObjective(gameState.floor, gameState.runObjectiveOffset)
     this.objectiveType = floorObjective.kind
@@ -165,7 +177,11 @@ export class GameScene extends Phaser.Scene {
     this.fxGraphics = this.add.graphics()
 
     this.walls = this.generateWalls()
+    this.iceTiles = this.generateIceTiles()
     this.snake = this.spawnSnake()
+    if (debugScenario?.forceIce) {
+      this.seedDebugIceLane()
+    }
     this.setupPortalFlow()
     if (debugScenario?.portalCountdownMs !== undefined) {
       this.portalCountdownMs = Math.max(0, debugScenario.portalCountdownMs)
@@ -295,7 +311,14 @@ export class GameScene extends Phaser.Scene {
           })
         : null
     const objectiveInfo = this.getObjectiveStatusText()
-    const modifierInfo = this.darknessActive ? ` · ${t('game.modifierDarkness')}` : ''
+    const activeModifiers: string[] = []
+    if (this.darknessActive) {
+      activeModifiers.push(t('game.modifierDarkness'))
+    }
+    if (this.iceActive) {
+      activeModifiers.push(t('game.modifierIce'))
+    }
+    const modifierInfo = activeModifiers.length > 0 ? ` · ${activeModifiers.join(' · ')}` : ''
     const hudStatus = hazardInfo
       ? `${localizedBiome} · ${objectiveInfo}${modifierInfo} · ${hazardInfo}`
       : `${localizedBiome} · ${objectiveInfo}${modifierInfo}`
@@ -341,6 +364,10 @@ export class GameScene extends Phaser.Scene {
     this.darknessEdgeFalloff = 0
     this.darknessAlphaOuter = 0
     this.darknessAlphaEdge = 0
+    this.iceTiles = new Set<string>()
+    this.iceActive = false
+    this.iceTileCount = 0
+    this.iceSlideSteps = 0
     this.isDying = false
   }
 
@@ -639,6 +666,47 @@ export class GameScene extends Phaser.Scene {
     return walls
   }
 
+  private generateIceTiles(): Set<string> {
+    const iceTiles = new Set<string>()
+    if (!this.iceActive || this.iceTileCount <= 0) {
+      return iceTiles
+    }
+
+    const cx = Math.floor(BASE_COLS / 2)
+    const cy = Math.floor(BASE_ROWS / 2)
+    const attempts = this.iceTileCount * 20
+    for (let i = 0; i < attempts && iceTiles.size < this.iceTileCount; i += 1) {
+      const x = 1 + Math.floor(Math.random() * (BASE_COLS - 2))
+      const y = 1 + Math.floor(Math.random() * (BASE_ROWS - 2))
+      if (this.walls.has(`${x},${y}`)) {
+        continue
+      }
+      if (Math.abs(x - cx) < 3 && Math.abs(y - cy) < 3) {
+        continue
+      }
+      iceTiles.add(`${x},${y}`)
+    }
+    return iceTiles
+  }
+
+  private seedDebugIceLane(): void {
+    const head = this.snake[0]
+    if (!head) {
+      return
+    }
+    for (let step = 1; step <= 4; step += 1) {
+      const x = head.x + this.currentDir.x * step
+      const y = head.y + this.currentDir.y * step
+      if (x < 1 || x >= BASE_COLS - 1 || y < 1 || y >= BASE_ROWS - 1) {
+        continue
+      }
+      if (this.walls.has(`${x},${y}`)) {
+        continue
+      }
+      this.iceTiles.add(`${x},${y}`)
+    }
+  }
+
   private isWall(x: number, y: number): boolean {
     const inset = this.squeezeInset
     const minX = inset
@@ -649,6 +717,13 @@ export class GameScene extends Phaser.Scene {
       return true
     }
     return this.walls.has(`${x},${y}`)
+  }
+
+  private isIce(x: number, y: number): boolean {
+    if (!this.iceActive) {
+      return false
+    }
+    return this.iceTiles.has(`${x},${y}`)
   }
 
   private isSafe(x: number, y: number): boolean {
@@ -1122,7 +1197,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private moveSnake(): void {
+  private moveSnake(slideDepth = 0): void {
     const head = this.snake[0]
     if (!head) {
       return
@@ -1152,6 +1227,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.snake.unshift({ x: nx, y: ny })
+    const landedOnIce = this.isIce(nx, ny)
     if (this.riftCell && nx === this.riftCell.x && ny === this.riftCell.y) {
       if (this.shields > 0) {
         this.shields -= 1
@@ -1291,6 +1367,11 @@ export class GameScene extends Phaser.Scene {
       this.pendingGrowth -= 1
     } else {
       this.snake.pop()
+    }
+
+    if (landedOnIce && slideDepth < this.iceSlideSteps) {
+      this.spawnParticles(nx, ny, COLORS.ice, 5)
+      this.moveSnake(slideDepth + 1)
     }
   }
 
@@ -1463,6 +1544,27 @@ export class GameScene extends Phaser.Scene {
       this.flashTimer -= 0.016
     } else {
       this.fxGraphics.clear()
+    }
+
+    if (this.iceActive && this.iceTiles.size > 0) {
+      for (const key of this.iceTiles) {
+        const [xRaw, yRaw] = key.split(',')
+        const x = Number(xRaw)
+        const y = Number(yRaw)
+        const ix = x * CELL
+        const iy = y * CELL
+        g.fillStyle(COLORS.iceGlow, 0.14)
+        g.fillRect(ix + 1, iy + 1, CELL - 2, CELL - 2)
+        g.lineStyle(1, COLORS.ice, 0.58)
+        g.strokeRect(ix + 1.5, iy + 1.5, CELL - 3, CELL - 3)
+        g.lineStyle(1, 0xcdf6ff, 0.42)
+        g.beginPath()
+        g.moveTo(ix + 4, iy + 6)
+        g.lineTo(ix + CELL - 5, iy + CELL - 7)
+        g.moveTo(ix + CELL - 6, iy + 5)
+        g.lineTo(ix + 6, iy + CELL - 6)
+        g.strokePath()
+      }
     }
 
     if (this.food) {

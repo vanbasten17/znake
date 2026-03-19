@@ -138,11 +138,12 @@ The system SHALL support temporary hazard-pressure modulation through item inter
 - **THEN** progression remains tied to boss elimination
 - **AND** timed portal objective is not required for that floor
 
-#### Scenario: Darkness modifier can apply on configured non-boss floors
+#### Scenario: Ice modifier applies deterministic extra slide
 
-- **WHEN** floor setup flags darkness modifier as active
-- **THEN** gameplay applies reduced visibility around snake head
-- **AND** core mechanics (collision, movement, objectives) remain unchanged
+- **WHEN** floor modifier `ice` is active and snake lands on an ice cell
+- **THEN** snake performs configured additional forward step(s) in current direction
+- **AND** extra movement obeys existing collision and death rules
+- **AND** modifier state is represented in run status text
 
 ### Requirement: Snake body render continuity
 

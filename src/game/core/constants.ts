@@ -22,6 +22,8 @@ export const COLORS = {
   portalGlow: 0x2ab8ff,
   squeeze: 0x7a2fff,
   beacon: 0xfff07a,
+  ice: 0x8fe8ff,
+  iceGlow: 0x66c7ff,
 } as const
 
 export const STORAGE_KEYS = {
