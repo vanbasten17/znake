@@ -76,6 +76,12 @@ The system SHALL render relic selection in a portrait-first polished composition
 - **THEN** title, subtitle, and three relic cards fit without overlap
 - **AND** card hit zones remain fully interactive
 
+#### Scenario: Relic selection uses DOM vertical slice
+
+- **WHEN** relic draft scene is active
+- **THEN** relic selection content is rendered via DOM overlay in the game area
+- **AND** scene behavior (pick flow, transitions, keyboard shortcuts) remains equivalent
+
 ### Requirement: Upgrade selection polished composition
 
 The system SHALL render upgrade selection in a portrait-first polished composition aligned with the approved reference.

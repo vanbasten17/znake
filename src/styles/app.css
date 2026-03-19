@@ -6,19 +6,11 @@
   box-sizing: border-box;
 }
 
-:root {
-  --bg: #000;
-  --panel: #050510;
-  --line: #1a1a3e;
-  --accent: #00ff88;
-  --soft: #333;
-}
-
 html,
 body {
   width: 100%;
   height: 100%;
-  background: var(--bg);
+  background: var(--color-bg-950);
   overflow: hidden;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
@@ -31,7 +23,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  font-family: "Share Tech Mono", monospace;
+  font-family: var(--font-ui);
   min-height: 100svh;
   height: 100dvh;
   padding-top: env(safe-area-inset-top);
@@ -40,22 +32,22 @@ body {
 
 #hud {
   width: 100%;
-  max-width: 520px;
+  max-width: var(--layout-max-width);
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: calc(6px + env(safe-area-inset-top) * 0.15) 12px 6px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  background: var(--color-surface-900);
+  border-bottom: 1px solid var(--color-line);
   flex-shrink: 0;
 }
 
 #title-text {
-  font-family: "Orbitron", sans-serif;
+  font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(12px, 3.5vw, 16px);
-  color: var(--accent);
-  text-shadow: 0 0 12px #00ff8866;
+  font-size: var(--font-size-title);
+  color: var(--color-accent);
+  text-shadow: var(--glow-accent-title);
   letter-spacing: 3px;
 }
 
@@ -72,19 +64,20 @@ body {
 }
 
 .stat-label {
-  color: var(--soft);
-  font-size: clamp(7px, 1.8vw, 9px);
+  color: var(--color-text-dim);
+  font-size: var(--font-size-stat-label);
   letter-spacing: 1px;
 }
 
 .stat-val {
-  color: var(--accent);
-  font-size: clamp(11px, 3vw, 14px);
+  color: var(--color-accent);
+  font-size: var(--font-size-stat-value);
 }
 
 #game-area {
   width: 100%;
-  max-width: 520px;
+  max-width: var(--layout-max-width);
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -110,13 +103,13 @@ body {
 
 #controls {
   width: 100%;
-  max-width: 520px;
+  max-width: var(--layout-max-width);
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px calc(12px + env(safe-area-inset-bottom) * 0.4);
-  background: var(--panel);
-  border-top: 1px solid var(--line);
+  background: var(--color-surface-900);
+  border-top: 1px solid var(--color-line);
   flex-shrink: 0;
 }
 
@@ -135,21 +128,21 @@ body.keyboard-controls #controls {
   position: absolute;
   width: 42px;
   height: 42px;
-  background: #0d0d22;
-  border: 1.5px solid #2a2a5a;
-  border-radius: 8px;
+  background: var(--color-surface-850);
+  border: var(--border-width) solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.08s, border-color 0.08s;
+  transition: background var(--motion-fast), border-color var(--motion-fast);
   -webkit-tap-highlight-color: transparent;
 }
 
 .dpad-btn:active,
 .dpad-btn.pressed {
   background: #00ff8822;
-  border-color: var(--accent);
+  border-color: var(--color-accent);
 }
 
 .dpad-btn svg {
@@ -188,9 +181,9 @@ body.keyboard-controls #controls {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: #0a0a1e;
+  background: var(--color-surface-800);
   border-radius: 50%;
-  border: 1px solid var(--line);
+  border: 1px solid var(--color-line);
 }
 
 #right-controls {
@@ -203,18 +196,18 @@ body.keyboard-controls #controls {
 .action-btn {
   width: 54px;
   height: 54px;
-  background: #0d0d22;
-  border: 1.5px solid #2a2a5a;
+  background: var(--color-surface-850);
+  border: var(--border-width) solid var(--color-line-strong);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-family: "Share Tech Mono", monospace;
+  font-family: var(--font-ui);
   font-size: 9px;
-  color: #445566;
+  color: var(--color-text-muted);
   letter-spacing: 1px;
-  transition: background 0.08s, border-color 0.08s;
+  transition: background var(--motion-fast), border-color var(--motion-fast);
   flex-direction: column;
   gap: 2px;
   -webkit-tap-highlight-color: transparent;
@@ -223,7 +216,7 @@ body.keyboard-controls #controls {
 .action-btn:active {
   background: #00ff8818;
   border-color: #00ff8866;
-  color: var(--accent);
+  color: var(--color-accent);
 }
 
 .action-btn .btn-icon {
@@ -238,78 +231,13 @@ body.keyboard-controls #controls {
 
 #hint-bar {
   width: 100%;
-  max-width: 520px;
+  max-width: var(--layout-max-width);
   text-align: center;
-  font-size: 9px;
-  color: #222244;
+  font-size: var(--font-size-hint);
+  color: var(--color-text-hint);
   letter-spacing: 2px;
   padding: 4px 4px calc(4px + env(safe-area-inset-bottom) * 0.45);
-  background: #020208;
-}
-
-body.scene-menu #hud {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-body.scene-menu #game-area {
-  width: min(100%, 520px);
-  height: 100%;
-  overflow: hidden;
-}
-
-body.scene-menu {
-  display: grid;
-  grid-template-rows: auto minmax(0, 2fr) minmax(0, 1fr) auto;
-  justify-items: center;
-  align-items: stretch;
-}
-
-body.scene-menu #game-area,
-body.scene-menu #hud,
-body.scene-menu #controls,
-body.scene-menu #hint-bar {
-  width: min(100%, 520px);
-}
-
-body.scene-menu #phaser-container {
-  width: 100%;
-  height: 100%;
-  align-items: stretch;
-  justify-content: stretch;
-}
-
-body.scene-menu #phaser-container canvas {
-  width: 100% !important;
-  height: 100% !important;
-  max-height: none !important;
-}
-
-body.scene-run {
-  display: grid;
-  grid-template-rows: auto minmax(0, 2fr) minmax(0, 1fr) auto;
-  justify-items: center;
-  align-items: stretch;
-}
-
-body.scene-run #game-area,
-body.scene-run #controls {
-  width: min(100%, 520px);
-  min-height: 0;
-}
-
-body.scene-run #game-area {
-  overflow: hidden;
-}
-
-body.scene-run #phaser-container canvas {
-  width: 100% !important;
-  height: 100% !important;
-  max-height: none !important;
-}
-
-body.scene-run.keyboard-controls {
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--color-bg-900);
 }
 
 @media (pointer: coarse), (hover: none) {

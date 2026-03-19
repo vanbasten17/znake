@@ -1,0 +1,67 @@
+:root {
+  /* Layout */
+  --layout-max-width: 520px;
+  --layout-run-game-fr: 2fr;
+  --layout-run-controls-fr: 1fr;
+  --layout-shell-content-fr: var(--layout-run-game-fr);
+  --layout-shell-controls-fr: var(--layout-run-controls-fr);
+
+  /* Colors: base surfaces */
+  --color-bg-950: #000000;
+  --color-bg-900: #020208;
+  --color-surface-900: #050510;
+  --color-surface-850: #0d0d22;
+  --color-surface-800: #0a0a1e;
+
+  /* Colors: accents and text */
+  --color-accent: #00ff88;
+  --color-accent-soft: #00ff8866;
+  --color-line: #1a1a3e;
+  --color-line-strong: #2a2a5a;
+  --color-text-dim: #333333;
+  --color-text-muted: #445566;
+  --color-text-hint: #222244;
+
+  /* Typography */
+  --font-ui: "Share Tech Mono", monospace;
+  --font-display: "Orbitron", sans-serif;
+  --font-size-title: clamp(12px, 3.5vw, 16px);
+  --font-size-stat-label: clamp(7px, 1.8vw, 9px);
+  --font-size-stat-value: clamp(11px, 3vw, 14px);
+  --font-size-hint: 9px;
+
+  /* Spacing scale */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-8: 16px;
+  --space-12: 24px;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 11px;
+  --radius-lg: 50%;
+
+  /* Borders and glow */
+  --border-width: 1.5px;
+  --glow-accent-title: 0 0 12px var(--color-accent-soft);
+
+  /* Motion */
+  --motion-fast: 0.08s;
+  --motion-standard: 0.2s;
+  --motion-ease: ease;
+
+  /* Z-index */
+  --z-base: 1;
+  --z-overlay: 10;
+
+  /* Legacy aliases (short-term compatibility) */
+  --bg: var(--color-bg-950);
+  --panel: var(--color-surface-900);
+  --line: var(--color-line);
+  --accent: var(--color-accent);
+  --soft: var(--color-text-dim);
+}

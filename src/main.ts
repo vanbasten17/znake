@@ -1,3 +1,5 @@
+import './styles/tokens.css'
+import './styles/shell.css'
 import './styles/app.css'
 import { setupControlScheme } from './game/systems/controlScheme'
 import { getStartHintText, setHintText } from './game/systems/domHud'

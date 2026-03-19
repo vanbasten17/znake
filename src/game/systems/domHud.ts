@@ -16,9 +16,32 @@ const killsDisp = byId<HTMLSpanElement>('kills-disp')
 const runNum = byId<HTMLSpanElement>('run-num')
 const hintBar = byId<HTMLDivElement>('hint-bar')
 
-export const setSceneChrome = (mode: 'menu' | 'run'): void => {
+export type UiShellMode = 'menu' | 'run'
+
+const setShellClasses = (mode: UiShellMode): void => {
   document.body.classList.toggle('scene-menu', mode === 'menu')
   document.body.classList.toggle('scene-run', mode === 'run')
+}
+
+export const setUiShell = (mode: UiShellMode): void => {
+  document.body.dataset.uiShell = mode
+  setShellClasses(mode)
+}
+
+export const setUiShellSplit = (contentFr: number, controlsFr: number): void => {
+  const content = Math.max(0.1, contentFr)
+  const controls = Math.max(0.1, controlsFr)
+  document.body.style.setProperty('--layout-shell-content-fr', `${content}fr`)
+  document.body.style.setProperty('--layout-shell-controls-fr', `${controls}fr`)
+}
+
+export const resetUiShellSplit = (): void => {
+  document.body.style.removeProperty('--layout-shell-content-fr')
+  document.body.style.removeProperty('--layout-shell-controls-fr')
+}
+
+export const setSceneChrome = (mode: UiShellMode): void => {
+  setUiShell(mode)
 }
 
 export const setHintText = (value: string): void => {

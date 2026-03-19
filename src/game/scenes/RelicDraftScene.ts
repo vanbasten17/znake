@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { CELL, COLORS, HEIGHT, WIDTH } from '../core/constants'
+import styles from '../../styles/relicDraftOverlay.module.css'
 import { drawRelicDraft } from '../core/meta'
 import { gameState } from '../core/state'
 import type { RelicDefinition } from '../core/types'
@@ -10,6 +10,7 @@ import { trackRetentionEvent } from '../systems/telemetry'
 export class RelicDraftScene extends Phaser.Scene {
   private choices: RelicDefinition[] = []
   private picked = false
+  private overlayRoot: HTMLDivElement | null = null
 
   public constructor() {
     super('RelicDraft')
@@ -21,46 +22,12 @@ export class RelicDraftScene extends Phaser.Scene {
     this.choices = []
     this.input.keyboard?.removeAllListeners()
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.teardownOverlay()
       this.input.keyboard?.removeAllListeners()
     })
 
-    const g = this.add.graphics()
-    g.fillStyle(COLORS.bg)
-    g.fillRect(0, 0, WIDTH, HEIGHT)
-    g.lineStyle(1, COLORS.grid, 0.3)
-    for (let x = 0; x <= WIDTH / CELL; x += 1) {
-      g.moveTo(x * CELL, 0)
-      g.lineTo(x * CELL, HEIGHT)
-    }
-    for (let y = 0; y <= HEIGHT / CELL; y += 1) {
-      g.moveTo(0, y * CELL)
-      g.lineTo(WIDTH, y * CELL)
-    }
-    g.strokePath()
-
-    const titleY = Math.round(HEIGHT * 0.2)
-    const cardHeight = Math.max(96, Math.round(HEIGHT * 0.12))
-    const cardGap = Math.max(14, Math.round(HEIGHT * 0.028))
-    const cardsStartY = Math.round(HEIGHT * 0.29)
-
-    this.add
-      .text(WIDTH / 2, titleY, t('relic.selectTitle'), {
-        font: '700 20px Orbitron',
-        color: '#00ff88',
-      })
-      .setOrigin(0.5)
-
-    this.add
-      .text(WIDTH / 2, titleY + 24, t('upgrade.chooseOne'), {
-        font: '10px Share Tech Mono',
-        color: '#334455',
-      })
-      .setOrigin(0.5)
-
     this.choices = drawRelicDraft()
-    for (const [index, relic] of this.choices.entries()) {
-      this.renderRelicCard(relic, index, cardsStartY, cardHeight, cardGap)
-    }
+    this.mountOverlay()
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (event.code === 'Digit1' || event.code === 'Numpad1') {
@@ -77,58 +44,74 @@ export class RelicDraftScene extends Phaser.Scene {
     setHintText(getUpgradeHintText())
   }
 
-  private renderRelicCard(
-    relic: RelicDefinition,
-    index: number,
-    cardsStartY: number,
-    cardHeight: number,
-    cardGap: number,
-  ): void {
-    const cardX = 10
-    const cardY = cardsStartY + index * (cardHeight + cardGap)
-    const width = WIDTH - 20
-    const height = cardHeight
+  private mountOverlay(): void {
+    this.teardownOverlay()
 
-    const card = this.add.graphics()
-    const draw = (hovered: boolean): void => {
-      card.clear()
-      card.fillStyle(0x0a0a18)
-      card.fillRoundedRect(cardX, cardY, width, height, 8)
-      card.lineStyle(2, hovered ? 0x00ffaa : 0x335577, hovered ? 1 : 0.7)
-      card.strokeRoundedRect(cardX, cardY, width, height, 8)
+    const gameArea = document.getElementById('game-area')
+    if (!gameArea) {
+      return
     }
-    draw(false)
 
-    this.add
-      .text(cardX + 16, cardY + Math.round(height * 0.2), `${index + 1}`, {
-        font: '700 14px Orbitron',
-        color: '#00ffaa',
-      })
-      .setOrigin(0, 0)
+    const root = document.createElement('div')
+    root.className = styles.overlay
 
-    const relicName = t(`relic.${relic.id}_name`, { defaultValue: relic.name })
-    const relicDescription = t(`relic.${relic.id}_description`, {
+    const title = document.createElement('h2')
+    title.className = styles.title
+    title.textContent = t('relic.selectTitle')
+    root.append(title)
+
+    const subtitle = document.createElement('p')
+    subtitle.className = styles.subtitle
+    subtitle.textContent = t('upgrade.chooseOne')
+    root.append(subtitle)
+
+    const cards = document.createElement('div')
+    cards.className = styles.cards
+    root.append(cards)
+
+    for (const [index, relic] of this.choices.entries()) {
+      cards.append(this.createRelicCard(relic, index))
+    }
+
+    gameArea.append(root)
+    this.overlayRoot = root
+  }
+
+  private createRelicCard(relic: RelicDefinition, index: number): HTMLButtonElement {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = styles.card
+    button.addEventListener('click', () => this.pick(relic))
+
+    const indexLabel = document.createElement('span')
+    indexLabel.className = styles.index
+    indexLabel.textContent = String(index + 1)
+    button.append(indexLabel)
+
+    const content = document.createElement('span')
+    content.className = styles.content
+    button.append(content)
+
+    const name = document.createElement('span')
+    name.className = styles.name
+    name.textContent = t(`relic.${relic.id}_name`, { defaultValue: relic.name })
+    content.append(name)
+
+    const description = document.createElement('span')
+    description.className = styles.description
+    description.textContent = t(`relic.${relic.id}_description`, {
       defaultValue: relic.description,
     })
+    content.append(description)
 
-    this.add
-      .text(cardX + 44, cardY + Math.round(height * 0.2), relicName, {
-        font: '700 12px Orbitron',
-        color: '#99ffcc',
-      })
-      .setOrigin(0, 0)
+    return button
+  }
 
-    this.add
-      .text(cardX + 44, cardY + Math.round(height * 0.5), relicDescription, {
-        font: '10px Share Tech Mono',
-        color: '#88aabb',
-      })
-      .setOrigin(0, 0)
-
-    const zone = this.add.zone(cardX, cardY, width, height).setOrigin(0).setInteractive()
-    zone.on('pointerover', () => draw(true))
-    zone.on('pointerout', () => draw(false))
-    zone.on('pointerdown', () => this.pick(relic))
+  private teardownOverlay(): void {
+    if (this.overlayRoot) {
+      this.overlayRoot.remove()
+      this.overlayRoot = null
+    }
   }
 
   private pick(relic: RelicDefinition | undefined): void {
@@ -141,6 +124,7 @@ export class RelicDraftScene extends Phaser.Scene {
       relicId: relic.id,
       run: gameState.run,
     })
+    this.teardownOverlay()
     this.scene.start('Game')
   }
 }
