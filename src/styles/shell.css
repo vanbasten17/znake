@@ -1,4 +1,3 @@
-body[data-ui-shell="menu"],
 body[data-ui-shell="run"] {
   display: grid;
   grid-template-rows:
@@ -8,9 +7,18 @@ body[data-ui-shell="run"] {
   align-items: stretch;
 }
 
+body[data-ui-shell="menu"] {
+  display: grid;
+  grid-template-rows: minmax(0, var(--layout-shell-content-fr)) minmax(
+      0,
+      var(--layout-shell-controls-fr)
+    ) auto;
+  justify-items: center;
+  align-items: stretch;
+}
+
 body[data-ui-shell="menu"] #hud {
-  visibility: hidden;
-  pointer-events: none;
+  display: none;
 }
 
 body[data-ui-shell="menu"] #game-area {

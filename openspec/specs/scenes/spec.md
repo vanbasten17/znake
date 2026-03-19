@@ -37,6 +37,12 @@ The system SHALL support a reference-driven polished menu visual identity withou
 - **WHEN** player uses menu interactions (start, talent unlock, goal claim, language switch)
 - **THEN** all interactions behave equivalently to pre-redesign behavior
 
+#### Scenario: Menu uses DOM vertical slice
+
+- **WHEN** menu scene is active
+- **THEN** menu composition is rendered via DOM overlay in game area
+- **AND** keyboard shortcuts and touch interactions remain equivalent
+
 ### Requirement: Game scene
 
 The system SHALL render gameplay UI text in the active locale.

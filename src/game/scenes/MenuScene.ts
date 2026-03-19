@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
-import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, STORAGE_KEYS, WIDTH } from '../core/constants'
+import styles from '../../styles/menuOverlay.module.css'
+import { STORAGE_KEYS } from '../core/constants'
 import {
   PROGRESSION_GOALS,
   TALENT_TREE,
@@ -17,9 +18,10 @@ import { trackRetentionEvent } from '../systems/telemetry'
 
 export class MenuScene extends Phaser.Scene {
   private waiting = true
-  private currencyValueText?: Phaser.GameObjects.Text
-  private goalsTitleText?: Phaser.GameObjects.Text
-  private languageText?: Phaser.GameObjects.Text
+  private overlayRoot: HTMLDivElement | null = null
+  private currencyValueEl: HTMLSpanElement | null = null
+  private goalsTitleEl: HTMLParagraphElement | null = null
+  private languageEl: HTMLButtonElement | null = null
   private talentRowRefreshers: Array<() => void> = []
   private goalRowRefreshers: Array<() => void> = []
 
@@ -32,137 +34,11 @@ export class MenuScene extends Phaser.Scene {
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
     setSceneChrome('menu')
-
-    const g = this.add.graphics()
-    g.fillStyle(0x020918)
-    g.fillRect(0, 0, WIDTH, HEIGHT)
-    g.fillStyle(0x06132b, 0.4)
-    g.fillCircle(WIDTH * 0.74, HEIGHT * 0.24, 100)
-    g.fillStyle(0x07102b, 0.35)
-    g.fillCircle(WIDTH * 0.2, HEIGHT * 0.86, 120)
-    g.lineStyle(1, 0x173b7a, 0.45)
-    for (let x = 0; x <= BASE_COLS; x += 1) {
-      g.moveTo(x * CELL, 0)
-      g.lineTo(x * CELL, HEIGHT)
-    }
-    for (let y = 0; y <= BASE_ROWS; y += 1) {
-      g.moveTo(0, y * CELL)
-      g.lineTo(WIDTH, y * CELL)
-    }
-    g.strokePath()
-    g.lineStyle(2, 0x2d4b8d, 0.85)
-    g.strokeRect(0, 0, WIDTH, HEIGHT)
-
-    const titleY = Math.round(HEIGHT * 0.03)
-    const bestY = Math.round(HEIGHT * 0.125)
-    const currencyY = Math.round(HEIGHT * 0.153)
-    const shopY = Math.round(HEIGHT * 0.225)
-    const ctaY = HEIGHT - Math.max(48, Math.round(HEIGHT * 0.08))
-
-    this.add
-      .text(22, titleY, 'ZNAKE', {
-        font: '900 48px Orbitron',
-        color: '#9dffb7',
-        shadow: {
-          offsetX: 0,
-          offsetY: 0,
-          color: '#45ff8a',
-          blur: 16,
-          fill: true,
-        },
-      })
-      .setOrigin(0, 0)
-    this.languageText = this.add
-      .text(WIDTH - 10, 10, `${t('menu.language')}: ${getLanguage().toUpperCase()}`, {
-        font: '700 11px Share Tech Mono',
-        color: '#d3e5ff',
-      })
-      .setOrigin(1, 0)
-      .setInteractive({ useHandCursor: true })
-    this.languageText.on('pointerdown', () => {
-      void this.switchLanguage()
-    })
-
-    const best = Number.parseInt(
-      localStorage.getItem(STORAGE_KEYS.bestScore) ??
-        localStorage.getItem(STORAGE_KEYS.legacyBestScore) ??
-        '0',
-      10,
-    )
-    this.add
-      .text(22, bestY, `X ${t('menu.bestScore', { best })}`, {
-        font: '700 15px Share Tech Mono',
-        color: '#f2f5ff',
-      })
-      .setOrigin(0, 0.5)
-
-    this.add
-      .text(22, currencyY, `© ${t('menu.currency', { value: '' })}`, {
-        font: '700 15px Share Tech Mono',
-        color: '#f2f5ff',
-      })
-      .setOrigin(0, 0.5)
-    this.currencyValueText = this.add
-      .text(182, currencyY, '', {
-        font: '700 17px Share Tech Mono',
-        color: '#66ff95',
-      })
-      .setOrigin(0, 0.5)
-
-    this.add
-      .text(WIDTH / 2, shopY, t('menu.talentShop'), {
-        font: '900 18px Orbitron',
-        color: '#b5ffc4',
-        shadow: {
-          offsetX: 0,
-          offsetY: 0,
-          color: '#3cff80',
-          blur: 8,
-          fill: true,
-        },
-      })
-      .setOrigin(0.5)
-
-    const rowsBottomY = this.renderTalentShop(shopY)
-
-    const cta = this.add.graphics()
-    const ctaX = 26
-    const ctaW = WIDTH - 52
-    const ctaH = Math.max(22, Math.round(HEIGHT * 0.035))
-    const drawCta = (active: boolean): void => {
-      cta.clear()
-      cta.fillStyle(0x0a1f32, 1)
-      cta.fillRoundedRect(ctaX, ctaY, ctaW, ctaH, 3)
-      cta.lineStyle(2, active ? 0x76ff9f : 0x4de58d, 1)
-      cta.strokeRoundedRect(ctaX, ctaY, ctaW, ctaH, 3)
-      cta.lineStyle(1, 0xa8ffd0, 0.75)
-      cta.strokeRoundedRect(ctaX + 3, ctaY + 3, ctaW - 6, ctaH - 6, 2)
-    }
-    drawCta(false)
-    const startTxt = this.add
-      .text(WIDTH / 2, ctaY + ctaH / 2, t('menu.startPrompt'), {
-        font: '900 11px Orbitron',
-        color: '#9dffb8',
-      })
-      .setOrigin(0.5)
-    const startZone = this.add.zone(ctaX, ctaY, ctaW, ctaH).setOrigin(0).setInteractive()
-    startZone.on('pointerover', () => drawCta(true))
-    startZone.on('pointerout', () => drawCta(false))
-    startZone.on('pointerdown', () => this.startRun())
-
-    this.renderGoals(rowsBottomY, ctaY)
-    this.refreshMetaUi()
-
-    this.tweens.add({
-      targets: startTxt,
-      alpha: 0.2,
-      duration: 700,
-      yoyo: true,
-      repeat: -1,
-    })
+    this.mountOverlay()
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => this.onKeyDown(event))
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.teardownOverlay()
       this.input.keyboard?.removeAllListeners()
     })
   }
@@ -177,23 +53,78 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  private renderTalentShop(shopY: number): number {
-    const startY = shopY + 12
-    const rowHeight = Math.max(22, Math.round(HEIGHT * 0.052))
-    const rowInnerHeight = rowHeight - 4
+  private mountOverlay(): void {
+    this.teardownOverlay()
+    const gameArea = document.getElementById('game-area')
+    if (!gameArea) {
+      return
+    }
+
+    const root = document.createElement('div')
+    root.className = styles.overlay
+
+    const top = document.createElement('div')
+    top.className = styles.top
+    root.append(top)
+
+    const title = document.createElement('h1')
+    title.className = styles.title
+    title.textContent = 'ZNAKE'
+    top.append(title)
+
+    this.languageEl = document.createElement('button')
+    this.languageEl.type = 'button'
+    this.languageEl.className = styles.lang
+    this.languageEl.addEventListener('click', () => {
+      void this.switchLanguage()
+    })
+    top.append(this.languageEl)
+
+    const stats = document.createElement('div')
+    stats.className = styles.stats
+    root.append(stats)
+
+    const best = Number.parseInt(
+      localStorage.getItem(STORAGE_KEYS.bestScore) ??
+        localStorage.getItem(STORAGE_KEYS.legacyBestScore) ??
+        '0',
+      10,
+    )
+    const bestText = document.createElement('p')
+    bestText.className = styles.stat
+    bestText.textContent = `X ${t('menu.bestScore', { best })}`
+    stats.append(bestText)
+
+    const currencyText = document.createElement('p')
+    currencyText.className = styles.stat
+    currencyText.textContent = `© ${t('menu.currency', { value: '' })}`
+    this.currencyValueEl = document.createElement('span')
+    this.currencyValueEl.className = styles.currencyValue
+    currencyText.append(this.currencyValueEl)
+    stats.append(currencyText)
+
+    const talentTitle = document.createElement('p')
+    talentTitle.className = styles.shopTitle
+    talentTitle.textContent = t('menu.talentShop')
+    root.append(talentTitle)
+
+    const talentList = document.createElement('div')
+    talentList.className = styles.talents
+    root.append(talentList)
     for (const [index, talent] of TALENT_TREE.entries()) {
-      const y = startY + index * rowHeight
-      const row = this.add.graphics()
-      const titleText = this.add.text(23, y + rowInnerHeight / 2 + 2, '', {
-        font: '700 9px Share Tech Mono',
-        color: '#f5f8ff',
-      })
-      titleText.setOrigin(0, 0.5)
-      const statusText = this.add.text(WIDTH - 23, y + rowInnerHeight / 2 + 2, '', {
-        font: '700 9px Share Tech Mono',
-        color: '#88aabb',
-      })
-      statusText.setOrigin(1, 0.5)
+      const row = document.createElement('button')
+      row.type = 'button'
+      row.className = styles.row
+      row.addEventListener('click', () => this.tryUnlockByIndex(index))
+      talentList.append(row)
+
+      const titleEl = document.createElement('span')
+      titleEl.className = styles.rowTitle
+      row.append(titleEl)
+
+      const statusEl = document.createElement('span')
+      statusEl.className = styles.rowStatus
+      row.append(statusEl)
 
       const refresh = (): void => {
         const unlocked = playerProfile.unlockedTalents.includes(talent.id)
@@ -201,53 +132,88 @@ export class MenuScene extends Phaser.Scene {
         const affordable = playerProfile.currency >= talent.cost
         const actionable = !unlocked && prereqOk && affordable
 
-        row.clear()
-        row.fillStyle(0x08162b, 1)
-        row.fillRoundedRect(14, y + 2, WIDTH - 28, rowInnerHeight, 3)
-        row.lineStyle(2, actionable ? 0x79ffa0 : 0x70efb2, 1)
-        row.strokeRoundedRect(14, y + 2, WIDTH - 28, rowInnerHeight, 3)
-        row.lineStyle(1, 0xbcffd6, 0.75)
-        row.strokeRoundedRect(17, y + 4, WIDTH - 34, Math.max(10, rowInnerHeight - 4), 2)
-
-        titleText.setText(`${index + 1}. ${this.getTalentLabel(talent.id, talent.name)}`)
+        row.classList.toggle(styles.rowActionable, actionable)
+        titleEl.textContent = `${index + 1}. ${this.getTalentLabel(talent.id, talent.name)}`
 
         if (unlocked) {
-          statusText.setText(t('menu.unlocked'))
-          statusText.setColor('#73ffa4')
-        } else if (!prereqOk) {
-          const prereq = TALENT_TREE.find((item) => item.id === talent.requires)
-          statusText.setText(
-            t('menu.req', {
-              value: prereq
-                ? this.getTalentLabel(prereq.id, prereq.name)
-                : (talent.requires?.toUpperCase() ?? 'NONE'),
-            }),
-          )
-          statusText.setColor('#667788')
-        } else if (!affordable) {
-          statusText.setText(t('menu.cost', { value: talent.cost }))
-          statusText.setColor('#7ceca7')
-        } else {
-          statusText.setText(t('menu.buy', { value: talent.cost }))
-          statusText.setColor('#7ceca7')
+          statusEl.textContent = t('menu.unlocked')
+          statusEl.style.color = '#73ffa4'
+          return
         }
+        if (!prereqOk) {
+          const prereq = TALENT_TREE.find((item) => item.id === talent.requires)
+          statusEl.textContent = t('menu.req', {
+            value: prereq
+              ? this.getTalentLabel(prereq.id, prereq.name)
+              : (talent.requires?.toUpperCase() ?? 'NONE'),
+          })
+          statusEl.style.color = '#667788'
+          return
+        }
+        statusEl.textContent = !affordable
+          ? t('menu.cost', { value: talent.cost })
+          : t('menu.buy', { value: talent.cost })
+        statusEl.style.color = '#7ceca7'
       }
 
-      const zone = this.add
-        .zone(14, y + 2, WIDTH - 28, rowInnerHeight)
-        .setOrigin(0)
-        .setInteractive()
-      zone.on('pointerdown', () => this.tryUnlockByIndex(index))
-      zone.on('pointerover', () => {
-        row.lineStyle(2, 0xb9ffd4, 1)
-        row.strokeRoundedRect(14, y + 2, WIDTH - 28, rowInnerHeight, 5)
-      })
-      zone.on('pointerout', refresh)
-
-      refresh()
       this.talentRowRefreshers.push(refresh)
+      refresh()
     }
-    return startY + TALENT_TREE.length * rowHeight
+
+    this.goalsTitleEl = document.createElement('p')
+    this.goalsTitleEl.className = styles.goalsTitle
+    root.append(this.goalsTitleEl)
+
+    const goals = document.createElement('div')
+    goals.className = styles.goals
+    root.append(goals)
+    for (const goal of PROGRESSION_GOALS) {
+      const goalEl = document.createElement('button')
+      goalEl.type = 'button'
+      goalEl.className = styles.goal
+      goalEl.addEventListener('click', () => this.tryClaimGoal(goal.id))
+      goals.append(goalEl)
+
+      const refresh = (): void => {
+        const progress = Math.min(goal.target, playerProfile.goalProgress[goal.id])
+        const claimed = playerProfile.claimedGoals[goal.id]
+        const ready = !claimed && progress >= goal.target
+        const goalLabel = t(`goal.${goal.id}_name`)
+        const status = claimed
+          ? t('menu.goalClaimed')
+          : ready
+            ? t('menu.goalReady', { reward: goal.reward })
+            : t('menu.goalProgress', { progress, target: goal.target })
+        goalEl.textContent = `${goalLabel} - ${status}`
+        goalEl.style.color = claimed ? '#6f88a1' : ready ? '#8cffb2' : '#f4f8ff'
+      }
+
+      this.goalRowRefreshers.push(refresh)
+      refresh()
+    }
+
+    const start = document.createElement('button')
+    start.type = 'button'
+    start.className = styles.start
+    start.textContent = t('menu.startPrompt')
+    start.addEventListener('click', () => this.startRun())
+    root.append(start)
+
+    gameArea.append(root)
+    this.overlayRoot = root
+    this.refreshMetaUi()
+  }
+
+  private teardownOverlay(): void {
+    if (this.overlayRoot) {
+      this.overlayRoot.remove()
+      this.overlayRoot = null
+    }
+    this.currencyValueEl = null
+    this.goalsTitleEl = null
+    this.languageEl = null
+    this.talentRowRefreshers = []
+    this.goalRowRefreshers = []
   }
 
   private onKeyDown(event: KeyboardEvent): void {
@@ -304,11 +270,14 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private refreshMetaUi(): void {
-    if (this.currencyValueText) {
-      this.currencyValueText.setText(String(playerProfile.currency))
+    if (this.currencyValueEl) {
+      this.currencyValueEl.textContent = String(playerProfile.currency)
     }
-    if (this.goalsTitleText) {
-      this.goalsTitleText.setText(t('menu.goalsTitle'))
+    if (this.goalsTitleEl) {
+      this.goalsTitleEl.textContent = t('menu.goalsTitle')
+    }
+    if (this.languageEl) {
+      this.languageEl.textContent = `${t('menu.language')}: ${getLanguage().toUpperCase()}`
     }
     for (const refresh of this.talentRowRefreshers) {
       refresh()
@@ -329,53 +298,6 @@ export class MenuScene extends Phaser.Scene {
     emitFeedback('confirm')
     await toggleLanguage()
     this.scene.restart()
-  }
-
-  private renderGoals(rowsBottomY: number, ctaY: number): void {
-    const available = Math.max(14, ctaY - rowsBottomY - 10)
-    const titleScale = Math.max(0.72, Math.min(1, available / 34))
-    const rowScale = Math.max(0.68, Math.min(1, available / 30))
-    const titleY = rowsBottomY + 5
-    this.goalsTitleText = this.add
-      .text(WIDTH / 2, titleY, t('menu.goalsTitle'), {
-        font: '900 9px Orbitron',
-        color: '#9cffb7',
-      })
-      .setOrigin(0.5)
-    this.goalsTitleText.setScale(titleScale)
-
-    for (const [index, goal] of PROGRESSION_GOALS.entries()) {
-      const y = titleY + 10 + index * (8 * rowScale)
-      const rowText = this.add.text(WIDTH / 2, y, '', {
-        font: '700 7px Share Tech Mono',
-        color: '#f4f8ff',
-      })
-      rowText.setOrigin(0.5)
-      rowText.setScale(rowScale)
-
-      const rowZone = this.add
-        .zone(20, y - 5, WIDTH - 40, 10)
-        .setOrigin(0)
-        .setInteractive()
-      rowZone.on('pointerdown', () => this.tryClaimGoal(goal.id))
-
-      const refresh = (): void => {
-        const progress = Math.min(goal.target, playerProfile.goalProgress[goal.id])
-        const claimed = playerProfile.claimedGoals[goal.id]
-        const ready = !claimed && progress >= goal.target
-        const goalLabel = t(`goal.${goal.id}_name`)
-        const status = claimed
-          ? t('menu.goalClaimed')
-          : ready
-            ? t('menu.goalReady', { reward: goal.reward })
-            : t('menu.goalProgress', { progress, target: goal.target })
-        rowText.setText(`${goalLabel} - ${status}`)
-        rowText.setColor(claimed ? '#6f88a1' : ready ? '#8cffb2' : '#f4f8ff')
-      }
-
-      refresh()
-      this.goalRowRefreshers.push(refresh)
-    }
   }
 
   private tryClaimGoal(goalId: GoalId): void {
@@ -420,6 +342,7 @@ export class MenuScene extends Phaser.Scene {
       source: 'run_start_menu',
       run: gameState.run,
     })
+    this.teardownOverlay()
     this.scene.start('RelicDraft')
   }
 }

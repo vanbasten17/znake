@@ -39,7 +39,7 @@ const resources = {
       menu: {
         subtitle: '- ROGUELITE -',
         bestScore: 'BEST SCORE: {{best}}',
-        talentShop: 'TALENT SHOP (TAP OR PRESS 1-6)',
+        talentShop: 'TALENT SHOP',
         startPrompt: 'PRESS START > RELIC DRAFT',
         language: 'LANG',
         currency: 'CURRENCY: {{value}}',
@@ -163,7 +163,7 @@ const resources = {
       menu: {
         subtitle: '- ROGUELITE -',
         bestScore: 'MILLOR PUNTUACIÓ: {{best}}',
-        talentShop: 'BOTIGA DE TALENTS (TOCA O PREM 1-6)',
+        talentShop: 'BOTIGA DE TALENTS',
         startPrompt: 'PREM START > DRAFT DE RELÍQUIA',
         language: 'IDIOMA',
         currency: 'MONEDA: {{value}}',
