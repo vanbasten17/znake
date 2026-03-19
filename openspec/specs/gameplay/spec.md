@@ -138,11 +138,11 @@ The system SHALL support temporary hazard-pressure modulation through item inter
 - **THEN** progression remains tied to boss elimination
 - **AND** timed portal objective is not required for that floor
 
-#### Scenario: Ice modifier applies deterministic extra slide
+#### Scenario: Sand modifier slows movement deterministically
 
-- **WHEN** floor modifier `ice` is active and snake lands on an ice cell
-- **THEN** snake performs configured additional forward step(s) in current direction
-- **AND** extra movement obeys existing collision and death rules
+- **WHEN** floor modifier `sand` is active and snake head is on a sand cell
+- **THEN** effective move interval increases by configured sand penalty
+- **AND** slowdown does not change direction rules or collision semantics
 - **AND** modifier state is represented in run status text
 
 ### Requirement: Snake body render continuity

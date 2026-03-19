@@ -107,6 +107,10 @@ export class GameScene extends Phaser.Scene {
   private iceActive = false
   private iceTileCount = 0
   private iceSlideSteps = 0
+  private sandTiles = new Set<string>()
+  private sandActive = false
+  private sandTileCount = 0
+  private sandMovePenaltyMs = 0
   private runStartMs = 0
   private isDying = false
   private pauseText?: Phaser.GameObjects.Text
@@ -158,10 +162,18 @@ export class GameScene extends Phaser.Scene {
     this.iceActive = floorSetup.iceActive
     this.iceTileCount = floorSetup.iceTileCount
     this.iceSlideSteps = floorSetup.iceSlideSteps
+    this.sandActive = floorSetup.sandActive
+    this.sandTileCount = floorSetup.sandTileCount
+    this.sandMovePenaltyMs = floorSetup.sandMovePenaltyMs
     if (debugScenario?.forceIce) {
       this.iceActive = true
       this.iceTileCount = Math.max(this.iceTileCount, 8)
       this.iceSlideSteps = Math.max(this.iceSlideSteps, 1)
+    }
+    if (debugScenario?.forceSand) {
+      this.sandActive = true
+      this.sandTileCount = Math.max(this.sandTileCount, 8)
+      this.sandMovePenaltyMs = Math.max(this.sandMovePenaltyMs, 65)
     }
     this.isBossFloor = gameState.floor % BALANCE.biome.boss.floorInterval === 0
     const floorObjective = getFloorObjective(gameState.floor, gameState.runObjectiveOffset)
@@ -178,9 +190,13 @@ export class GameScene extends Phaser.Scene {
 
     this.walls = this.generateWalls()
     this.iceTiles = this.generateIceTiles()
+    this.sandTiles = this.generateSandTiles()
     this.snake = this.spawnSnake()
     if (debugScenario?.forceIce) {
       this.seedDebugIceLane()
+    }
+    if (debugScenario?.forceSand) {
+      this.seedDebugSandLane()
     }
     this.setupPortalFlow()
     if (debugScenario?.portalCountdownMs !== undefined) {
@@ -318,6 +334,9 @@ export class GameScene extends Phaser.Scene {
     if (this.iceActive) {
       activeModifiers.push(t('game.modifierIce'))
     }
+    if (this.sandActive) {
+      activeModifiers.push(t('game.modifierSand'))
+    }
     const modifierInfo = activeModifiers.length > 0 ? ` · ${activeModifiers.join(' · ')}` : ''
     const hudStatus = hazardInfo
       ? `${localizedBiome} · ${objectiveInfo}${modifierInfo} · ${hazardInfo}`
@@ -368,6 +387,10 @@ export class GameScene extends Phaser.Scene {
     this.iceActive = false
     this.iceTileCount = 0
     this.iceSlideSteps = 0
+    this.sandTiles = new Set<string>()
+    this.sandActive = false
+    this.sandTileCount = 0
+    this.sandMovePenaltyMs = 0
     this.isDying = false
   }
 
@@ -508,8 +531,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateSnakeMovement(delta: number): void {
+    const head = this.snake[0]
+    const sandPenalty = head && this.isSand(head.x, head.y) ? this.sandMovePenaltyMs : 0
+    const moveInterval = this.cfg.moveInterval + sandPenalty
     this.moveTimer += delta
-    if (this.moveTimer < this.cfg.moveInterval) {
+    if (this.moveTimer < moveInterval) {
       return
     }
     this.moveTimer = 0
@@ -689,6 +715,30 @@ export class GameScene extends Phaser.Scene {
     return iceTiles
   }
 
+  private generateSandTiles(): Set<string> {
+    const sandTiles = new Set<string>()
+    if (!this.sandActive || this.sandTileCount <= 0) {
+      return sandTiles
+    }
+
+    const cx = Math.floor(BASE_COLS / 2)
+    const cy = Math.floor(BASE_ROWS / 2)
+    const attempts = this.sandTileCount * 20
+    for (let i = 0; i < attempts && sandTiles.size < this.sandTileCount; i += 1) {
+      const x = 1 + Math.floor(Math.random() * (BASE_COLS - 2))
+      const y = 1 + Math.floor(Math.random() * (BASE_ROWS - 2))
+      const key = `${x},${y}`
+      if (this.walls.has(key) || this.iceTiles.has(key)) {
+        continue
+      }
+      if (Math.abs(x - cx) < 3 && Math.abs(y - cy) < 3) {
+        continue
+      }
+      sandTiles.add(key)
+    }
+    return sandTiles
+  }
+
   private seedDebugIceLane(): void {
     const head = this.snake[0]
     if (!head) {
@@ -704,6 +754,26 @@ export class GameScene extends Phaser.Scene {
         continue
       }
       this.iceTiles.add(`${x},${y}`)
+    }
+  }
+
+  private seedDebugSandLane(): void {
+    const head = this.snake[0]
+    if (!head) {
+      return
+    }
+    for (let step = 1; step <= 4; step += 1) {
+      const x = head.x + this.currentDir.x * step
+      const y = head.y + this.currentDir.y * step
+      const key = `${x},${y}`
+      if (x < 1 || x >= BASE_COLS - 1 || y < 1 || y >= BASE_ROWS - 1) {
+        continue
+      }
+      if (this.walls.has(key)) {
+        continue
+      }
+      this.iceTiles.delete(key)
+      this.sandTiles.add(key)
     }
   }
 
@@ -724,6 +794,13 @@ export class GameScene extends Phaser.Scene {
       return false
     }
     return this.iceTiles.has(`${x},${y}`)
+  }
+
+  private isSand(x: number, y: number): boolean {
+    if (!this.sandActive) {
+      return false
+    }
+    return this.sandTiles.has(`${x},${y}`)
   }
 
   private isSafe(x: number, y: number): boolean {
@@ -1544,6 +1621,24 @@ export class GameScene extends Phaser.Scene {
       this.flashTimer -= 0.016
     } else {
       this.fxGraphics.clear()
+    }
+
+    if (this.sandActive && this.sandTiles.size > 0) {
+      for (const key of this.sandTiles) {
+        const [xRaw, yRaw] = key.split(',')
+        const x = Number(xRaw)
+        const y = Number(yRaw)
+        const sx = x * CELL
+        const sy = y * CELL
+        g.fillStyle(COLORS.sandGlow, 0.11)
+        g.fillRect(sx + 1, sy + 1, CELL - 2, CELL - 2)
+        g.lineStyle(1, COLORS.sand, 0.52)
+        g.strokeRect(sx + 1.5, sy + 1.5, CELL - 3, CELL - 3)
+        g.fillStyle(0xffefc7, 0.35)
+        g.fillRect(sx + 5, sy + 6, 2, 2)
+        g.fillRect(sx + 11, sy + 9, 2, 2)
+        g.fillRect(sx + 8, sy + 13, 2, 2)
+      }
     }
 
     if (this.iceActive && this.iceTiles.size > 0) {

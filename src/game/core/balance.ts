@@ -51,10 +51,18 @@ export const BALANCE = {
     ice: {
       enabled: true,
       startFloor: 2,
-      cadence: 1,
-      minTileCount: 5,
-      maxTileCount: 11,
+      cadence: 2,
+      minTileCount: 3,
+      maxTileCount: 7,
       slideSteps: 1,
+    },
+    sand: {
+      enabled: true,
+      startFloor: 3,
+      cadence: 2,
+      minTileCount: 3,
+      maxTileCount: 6,
+      movePenaltyMs: 45,
     },
   },
   objectives: {
@@ -222,6 +230,9 @@ export type FloorSetup = {
   iceActive: boolean
   iceTileCount: number
   iceSlideSteps: number
+  sandActive: boolean
+  sandTileCount: number
+  sandMovePenaltyMs: number
 }
 
 export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetup => {
@@ -247,6 +258,7 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
     ) * enemySlowMultiplier
   const darknessConfig = BALANCE.modifiers.darkness
   const iceConfig = BALANCE.modifiers.ice
+  const sandConfig = BALANCE.modifiers.sand
   const bossInterval = Math.max(2, BALANCE.biome.boss.floorInterval)
   const cycleStep = (clampedFloor - 1) % bossInterval
   const preBossSteps = Math.max(1, bossInterval - 1)
@@ -261,8 +273,14 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
     !isBossFloor &&
     clampedFloor >= iceConfig.startFloor &&
     (clampedFloor - iceConfig.startFloor) % Math.max(1, iceConfig.cadence) === 0
+  const sandActive =
+    sandConfig.enabled &&
+    !isBossFloor &&
+    clampedFloor >= sandConfig.startFloor &&
+    (clampedFloor - sandConfig.startFloor) % Math.max(1, sandConfig.cadence) === 0
   const darknessT = darknessActive ? Math.min(1, Math.max(0, preBossProgress)) : 0
   const iceT = iceActive ? Math.min(1, Math.max(0, preBossProgress)) : 0
+  const sandT = sandActive ? Math.min(1, Math.max(0, preBossProgress)) : 0
 
   return {
     wallCount,
@@ -282,5 +300,8 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
     iceActive,
     iceTileCount: Math.round(lerp(iceConfig.minTileCount, iceConfig.maxTileCount, iceT)),
     iceSlideSteps: Math.max(0, Math.floor(iceConfig.slideSteps)),
+    sandActive,
+    sandTileCount: Math.round(lerp(sandConfig.minTileCount, sandConfig.maxTileCount, sandT)),
+    sandMovePenaltyMs: Math.max(0, Math.floor(sandConfig.movePenaltyMs)),
   }
 }

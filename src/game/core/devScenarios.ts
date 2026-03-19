@@ -2,6 +2,7 @@ export type DevScenarioId =
   | 'boss_shield_collision'
   | 'darkness_preboss'
   | 'ice_slide_modifier'
+  | 'sand_slow_modifier'
   | 'magnet_food_lock'
   | 'portal_final_seconds'
 
@@ -14,6 +15,7 @@ export type DevScenario = {
   forceMagnet?: boolean
   forceDarkness?: boolean
   forceIce?: boolean
+  forceSand?: boolean
   portalCountdownMs?: number
   placeFoodNearHead?: boolean
 }
@@ -39,6 +41,13 @@ export const DEV_SCENARIOS: DevScenario[] = [
     floor: 2,
     score: 65,
     forceIce: true,
+  },
+  {
+    id: 'sand_slow_modifier',
+    label: 'Sand Slow Modifier',
+    floor: 2,
+    score: 60,
+    forceSand: true,
   },
   {
     id: 'magnet_food_lock',

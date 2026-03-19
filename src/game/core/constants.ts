@@ -24,6 +24,8 @@ export const COLORS = {
   beacon: 0xfff07a,
   ice: 0x8fe8ff,
   iceGlow: 0x66c7ff,
+  sand: 0xf0cb72,
+  sandGlow: 0xbd8b2c,
 } as const
 
 export const STORAGE_KEYS = {
