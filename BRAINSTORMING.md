@@ -276,3 +276,68 @@ Ordered by impact on game feel vs. implementation cost:
 6. **Core Biome** — feeding pressure via passive timer, trivial to add
 7. **Boss Floor with Giant Snake** — climactic moment every 3 floors
 8. **Starting Relics** — lightweight meta-progression, very high replayability gain
+
+---
+
+## 12. Tail as Health System
+
+Instead of an abstract health counter, the snake's tail length **is** the health bar. The player starts with head + 3 segments — losing all segments means death.
+
+Different collision types deal different amounts of damage, creating a threat hierarchy the player learns progressively:
+
+- **Self-collision or wall hit**: instant death (unchanged from classic Snake)
+- **Head-on with enemy head**: −2 segments
+- **Touching an enemy body**: −1 segment
+- **Bomber Snake explosion**: −3 segments based on proximity
+
+The minimum survivable state is head + 1 segment — at that point any hit is lethal. This creates a permanent tension between growing (collecting food, gaining power) and shrinking (taking damage, losing both health and presence on the map).
+
+The system also gives new meaning to existing upgrades. *Regeneration* becomes a healing mechanic. *Armor* (a potential upgrade) could reduce all collision damage by 1. Power-up segments on the tail (see Section 14) become doubly valuable — they are both an active ability and a health buffer.
+
+> *Reference: Sonic the Hedgehog uses rings as a health buffer in exactly this way — collected rings absorb one hit, then scatter. The key difference here is that losing a segment is permanent unless healed, and the tail is always visible, making the health state immediately readable without a separate UI element. The "your power is also your health" unification also appears in Ikaruga's polarity system and Downwell's combo/health link.*
+
+---
+
+## 13. Elimination Run Type
+
+Some floor transitions don't lead to a normal survival floor — instead they trigger an **Elimination Run**: a special floor type where the objective shifts from collecting food to killing a target number of enemies within a time limit.
+
+The floor counter shows **"X / N enemies"** prominently. No food spawns. A new active ability becomes available: the snake can **spit venom** in its current direction.
+
+### Venom Mechanic
+- Fires a projectile in the current movement direction, traveling in a straight line until it hits a wall or an enemy
+- On hit: removes X segments from the enemy (base: 2, upgradeable)
+- Cooldown: 3–4 seconds, or charge-based (see Section 14)
+- Upgrade path: venom leaves a **temporary poison trail** on the ground — enemies that cross it lose segments over time
+
+### Failure Condition
+If the timer expires before reaching the kill target, the run doesn't end — but a penalty is applied: reduced time on the next floor, or losing 1 tail segment. This keeps the stakes high without being punishing enough to feel unfair on a first encounter.
+
+### Interaction with Tail-as-Health
+In an elimination run, killing enemies is both necessary (to meet the objective) and dangerous (they can deal segment damage). Venom provides safe-range killing but has a cooldown. The tension is choosing when to engage in melee and when to spend a venom charge.
+
+> *Reference: The Binding of Isaac's challenge rooms change the floor objective from "survive" to "kill everything under special conditions" — the same structural shift applies here. The venom projectile as an active ability echoes Crypt of the NecroDancer, where the snake has movement-based attacks in addition to its base locomotion.*
+
+---
+
+## 14. Power-up Segments on the Tail
+
+When the snake collects a power-up, instead of applying the effect immediately, a **visually distinct segment** is appended to the tail. The segment has a different color and a small icon indicating the power-up type. The effect is stored, not yet active.
+
+### How Segments Are Consumed
+Two consumption modes depending on power-up type:
+
+- **Defensive power-ups** (shield, ghost): consumed **automatically on the next hit** — the segment absorbs the damage and disappears, reverting to the background color
+- **Offensive power-ups** (venom, dash): consumed **manually** on button press — the player chooses when to activate
+
+This means the tail is simultaneously a health bar, a power-up inventory, and a visual state display — all readable at a glance without any separate UI.
+
+### Ordering and Positioning
+The power-up segment is inserted at the position in the tail where it was collected. If the snake has 6 segments when collecting a shield, the shield occupies segment 6. If the snake takes enough damage to reach segment 6, the shield triggers — but if the snake had grown to 10 segments first, the shield is deeper in the tail and safer. This creates a strategic layer around **when** to collect a power-up relative to current tail length.
+
+With multiple power-ups, consumption order follows **LIFO** (last-in-first-out) for automatic triggers — the rearmost segment goes first. For manual activation, the player could cycle between available power-up segments and choose which to fire, at the cost of needing an extra input.
+
+### Venom Charges from Tail
+In Elimination Runs specifically, venom segments on the tail act as **charges** for the spit ability. Each venom segment = 1 projectile. When fired, the rearmost venom segment disappears. This connects Section 13 and Section 14 into a single coherent system: collecting venom power-ups during a floor loads up your attack capacity for the next elimination run.
+
+> *Reference: Sonic the Hedgehog's ring system is the closest visual analog — collected items form a visible buffer that absorbs hits. The ordered inventory-as-body-segments concept is more directly inspired by Noita's wand system, where the order of spells in the wand determines firing behavior. The "stored but not yet active" power-up model also appears in Mega Man's weapon select and Celeste's dash crystal — the player carries potential energy that is spent deliberately.*
