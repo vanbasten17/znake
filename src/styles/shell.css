@@ -8,22 +8,30 @@ body[data-ui-shell="run"] {
 }
 
 body[data-ui-shell="menu"] {
+  --menu-top-overlap: calc(52px + env(safe-area-inset-top) * 0.2);
   display: grid;
-  grid-template-rows: minmax(0, var(--layout-shell-content-fr)) minmax(
-      0,
-      var(--layout-shell-controls-fr)
-    ) auto;
+  grid-template-rows:
+    auto minmax(0, var(--layout-shell-content-fr)) minmax(0, var(--layout-shell-controls-fr))
+    auto;
   justify-items: center;
   align-items: stretch;
 }
 
 body[data-ui-shell="menu"] #hud {
-  display: none;
+  background: transparent;
+  border-bottom: 0;
+  pointer-events: none;
+}
+
+body[data-ui-shell="menu"] #hud-top,
+body[data-ui-shell="menu"] #run-status {
+  opacity: 0;
 }
 
 body[data-ui-shell="menu"] #game-area {
-  width: min(100%, var(--layout-max-width));
-  height: 100%;
+  width: min(100vw, var(--layout-max-width));
+  height: calc(100% + var(--menu-top-overlap));
+  margin-top: calc(-1 * var(--menu-top-overlap));
   overflow: hidden;
 }
 
@@ -31,7 +39,7 @@ body[data-ui-shell="menu"] #game-area,
 body[data-ui-shell="menu"] #hud,
 body[data-ui-shell="menu"] #controls,
 body[data-ui-shell="menu"] #hint-bar {
-  width: min(100%, var(--layout-max-width));
+  width: min(100vw, var(--layout-max-width));
 }
 
 body[data-ui-shell="menu"] #phaser-container {
@@ -49,7 +57,7 @@ body[data-ui-shell="menu"] #phaser-container canvas {
 
 body[data-ui-shell="run"] #game-area,
 body[data-ui-shell="run"] #controls {
-  width: min(100%, var(--layout-max-width));
+  width: min(100vw, var(--layout-max-width));
   min-height: 0;
 }
 

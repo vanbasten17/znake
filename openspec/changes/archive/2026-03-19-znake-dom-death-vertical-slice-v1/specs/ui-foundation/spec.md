@@ -1,8 +1,5 @@
-# ui-foundation Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change znake-design-tokens-foundation-v1. Update Purpose after archive.
-## Requirements
 ### Requirement: Shared UI design tokens
 
 The system SHALL provide a shared design-token and shell-primitive layer for non-gameplay UI styling.
@@ -29,4 +26,3 @@ The system SHALL provide a shared design-token and shell-primitive layer for non
 - **WHEN** death DOM UI is rendered
 - **THEN** styles are applied through a scene-scoped CSS Module backed by shared tokens
 - **AND** global gameplay styling remains isolated
-

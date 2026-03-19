@@ -15,6 +15,7 @@ const floorDisp = byId<HTMLSpanElement>('floor-disp')
 const killsDisp = byId<HTMLSpanElement>('kills-disp')
 const runNum = byId<HTMLSpanElement>('run-num')
 const hintBar = byId<HTMLDivElement>('hint-bar')
+const runStatus = byId<HTMLDivElement>('run-status')
 
 export type UiShellMode = 'menu' | 'run'
 
@@ -26,6 +27,9 @@ const setShellClasses = (mode: UiShellMode): void => {
 export const setUiShell = (mode: UiShellMode): void => {
   document.body.dataset.uiShell = mode
   setShellClasses(mode)
+  if (mode !== 'run') {
+    runStatus.textContent = ''
+  }
 }
 
 export const setUiShellSplit = (contentFr: number, controlsFr: number): void => {
@@ -46,6 +50,10 @@ export const setSceneChrome = (mode: UiShellMode): void => {
 
 export const setHintText = (value: string): void => {
   hintBar.textContent = value
+}
+
+export const setRunStatusText = (value: string): void => {
+  runStatus.textContent = value
 }
 
 export const getMoveHintText = (): string =>

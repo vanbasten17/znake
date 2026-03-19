@@ -36,8 +36,8 @@
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(40px, 8vw, 66px);
-  color: #9dffb7;
-  text-shadow: 0 0 16px rgba(69, 255, 138, 0.45);
+  color: var(--color-accent);
+  text-shadow: 0 0 16px rgba(0, 255, 136, 0.45);
   line-height: 0.92;
 }
 
@@ -65,7 +65,7 @@
 }
 
 .currencyValue {
-  color: #66ff95;
+  color: var(--color-accent);
 }
 
 .shopTitle {
@@ -74,8 +74,8 @@
   font-family: var(--font-display);
   font-size: clamp(16px, 4.2vw, 26px);
   font-weight: 900;
-  color: #b5ffc4;
-  text-shadow: 0 0 8px rgba(60, 255, 128, 0.38);
+  color: var(--color-accent);
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.38);
 }
 
 .talents {
@@ -86,7 +86,7 @@
 
 .row {
   width: 100%;
-  border: 2px solid #70efb2;
+  border: 2px solid rgba(0, 255, 136, 0.72);
   border-radius: 8px;
   background: rgba(8, 22, 43, 0.95);
   display: grid;
@@ -100,12 +100,12 @@
 
 .row:hover,
 .row:focus-visible {
-  border-color: #b9ffd4;
+  border-color: var(--color-accent);
   outline: none;
 }
 
 .rowActionable {
-  border-color: #79ffa0;
+  border-color: var(--color-accent);
 }
 
 .rowTitle {
@@ -117,7 +117,7 @@
 .rowStatus {
   font-family: var(--font-display);
   font-size: clamp(10px, 2.1vw, 12px);
-  color: #7ceca7;
+  color: var(--color-accent);
 }
 
 .goalsTitle {
@@ -125,7 +125,7 @@
   text-align: center;
   font-family: var(--font-display);
   font-size: clamp(11px, 2.6vw, 14px);
-  color: #9cffb7;
+  color: var(--color-accent);
 }
 
 .goals {
@@ -147,16 +147,16 @@
 
 .goal:hover,
 .goal:focus-visible {
-  color: #8cffb2;
+  color: var(--color-accent);
   outline: none;
 }
 
 .start {
   margin-top: auto;
-  border: 2px solid #4de58d;
+  border: 2px solid var(--color-accent);
   border-radius: 8px;
   background: #0a1f32;
-  color: #9dffb8;
+  color: var(--color-accent);
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(12px, 2.8vw, 16px);
@@ -166,6 +166,7 @@
 
 .start:hover,
 .start:focus-visible {
-  border-color: #76ff9f;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px rgba(0, 255, 136, 0.38);
   outline: none;
 }

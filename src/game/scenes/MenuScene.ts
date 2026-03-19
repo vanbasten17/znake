@@ -137,7 +137,7 @@ export class MenuScene extends Phaser.Scene {
 
         if (unlocked) {
           statusEl.textContent = t('menu.unlocked')
-          statusEl.style.color = '#73ffa4'
+          statusEl.style.color = 'var(--color-accent)'
           return
         }
         if (!prereqOk) {
@@ -153,7 +153,7 @@ export class MenuScene extends Phaser.Scene {
         statusEl.textContent = !affordable
           ? t('menu.cost', { value: talent.cost })
           : t('menu.buy', { value: talent.cost })
-        statusEl.style.color = '#7ceca7'
+        statusEl.style.color = 'var(--color-accent)'
       }
 
       this.talentRowRefreshers.push(refresh)
@@ -185,7 +185,7 @@ export class MenuScene extends Phaser.Scene {
             ? t('menu.goalReady', { reward: goal.reward })
             : t('menu.goalProgress', { progress, target: goal.target })
         goalEl.textContent = `${goalLabel} - ${status}`
-        goalEl.style.color = claimed ? '#6f88a1' : ready ? '#8cffb2' : '#f4f8ff'
+        goalEl.style.color = claimed ? '#6f88a1' : ready ? 'var(--color-accent)' : '#f4f8ff'
       }
 
       this.goalRowRefreshers.push(refresh)

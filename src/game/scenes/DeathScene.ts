@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
-import { COLORS, HEIGHT, STORAGE_KEYS, WIDTH } from '../core/constants'
+import styles from '../../styles/deathOverlay.module.css'
+import { STORAGE_KEYS } from '../core/constants'
 import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { Upgrade } from '../core/types'
@@ -9,6 +10,7 @@ import {
   getRestartHintText,
   getStartHintText,
   setHintText,
+  setSceneChrome,
 } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
@@ -20,16 +22,23 @@ type DeathData = {
   timeAliveMs?: number
 }
 
+type DeathOverlayData = {
+  best: number
+  score: number
+  reward: number
+  totalCurrency: number
+}
+
 export class DeathScene extends Phaser.Scene {
   private waiting = true
-  private nextZone?: Phaser.GameObjects.Zone
-  private menuZone?: Phaser.GameObjects.Zone
+  private overlayRoot: HTMLDivElement | null = null
 
   public constructor() {
     super('Death')
   }
 
   public create(data: DeathData): void {
+    setSceneChrome('run')
     this.waiting = true
     window.virtualInput.start = false
     window.virtualInput.pause = false
@@ -102,108 +111,15 @@ export class DeathScene extends Phaser.Scene {
     )
     localStorage.setItem(STORAGE_KEYS.bestScore, String(best))
 
-    const g = this.add.graphics()
-    g.fillStyle(0x000000)
-    g.fillRect(0, 0, WIDTH, HEIGHT)
-
-    this.add
-      .text(WIDTH / 2, 50, t('death.title'), {
-        font: '700 18px Orbitron',
-        color: '#ff4466',
-      })
-      .setOrigin(0.5)
-    this.add
-      .text(WIDTH / 2, 95, t('death.score', { score }), {
-        font: '700 20px Orbitron',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5)
-    this.add
-      .text(WIDTH / 2, 125, t('death.finalFloor', { floor: gameState.floor }), {
-        font: '13px Share Tech Mono',
-        color: '#556677',
-      })
-      .setOrigin(0.5)
-    this.add
-      .text(WIDTH / 2, 148, t('death.enemiesDefeated', { kills: gameState.kills }), {
-        font: '13px Share Tech Mono',
-        color: '#556677',
-      })
-      .setOrigin(0.5)
-    this.add
-      .text(WIDTH / 2, 170, t('death.best', { best }), {
-        font: '13px Share Tech Mono',
-        color: '#334455',
-      })
-      .setOrigin(0.5)
-    this.add
-      .text(WIDTH / 2, 193, t('death.runReward', { reward }), {
-        font: '12px Share Tech Mono',
-        color: '#99ffcc',
-      })
-      .setOrigin(0.5)
-    this.add
-      .text(
-        WIDTH / 2,
-        208,
-        t('death.totalCurrency', { currency: goalProgressResult.profile.currency }),
-        {
-          font: '11px Share Tech Mono',
-          color: '#88aabb',
-        },
-      )
-      .setOrigin(0.5)
-
-    if (score >= best && score > 0) {
-      this.add
-        .text(WIDTH / 2, 223, t('death.newRecord'), {
-          font: '12px Share Tech Mono',
-          color: '#ffdd00',
-        })
-        .setOrigin(0.5)
-    }
-
-    this.renderUpgrades(gameState.persistentUpgrades)
-
-    const nextText = this.add
-      .text(WIDTH / 2 - 78, HEIGHT - 22, t('death.nextRun'), {
-        font: '12px Share Tech Mono',
-        color: '#00ff88',
-      })
-      .setOrigin(0.5)
-    const menuText = this.add
-      .text(WIDTH / 2 + 78, HEIGHT - 22, t('death.mainMenu'), {
-        font: '12px Share Tech Mono',
-        color: '#99aabb',
-      })
-      .setOrigin(0.5)
-    this.tweens.add({
-      targets: nextText,
-      alpha: 0.2,
-      duration: 700,
-      yoyo: true,
-      repeat: -1,
+    this.mountOverlay({
+      best,
+      score,
+      reward,
+      totalCurrency: goalProgressResult.profile.currency,
     })
 
-    this.nextZone = this.add
-      .zone(WIDTH / 2 - 78 - 46, HEIGHT - 34, 92, 24)
-      .setOrigin(0)
-      .setInteractive()
-    this.nextZone.on('pointerdown', () => this.restart())
-    this.nextZone.on('pointerup', () => this.restart())
-
-    this.menuZone = this.add
-      .zone(WIDTH / 2 + 78 - 54, HEIGHT - 34, 108, 24)
-      .setOrigin(0)
-      .setInteractive()
-    this.menuZone.on('pointerdown', () => this.backToMenu())
-    this.menuZone.on('pointerup', () => this.backToMenu())
-
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-      if (event.code === 'Enter' || event.code === 'Space') {
-        this.restart()
-      }
-      if (event.code === 'KeyN') {
+      if (event.code === 'Enter' || event.code === 'Space' || event.code === 'KeyN') {
         this.restart()
       }
       if (event.code === 'KeyM') {
@@ -211,11 +127,8 @@ export class DeathScene extends Phaser.Scene {
       }
     })
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.teardownOverlay()
       this.input.keyboard?.removeAllListeners()
-      this.nextZone?.removeAllListeners()
-      this.menuZone?.removeAllListeners()
-      this.nextZone = undefined
-      this.menuZone = undefined
     })
 
     setHintText(getRestartHintText())
@@ -231,32 +144,106 @@ export class DeathScene extends Phaser.Scene {
     }
   }
 
-  private renderUpgrades(upgrades: Upgrade[]): void {
-    if (upgrades.length === 0) {
+  private mountOverlay(data: DeathOverlayData): void {
+    this.teardownOverlay()
+    const gameArea = document.getElementById('game-area')
+    if (!gameArea) {
       return
     }
 
-    let y = 215
-    this.add
-      .text(WIDTH / 2, y, t('death.upgradesEarned'), {
-        font: '9px Share Tech Mono',
-        color: '#334455',
-      })
-      .setOrigin(0.5)
-    y += 16
+    const root = document.createElement('div')
+    root.className = styles.overlay
 
+    const title = document.createElement('h2')
+    title.className = styles.title
+    title.textContent = t('death.title')
+    root.append(title)
+
+    const score = document.createElement('p')
+    score.className = styles.score
+    score.textContent = t('death.score', { score: data.score })
+    root.append(score)
+
+    const meta = document.createElement('div')
+    meta.className = styles.meta
+    root.append(meta)
+    meta.append(this.line(t('death.finalFloor', { floor: gameState.floor })))
+    meta.append(this.line(t('death.enemiesDefeated', { kills: gameState.kills })))
+    meta.append(this.line(t('death.best', { best: data.best }), styles.lineMuted))
+    meta.append(this.line(t('death.runReward', { reward: data.reward }), styles.lineReward))
+    meta.append(
+      this.line(t('death.totalCurrency', { currency: data.totalCurrency }), styles.lineCurrency),
+    )
+
+    if (data.score >= data.best && data.score > 0) {
+      const record = document.createElement('p')
+      record.className = styles.newRecord
+      record.textContent = t('death.newRecord')
+      root.append(record)
+    }
+
+    this.renderUpgrades(root, gameState.persistentUpgrades)
+
+    const actions = document.createElement('div')
+    actions.className = styles.actions
+    root.append(actions)
+
+    const nextButton = document.createElement('button')
+    nextButton.type = 'button'
+    nextButton.className = `${styles.action} ${styles.actionPrimary}`
+    nextButton.textContent = t('death.nextRun')
+    nextButton.addEventListener('click', () => this.restart())
+    actions.append(nextButton)
+
+    const menuButton = document.createElement('button')
+    menuButton.type = 'button'
+    menuButton.className = styles.action
+    menuButton.textContent = t('death.mainMenu')
+    menuButton.addEventListener('click', () => this.backToMenu())
+    actions.append(menuButton)
+
+    gameArea.append(root)
+    this.overlayRoot = root
+  }
+
+  private line(text: string, className?: string): HTMLParagraphElement {
+    const p = document.createElement('p')
+    p.className = className ? `${styles.line} ${className}` : styles.line
+    p.textContent = text
+    return p
+  }
+
+  private renderUpgrades(root: HTMLDivElement, upgrades: Upgrade[]): void {
+    if (upgrades.length === 0) {
+      return
+    }
+    const title = document.createElement('p')
+    title.className = styles.upgradesTitle
+    title.textContent = t('death.upgradesEarned')
+    root.append(title)
+
+    const list = document.createElement('div')
+    list.className = styles.upgrades
+    root.append(list)
+
+    let rendered = 0
     for (const upgrade of upgrades) {
-      const upgradeName = t(`upgrade.${upgrade.id}_name`, { defaultValue: upgrade.name })
-      this.add
-        .text(WIDTH / 2, y, `${upgrade.icon} ${upgradeName}`, {
-          font: '11px Share Tech Mono',
-          color: '#445566',
-        })
-        .setOrigin(0.5)
-      y += 16
-      if (y > HEIGHT - 40) {
+      if (rendered >= 5) {
         break
       }
+      const row = document.createElement('p')
+      row.className = styles.upgrade
+      const upgradeName = t(`upgrade.${upgrade.id}_name`, { defaultValue: upgrade.name })
+      row.textContent = `${upgrade.icon} ${upgradeName}`
+      list.append(row)
+      rendered += 1
+    }
+  }
+
+  private teardownOverlay(): void {
+    if (this.overlayRoot) {
+      this.overlayRoot.remove()
+      this.overlayRoot = null
     }
   }
 
@@ -284,6 +271,7 @@ export class DeathScene extends Phaser.Scene {
       source: 'run_start_death_restart',
       run: gameState.run,
     })
+    this.teardownOverlay()
     setHintText(getMoveHintText())
     this.scene.start('RelicDraft')
   }
@@ -294,6 +282,7 @@ export class DeathScene extends Phaser.Scene {
     }
     this.waiting = false
     emitFeedback('tap')
+    this.teardownOverlay()
     setHintText(getStartHintText())
     this.scene.start('Menu')
   }

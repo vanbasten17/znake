@@ -21,6 +21,7 @@ import {
   getMoveHintText,
   getRestartHintText,
   setHintText,
+  setRunStatusText,
   setSceneChrome,
   updateHud,
 } from '../systems/domHud'
@@ -81,8 +82,6 @@ export class GameScene extends Phaser.Scene {
   private isBossFloor = false
   private runStartMs = 0
   private isDying = false
-  private floorTxt?: Phaser.GameObjects.Text
-  private nextFloorTxt?: Phaser.GameObjects.Text
   private pauseText?: Phaser.GameObjects.Text
 
   private bgGraphics!: Phaser.GameObjects.Graphics
@@ -146,19 +145,6 @@ export class GameScene extends Phaser.Scene {
     }))
     this.riftCell = this.pickOpenCell()
 
-    this.floorTxt = this.add
-      .text(WIDTH - 6, 6, '', {
-        font: '9px Share Tech Mono',
-        color: '#334455',
-      })
-      .setOrigin(1, 0)
-    this.nextFloorTxt = this.add
-      .text(WIDTH - 6, 17, '', {
-        font: '8px Share Tech Mono',
-        color: '#4a6a88',
-      })
-      .setOrigin(1, 0)
-
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       const dir = directionMap[event.code]
       if (dir) {
@@ -217,44 +203,30 @@ export class GameScene extends Phaser.Scene {
     if (this.biomeItem) {
       this.biomeItem.pulse += dt * 4.5
     }
-    if (this.floorTxt) {
-      const localizedBiome = t(`biome.${BALANCE.biome.id.replaceAll('-', '_')}`, {
-        defaultValue: BALANCE.biome.name,
-      })
-      const effectiveLengthGoal = Math.max(this.snakeLengthGoal, this.floorStartLength + 1)
-      const progressLabel = this.isBossFloor
-        ? t('game.floorProgressBoss', {
-            biome: localizedBiome,
-            floor: gameState.floor,
-            bossTag: t('game.bossTag'),
+    const localizedBiome = t(`biome.${BALANCE.biome.id.replaceAll('-', '_')}`, {
+      defaultValue: BALANCE.biome.name,
+    })
+    const effectiveLengthGoal = Math.max(this.snakeLengthGoal, this.floorStartLength + 1)
+    const remaining = Math.max(0, effectiveLengthGoal - this.snake.length)
+    const progress =
+      this.isBossFloor || effectiveLengthGoal <= 0
+        ? ''
+        : `${Math.min(this.snake.length, effectiveLengthGoal)}/${effectiveLengthGoal}`
+    const nextInfo =
+      this.riftSuppressionMsRemaining > 0
+        ? t('game.riftSuppressed', {
+            seconds: Math.ceil(this.riftSuppressionMsRemaining / 1000),
           })
-        : t('game.floorProgress', {
-            biome: localizedBiome,
-            floor: gameState.floor,
-            bossTag: '',
-            progress: Math.min(this.snake.length, effectiveLengthGoal),
-            goal: effectiveLengthGoal,
-          })
-      this.floorTxt.setText(progressLabel)
-      if (this.nextFloorTxt) {
-        const remaining = Math.max(0, effectiveLengthGoal - this.snake.length)
-        if (this.riftSuppressionMsRemaining > 0) {
-          this.nextFloorTxt.setText(
-            t('game.riftSuppressed', {
-              seconds: Math.ceil(this.riftSuppressionMsRemaining / 1000),
-            }),
-          )
-        } else {
-          this.nextFloorTxt.setText(
-            this.isBossFloor
-              ? t('game.bossAdvance')
-              : t('game.toNextFloor', {
-                  remaining,
-                }),
-          )
-        }
-      }
-    }
+        : this.isBossFloor
+          ? t('game.bossAdvance')
+          : t('game.toNextFloor', {
+              remaining,
+            })
+
+    const hudStatus = progress
+      ? `${localizedBiome} · ${progress} · ${nextInfo}`
+      : `${localizedBiome} · ${nextInfo}`
+    setRunStatusText(hudStatus)
 
     this.drawFrame()
   }
