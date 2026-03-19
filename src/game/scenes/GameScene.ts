@@ -95,6 +95,11 @@ export class GameScene extends Phaser.Scene {
   private riftCell: Vec2 | null = null
   private stars: Array<{ x: number; y: number; size: number; alpha: number }> = []
   private isBossFloor = false
+  private darknessActive = false
+  private darknessRadius = 0
+  private darknessEdgeFalloff = 0
+  private darknessAlphaOuter = 0
+  private darknessAlphaEdge = 0
   private runStartMs = 0
   private isDying = false
   private pauseText?: Phaser.GameObjects.Text
@@ -128,6 +133,11 @@ export class GameScene extends Phaser.Scene {
     this.wallCount = floorSetup.wallCount
     this.enemyCount = floorSetup.enemyCount
     this.enemyInterval = floorSetup.enemyIntervalMs
+    this.darknessActive = floorSetup.darknessActive
+    this.darknessRadius = floorSetup.darknessRadius
+    this.darknessEdgeFalloff = floorSetup.darknessEdgeFalloff
+    this.darknessAlphaOuter = floorSetup.darknessAlphaOuter
+    this.darknessAlphaEdge = floorSetup.darknessAlphaEdge
     this.isBossFloor = gameState.floor % BALANCE.biome.boss.floorInterval === 0
     const floorObjective = getFloorObjective(gameState.floor, gameState.runObjectiveOffset)
     this.objectiveType = floorObjective.kind
@@ -254,9 +264,10 @@ export class GameScene extends Phaser.Scene {
           })
         : null
     const objectiveInfo = this.getObjectiveStatusText()
+    const modifierInfo = this.darknessActive ? ` · ${t('game.modifierDarkness')}` : ''
     const hudStatus = hazardInfo
-      ? `${localizedBiome} · ${objectiveInfo} · ${hazardInfo}`
-      : `${localizedBiome} · ${objectiveInfo}`
+      ? `${localizedBiome} · ${objectiveInfo}${modifierInfo} · ${hazardInfo}`
+      : `${localizedBiome} · ${objectiveInfo}${modifierInfo}`
     setRunStatusText(hudStatus)
 
     this.drawFrame()
@@ -294,6 +305,11 @@ export class GameScene extends Phaser.Scene {
     this.biomeItem = null
     this.stars = []
     this.isBossFloor = false
+    this.darknessActive = false
+    this.darknessRadius = 0
+    this.darknessEdgeFalloff = 0
+    this.darknessAlphaOuter = 0
+    this.darknessAlphaEdge = 0
     this.isDying = false
   }
 
@@ -973,10 +989,10 @@ export class GameScene extends Phaser.Scene {
     this.spawnEnemy()
   }
 
-  private checkEnemyCollision(): boolean {
+  private checkEnemyCollision(): Enemy | null {
     const head = this.snake[0]
     if (!head) {
-      return false
+      return null
     }
     for (const enemy of this.enemies) {
       if (!enemy.alive) {
@@ -984,10 +1000,23 @@ export class GameScene extends Phaser.Scene {
       }
       if (enemy.body.some((segment) => segment.x === head.x && segment.y === head.y)) {
         this.killEnemy(enemy)
-        return true
+        return enemy
       }
     }
-    return false
+    return null
+  }
+
+  private applyBossKnockback(previousHead: SnakeSegment): void {
+    this.snake.shift()
+    if (!this.snake[0]) {
+      this.snake.unshift({ x: previousHead.x, y: previousHead.y })
+    }
+    this.flashColor = COLORS.enemyHead
+    this.flashTimer = 0.18
+    this.shakeTimer = 0.28
+    this.spawnParticles(previousHead.x, previousHead.y, COLORS.enemyHead, 8)
+    emitFeedback('danger')
+    setHintText(t('game.bossKnockback'))
   }
 
   private killEnemy(enemy: Enemy): void {
@@ -1186,13 +1215,16 @@ export class GameScene extends Phaser.Scene {
       this.biomeItem = null
     }
 
-    const enemyHit = this.checkEnemyCollision()
-    if (enemyHit) {
+    const collidedEnemy = this.checkEnemyCollision()
+    if (collidedEnemy) {
       if (this.shields > 0) {
         this.shields -= 1
         this.shakeTimer = 0.2
         this.flashTimer = 0.15
         this.flashColor = COLORS.shield
+        if (collidedEnemy.kind === 'boss' && collidedEnemy.alive) {
+          this.applyBossKnockback(head)
+        }
         this.enemies = this.enemies.filter((enemy) => enemy.alive)
         if (!this.isBossFloor && Math.random() < BALANCE.spawn.enemyRespawnOnShieldHitChance) {
           this.spawnEnemy()
@@ -1661,6 +1693,24 @@ export class GameScene extends Phaser.Scene {
       g.moveTo(insetPx + safeWidth, insetPx)
       g.lineTo(insetPx, insetPx + safeHeight)
       g.strokePath()
+    }
+
+    if (this.darknessActive) {
+      const head = this.snake[0]
+      if (head) {
+        for (let y = 0; y < BASE_ROWS; y += 1) {
+          for (let x = 0; x < BASE_COLS; x += 1) {
+            const dist = Math.abs(x - head.x) + Math.abs(y - head.y)
+            if (dist <= this.darknessRadius) {
+              continue
+            }
+            const edgeLimit = this.darknessRadius + this.darknessEdgeFalloff
+            const alpha = dist <= edgeLimit ? this.darknessAlphaEdge : this.darknessAlphaOuter
+            g.fillStyle(COLORS.bg, alpha)
+            g.fillRect(x * CELL, y * CELL, CELL, CELL)
+          }
+        }
+      }
     }
 
     for (let i = 0; i < this.shields; i += 1) {

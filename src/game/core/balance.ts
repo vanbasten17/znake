@@ -35,6 +35,20 @@ export const BALANCE = {
     squeezeStepMs: 3600,
     squeezeMaxInset: 8,
   },
+  modifiers: {
+    darkness: {
+      enabled: true,
+      startFloor: 1,
+      minVisibilityRadius: 6,
+      maxVisibilityRadius: 4,
+      minEdgeFalloff: 2,
+      maxEdgeFalloff: 1,
+      minAlphaOuter: 0.26,
+      maxAlphaOuter: 0.76,
+      minAlphaEdge: 0.16,
+      maxAlphaEdge: 0.44,
+    },
+  },
   objectives: {
     rotation: ['portal', 'score', 'kills'] satisfies ReadonlyArray<NonBossObjectiveKind>,
     scoreTargetBase: 36,
@@ -192,9 +206,15 @@ export type FloorSetup = {
   enemyCount: number
   snakeLengthGoal: number
   enemyIntervalMs: number
+  darknessActive: boolean
+  darknessRadius: number
+  darknessEdgeFalloff: number
+  darknessAlphaOuter: number
+  darknessAlphaEdge: number
 }
 
 export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetup => {
+  const lerp = (from: number, to: number, t: number): number => from + (to - from) * t
   const clampedFloor = Math.max(1, Math.floor(floor))
   const isBossFloor = clampedFloor % BALANCE.biome.boss.floorInterval === 0
   const wallCount = Math.min(
@@ -214,11 +234,32 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
       BALANCE.floor.enemyIntervalMinMs,
       BALANCE.floor.enemyIntervalBaseMs - clampedFloor * BALANCE.floor.enemyIntervalPerFloorMs,
     ) * enemySlowMultiplier
+  const darknessConfig = BALANCE.modifiers.darkness
+  const bossInterval = Math.max(2, BALANCE.biome.boss.floorInterval)
+  const cycleStep = (clampedFloor - 1) % bossInterval
+  const preBossSteps = Math.max(1, bossInterval - 1)
+  const preBossProgress = preBossSteps <= 1 ? 1 : cycleStep / (preBossSteps - 1)
+  const darknessActive =
+    darknessConfig.enabled &&
+    !isBossFloor &&
+    clampedFloor >= darknessConfig.startFloor &&
+    cycleStep < preBossSteps
+  const darknessT = darknessActive ? Math.min(1, Math.max(0, preBossProgress)) : 0
 
   return {
     wallCount,
     enemyCount,
     snakeLengthGoal,
     enemyIntervalMs,
+    darknessActive,
+    darknessRadius: Math.round(
+      lerp(darknessConfig.minVisibilityRadius, darknessConfig.maxVisibilityRadius, darknessT),
+    ),
+    darknessEdgeFalloff: Math.max(
+      0,
+      Math.round(lerp(darknessConfig.minEdgeFalloff, darknessConfig.maxEdgeFalloff, darknessT)),
+    ),
+    darknessAlphaOuter: lerp(darknessConfig.minAlphaOuter, darknessConfig.maxAlphaOuter, darknessT),
+    darknessAlphaEdge: lerp(darknessConfig.minAlphaEdge, darknessConfig.maxAlphaEdge, darknessT),
   }
 }

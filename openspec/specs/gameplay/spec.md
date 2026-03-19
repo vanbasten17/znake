@@ -82,6 +82,18 @@ The system SHALL provide explicit feedback for lethal collision outcomes.
 - **WHEN** player death reason is `rift`
 - **THEN** feedback system keeps using `danger` cue semantics
 
+#### Scenario: Boss impact with shield uses readable knockback response
+
+- **WHEN** player collides with boss while having at least one shield
+- **THEN** boss takes configured collision damage
+- **AND** player consumes shield and receives explicit knockback/impact feedback
+- **AND** resulting player position remains valid within current collision constraints
+
+#### Scenario: Boss impact without shield remains lethal
+
+- **WHEN** player collides with boss without shield
+- **THEN** run ends per existing lethal collision rules
+
 ### Requirement: Floor progression
 
 The system SHALL support temporary hazard-pressure modulation through item interaction.
