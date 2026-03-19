@@ -84,6 +84,7 @@ export type GameState = {
 
 export type VirtualInput = {
   dir: DirectionName | null
+  turn: 'left' | 'right' | null
   start: boolean
   pause: boolean
 }

@@ -20,7 +20,11 @@ The system SHALL expose a virtualInput object (dir, start, pause) on window for 
 - **WHEN** GameScene update reads window.virtualInput.dir
 - **THEN** it sets dir to null after applying to prevent repeat
 
----
+#### Scenario: Swipe direction is exposed for touch steering
+
+- **WHEN** touch swipe input is used on gameplay area
+- **THEN** virtualInput includes absolute direction intent (`left`/`right`/`up`/`down`)
+- **AND** GameScene can consume and clear it per frame
 
 ### Requirement: Swipe input
 
@@ -45,59 +49,32 @@ The system SHALL map touch swipe gestures to directional input (up/down/left/rig
 
 The system SHALL map DOM d-pad buttons (btn-up, btn-down, btn-left, btn-right) to virtualInput.dir.
 
-#### Scenario: Button press sets direction
+#### Scenario: Horizontal swipe emits absolute horizontal direction
 
-- **WHEN** user taps or clicks a d-pad button
-- **THEN** virtualInput.dir is set to that direction and pressed class is applied
+- **WHEN** user performs a horizontal-dominant swipe on gameplay area
+- **THEN** swipe right emits `dir=right`
+- **AND** swipe left emits `dir=left`
 
-#### Scenario: Release clears pressed state
+#### Scenario: Vertical swipe emits absolute direction
 
-- **WHEN** user releases or leaves button
-- **THEN** pressed class is removed
+- **WHEN** user performs a vertical-dominant swipe on gameplay area
+- **THEN** swipe up emits `dir=up`
+- **AND** swipe down emits `dir=down`
 
-#### Scenario: Quadrant tap pad sets direction by dominant axis
+#### Scenario: Short swipe is ignored
 
-- **WHEN** user taps inside gameplay area during run gameplay
-- **THEN** input compares tap position against the two gameplay-area diagonals
-- **AND** direction is resolved by triangular region (`up`, `down`, `left`, `right`)
-- **AND** virtualInput.dir is updated with resolved direction
-
-#### Scenario: Touch controls area is not reserved in run shell
-
-- **WHEN** run shell is rendered in touch mode
-- **THEN** no dedicated directional/action control panel is shown below gameplay
-- **AND** gameplay area uses the available run content height for touch directional taps
-
-#### Scenario: Bottom hint bar is omitted in mobile-first shell
-
-- **WHEN** shell is mounted for gameplay
-- **THEN** no persistent bottom hint bar is rendered
-- **AND** gameplay content extends to the lower edge of the shell content area
-
-#### Scenario: Touch hint copy reflects quadrant controls
-
-- **WHEN** control mode is touch and locale is applied
-- **THEN** movement hint text references tap/quadrant movement instead of swipe/D-pad
+- **WHEN** swipe is below minimum distance
+- **THEN** no movement intent is emitted
 
 ### Requirement: Action buttons
 
 The system SHALL expose localized labels and aria text for Start/Pause and movement controls.
 
-#### Scenario: Control labels follow locale
+#### Scenario: Audio feedback unlocks on first user gesture
 
-- **WHEN** locale changes at startup
-- **THEN** control text and aria labels reflect selected locale
-
-#### Scenario: Control labels update after manual language switch
-
-- **WHEN** player changes language from menu
-- **THEN** Start/Pause labels and control aria text are updated to the selected locale
-
-#### Scenario: Neutral bootstrap copy before i18n init
-
-- **WHEN** app HTML is first painted before i18n initialization
-- **THEN** HUD/control/hint placeholders are language-neutral
-- **AND** localized copy replaces placeholders after i18n initializes
+- **WHEN** player performs the first valid interaction (touch, pointer, mouse, or key)
+- **THEN** feedback audio context attempts to resume
+- **AND** subsequent feedback tones are playable in mobile browsers
 
 ### Requirement: HUD display
 

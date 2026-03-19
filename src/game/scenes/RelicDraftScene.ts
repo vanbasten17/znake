@@ -5,6 +5,7 @@ import { getFloorObjective } from '../core/objectives'
 import { gameState } from '../core/state'
 import type { RelicDefinition } from '../core/types'
 import { getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
+import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
 import { transitionToScene } from '../systems/sceneFlow'
@@ -144,6 +145,7 @@ export class RelicDraftScene extends Phaser.Scene {
       return
     }
     this.picked = true
+    emitFeedback('confirm')
     gameState.selectedRelicId = relic.id
     trackRetentionEvent('relic_picked', {
       relicId: relic.id,

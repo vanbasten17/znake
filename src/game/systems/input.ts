@@ -1,4 +1,4 @@
-import type { DirectionName, VirtualInput } from '../core/types'
+import type { VirtualInput } from '../core/types'
 import { emitFeedback } from './feedback'
 
 declare global {
@@ -9,66 +9,91 @@ declare global {
 
 export const resetVirtualInput = (): void => {
   window.virtualInput.dir = null
+  window.virtualInput.turn = null
   window.virtualInput.start = false
   window.virtualInput.pause = false
 }
 
-window.virtualInput = { dir: null, start: false, pause: false }
+window.virtualInput = { dir: null, turn: null, start: false, pause: false }
 
 export const setupInput = (): void => {
   resetVirtualInput()
-  setupTapQuadrant()
+  setupRelativeSwipe()
 }
 
-const resolveQuadrantDirection = (
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): DirectionName => {
-  const clampedX = Math.max(0, Math.min(width, x))
-  const clampedY = Math.max(0, Math.min(height, y))
-  const downSlope = (height / width) * clampedX
-  const upSlope = height - (height / width) * clampedX
-
-  if (clampedY < downSlope && clampedY < upSlope) {
-    return 'up'
-  }
-  if (clampedY > downSlope && clampedY > upSlope) {
-    return 'down'
-  }
-  if (clampedY > downSlope && clampedY < upSlope) {
-    return 'left'
-  }
-  return 'right'
-}
-
-const setupTapQuadrant = (): void => {
+const setupRelativeSwipe = (): void => {
   const gameArea = document.getElementById('game-area')
   if (!(gameArea instanceof HTMLElement)) {
     return
   }
+  let startX = 0
+  let startY = 0
+  let active = false
+  const minDistance = 16
 
-  const press = (event: MouseEvent | TouchEvent): void => {
+  const shouldCapture = (event: Event): boolean => {
     if (document.body.dataset.uiShell !== 'run') {
-      return
+      return false
     }
     const target = event.target
     if (target instanceof Element && target.closest('button')) {
+      return false
+    }
+    return true
+  }
+
+  const onTouchStart = (event: TouchEvent): void => {
+    if (!shouldCapture(event)) {
+      active = false
       return
     }
-    const rect = gameArea.getBoundingClientRect()
-    const point =
-      event instanceof TouchEvent ? (event.touches[0] ?? event.changedTouches[0]) : event
+    const canvas = document.querySelector('#phaser-container canvas')
+    const surface = canvas instanceof HTMLCanvasElement ? canvas : gameArea
+    const rect = surface.getBoundingClientRect()
+    const point = event.touches[0]
     if (!point) {
+      active = false
       return
     }
-    const localX = point.clientX - rect.left
-    const localY = point.clientY - rect.top
-    window.virtualInput.dir = resolveQuadrantDirection(localX, localY, rect.width, rect.height)
+    if (
+      point.clientX < rect.left ||
+      point.clientX > rect.right ||
+      point.clientY < rect.top ||
+      point.clientY > rect.bottom
+    ) {
+      active = false
+      return
+    }
+    startX = point.clientX
+    startY = point.clientY
+    active = true
+  }
+
+  const onTouchEnd = (event: TouchEvent): void => {
+    if (!active || !shouldCapture(event)) {
+      active = false
+      return
+    }
+    const point = event.changedTouches[0]
+    if (!point) {
+      active = false
+      return
+    }
+    const dx = point.clientX - startX
+    const dy = point.clientY - startY
+    active = false
+    if (Math.hypot(dx, dy) < minDistance) {
+      return
+    }
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      window.virtualInput.dir = dx > 0 ? 'right' : 'left'
+      emitFeedback('tap')
+      return
+    }
+    window.virtualInput.dir = dy > 0 ? 'down' : 'up'
     emitFeedback('tap')
   }
 
-  gameArea.addEventListener('touchstart', press, { passive: true })
-  gameArea.addEventListener('mousedown', press)
+  gameArea.addEventListener('touchstart', onTouchStart, { passive: true })
+  gameArea.addEventListener('touchend', onTouchEnd, { passive: true })
 }

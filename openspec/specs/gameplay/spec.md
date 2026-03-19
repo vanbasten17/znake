@@ -8,22 +8,13 @@ Define the expected gameplay behavior for snake movement, combat interactions, p
 ## Requirements
 ### Requirement: Snake movement
 
-The system SHALL move the player snake by one cell per tick in the current direction, with queued inputs allowing up to 2 direction changes between moves.
+The system SHALL advance snake movement on a fixed interval and apply input with anti-reverse protection.
 
-#### Scenario: Direction cannot reverse
+#### Scenario: Absolute swipe direction resolves to cardinal movement
 
-- **WHEN** the user inputs opposite of current direction (e.g., right when moving left)
-- **THEN** the input is ignored
-
-#### Scenario: Snake grows when eating food
-
-- **WHEN** snake head moves onto food cell
-- **THEN** pendingGrowth increments and tail is not popped for that move
-
-#### Scenario: Snake shrinks when not growing
-
-- **WHEN** snake moves and pendingGrowth is 0
-- **THEN** tail segment is removed
+- **WHEN** GameScene receives a swipe direction payload (`left`/`right`/`up`/`down`) from virtual input
+- **THEN** it enqueues the requested cardinal direction
+- **AND** enqueues direction through existing anti-reverse input logic
 
 ### Requirement: Wall and self collision
 

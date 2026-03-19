@@ -208,6 +208,13 @@ export class GameScene extends Phaser.Scene {
       }
       window.virtualInput.dir = null
     }
+    if (window.virtualInput.turn) {
+      const turnDirection = this.resolveRelativeTurn(window.virtualInput.turn)
+      if (turnDirection) {
+        this.pushDirection(turnDirection)
+      }
+      window.virtualInput.turn = null
+    }
 
     if (this.paused) {
       return
@@ -298,6 +305,22 @@ export class GameScene extends Phaser.Scene {
     if (this.moveQueue.length < 2) {
       this.moveQueue.push(next)
     }
+  }
+
+  private resolveRelativeTurn(turn: 'left' | 'right'): Vec2 | null {
+    const dir = this.currentDir
+    if (turn === 'left') {
+      if (dir.x === 1 && dir.y === 0) return { x: 0, y: -1 }
+      if (dir.x === -1 && dir.y === 0) return { x: 0, y: 1 }
+      if (dir.x === 0 && dir.y === 1) return { x: 1, y: 0 }
+      if (dir.x === 0 && dir.y === -1) return { x: -1, y: 0 }
+      return null
+    }
+    if (dir.x === 1 && dir.y === 0) return { x: 0, y: 1 }
+    if (dir.x === -1 && dir.y === 0) return { x: 0, y: -1 }
+    if (dir.x === 0 && dir.y === 1) return { x: -1, y: 0 }
+    if (dir.x === 0 && dir.y === -1) return { x: 1, y: 0 }
+    return null
   }
 
   private togglePause(): void {

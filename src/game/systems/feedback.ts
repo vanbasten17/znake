@@ -43,18 +43,20 @@ const getAudioContext = (): AudioContext | null => {
   return audioContext
 }
 
-const unlockAudio = (): void => {
+const unlockAudio = async (): Promise<boolean> => {
   const ctx = getAudioContext()
   if (!ctx) {
-    return
+    return false
   }
   if (ctx.state === 'suspended') {
-    void ctx.resume().then(() => {
-      audioUnlocked = true
-    })
-    return
+    try {
+      await ctx.resume()
+    } catch {
+      return false
+    }
   }
-  audioUnlocked = true
+  audioUnlocked = ctx.state === 'running'
+  return audioUnlocked
 }
 
 const playTone = (kind: FeedbackKind): void => {
@@ -85,9 +87,28 @@ const playTone = (kind: FeedbackKind): void => {
 }
 
 export const setupFeedback = (): void => {
-  const unlock = (): void => unlockAudio()
+  let cleaned = false
+  const cleanup = (): void => {
+    if (cleaned) {
+      return
+    }
+    cleaned = true
+    document.removeEventListener('touchstart', unlock)
+    document.removeEventListener('pointerdown', unlock)
+    document.removeEventListener('mousedown', unlock)
+    document.removeEventListener('keydown', unlock)
+  }
+  const unlock = (): void => {
+    void unlockAudio().then((ok) => {
+      if (ok) {
+        cleanup()
+      }
+    })
+  }
+  document.addEventListener('touchstart', unlock, { passive: true })
   document.addEventListener('pointerdown', unlock, { passive: true })
-  document.addEventListener('keydown', unlock, { passive: true })
+  document.addEventListener('mousedown', unlock, { passive: true })
+  document.addEventListener('keydown', unlock)
 }
 
 export const emitFeedback = (kind: FeedbackKind): void => {
