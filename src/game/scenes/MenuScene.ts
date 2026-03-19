@@ -1,7 +1,14 @@
 import Phaser from 'phaser'
 import styles from '../../styles/menuOverlay.module.css'
 import { STORAGE_KEYS } from '../core/constants'
+import { COLORS } from '../core/constants'
 import { DEV_SCENARIOS, type DevScenarioId, isDevMode } from '../core/devScenarios'
+import {
+  GLOSSARY_CATEGORIES,
+  GLOSSARY_ENTRIES,
+  type GlossaryCategoryId,
+  type GlossaryMarkerTone,
+} from '../core/glossary'
 import {
   PROGRESSION_GOALS,
   TALENT_TREE,
@@ -22,15 +29,315 @@ import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
 import { getVoiceAvailability, syncVoiceInput } from '../systems/voiceInput'
 
+const MARKER_CLASS_BY_TONE: Record<GlossaryMarkerTone, string> = {
+  core: styles.glossaryMarkerCore,
+  portal: styles.glossaryMarkerPortal,
+  battery: styles.glossaryMarkerBattery,
+  beacon: styles.glossaryMarkerBeacon,
+  shield: styles.glossaryMarkerShield,
+  slow: styles.glossaryMarkerSlow,
+  ghost: styles.glossaryMarkerGhost,
+  score: styles.glossaryMarkerScore,
+  darkness: styles.glossaryMarkerDarkness,
+  squeeze: styles.glossaryMarkerSqueeze,
+  ice: styles.glossaryMarkerIce,
+  sand: styles.glossaryMarkerSand,
+  rift: styles.glossaryMarkerRift,
+  enemyNormal: styles.glossaryMarkerEnemyNormal,
+  enemyStalker: styles.glossaryMarkerEnemyStalker,
+  enemyAmbusher: styles.glossaryMarkerEnemyAmbusher,
+  enemyEgg: styles.glossaryMarkerEnemyEgg,
+  enemyMirror: styles.glossaryMarkerEnemyMirror,
+  enemyBoss: styles.glossaryMarkerEnemyBoss,
+  talentSpeed: styles.glossaryMarkerTalentSpeed,
+  talentSurvival: styles.glossaryMarkerTalentSurvival,
+  talentHunt: styles.glossaryMarkerTalentHunt,
+}
+
+const colorHex = (value: number): string => `#${value.toString(16).padStart(6, '0')}`
+
+const drawPixelGlyph2D = (
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rows: string[],
+  color: string,
+): void => {
+  const pixel = 1
+  const height = rows.length * pixel
+  const width = (rows[0]?.length ?? 0) * pixel
+  const ox = Math.round(cx - width / 2)
+  const oy = Math.round(cy - height / 2)
+  ctx.fillStyle = color
+  for (let y = 0; y < rows.length; y += 1) {
+    const row = rows[y]
+    if (!row) continue
+    for (let x = 0; x < row.length; x += 1) {
+      if (row[x] === '1') {
+        ctx.fillRect(ox + x * pixel, oy + y * pixel, pixel, pixel)
+      }
+    }
+  }
+}
+
+const createGlossaryMarkerCanvas = (tone: GlossaryMarkerTone): HTMLCanvasElement => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 24
+  canvas.height = 24
+  canvas.className = styles.glossaryMarkerCanvas
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return canvas
+  ctx.imageSmoothingEnabled = false
+
+  const cx = 12
+  const cy = 12
+
+  const squareHead = (head: string, body?: string): void => {
+    ctx.fillStyle = body ?? head
+    ctx.fillRect(9, 9, 8, 8)
+    ctx.fillStyle = head
+    ctx.fillRect(6, 6, 8, 8)
+  }
+
+  switch (tone) {
+    case 'core':
+      ctx.fillStyle = colorHex(COLORS.foodGlow)
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#ff88aa'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(cx, cy, 3.5, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.fillStyle = colorHex(COLORS.food)
+      ctx.fillRect(7, 7, 4, 4)
+      break
+    case 'portal':
+      ctx.fillStyle = colorHex(COLORS.portalGlow)
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = colorHex(COLORS.portal)
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.fillStyle = colorHex(COLORS.portal)
+      ctx.beginPath()
+      ctx.moveTo(cx, 6)
+      ctx.lineTo(6, 12)
+      ctx.lineTo(12, 12)
+      ctx.closePath()
+      ctx.fill()
+      break
+    case 'battery':
+      ctx.fillStyle = '#cf77ff'
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#8866ff'
+      ctx.beginPath()
+      ctx.moveTo(cx, 5)
+      ctx.lineTo(5, 12)
+      ctx.lineTo(13, 12)
+      ctx.closePath()
+      ctx.fill()
+      break
+    case 'beacon':
+      ctx.fillStyle = colorHex(COLORS.beacon)
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#f8d845'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.fillStyle = '#fff7b8'
+      ctx.beginPath()
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2)
+      ctx.fill()
+      break
+    case 'shield':
+      ctx.fillStyle = colorHex(COLORS.shield)
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#44c5ff'
+      ctx.fillRect(6, 5, 6, 5)
+      ctx.beginPath()
+      ctx.moveTo(6, 10)
+      ctx.lineTo(12, 10)
+      ctx.lineTo(9, 14)
+      ctx.closePath()
+      ctx.fill()
+      break
+    case 'slow':
+      ctx.fillStyle = colorHex(COLORS.slow)
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#ffc5e8'
+      ctx.beginPath()
+      ctx.arc(cx, cy, 3.8, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#ff93ce'
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.lineTo(cx, 6)
+      ctx.moveTo(cx, cy)
+      ctx.lineTo(12, cy)
+      ctx.stroke()
+      break
+    case 'ghost':
+      ctx.fillStyle = '#aaaaff'
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#c7c3ff'
+      ctx.beginPath()
+      ctx.arc(cx, 8, 3.5, Math.PI, 0)
+      ctx.fill()
+      ctx.fillRect(5, 8, 8, 5)
+      break
+    case 'score':
+      ctx.fillStyle = colorHex(COLORS.powerup)
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#ffb400'
+      ctx.fillRect(6, 6, 6, 6)
+      break
+    case 'darkness':
+      ctx.fillStyle = '#131b35'
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#9aa9d4'
+      ctx.beginPath()
+      ctx.arc(7, 7, 1.2, 0, Math.PI * 2)
+      ctx.fill()
+      break
+    case 'squeeze':
+      ctx.fillStyle = '#212848'
+      ctx.fillRect(2, 2, 14, 14)
+      ctx.fillStyle = '#ffd88b'
+      ctx.fillRect(2, 2, 2, 14)
+      ctx.fillRect(14, 2, 2, 14)
+      break
+    case 'ice':
+      ctx.fillStyle = colorHex(COLORS.iceGlow)
+      ctx.fillRect(2, 2, 14, 14)
+      ctx.strokeStyle = '#cdf6ff'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(4, 5)
+      ctx.lineTo(13, 12)
+      ctx.moveTo(13, 5)
+      ctx.lineTo(5, 13)
+      ctx.stroke()
+      break
+    case 'sand':
+      ctx.fillStyle = colorHex(COLORS.sandGlow)
+      ctx.fillRect(2, 2, 14, 14)
+      ctx.strokeStyle = colorHex(COLORS.sand)
+      ctx.lineWidth = 1
+      ctx.strokeRect(2.5, 2.5, 13, 13)
+      ctx.fillStyle = '#ffefc7'
+      ctx.fillRect(5, 6, 1.8, 1.8)
+      ctx.fillRect(11, 9, 1.8, 1.8)
+      ctx.fillRect(8, 12, 1.8, 1.8)
+      break
+    case 'rift':
+      ctx.fillStyle = '#7a2fff'
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#d089ff'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2)
+      ctx.stroke()
+      drawPixelGlyph2D(ctx, cx, cy, ['10001', '01010', '00100', '01010', '10001'], '#f3d3ff')
+      break
+    case 'enemyNormal':
+      squareHead(colorHex(COLORS.enemyHead), colorHex(COLORS.enemy))
+      break
+    case 'enemyStalker':
+      squareHead('#ff33cc', '#cc2288')
+      break
+    case 'enemyAmbusher':
+      squareHead('#b86dff', '#7a3fb8')
+      break
+    case 'enemyEgg':
+      ctx.fillStyle = '#ffe48b'
+      ctx.beginPath()
+      ctx.ellipse(cx, cy, 4.5, 5.5, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#6e5120'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(6, 8)
+      ctx.lineTo(8, 10)
+      ctx.lineTo(10, 8)
+      ctx.lineTo(12, 10)
+      ctx.stroke()
+      break
+    case 'enemyMirror':
+      squareHead('#8ae6ff', '#3b90c7')
+      break
+    case 'enemyBoss':
+      squareHead('#fff066', '#bd6a13')
+      ctx.fillStyle = '#ffcc55'
+      ctx.fillRect(4, 2, 2, 1.4)
+      ctx.fillRect(7, 2, 2, 1.4)
+      ctx.fillRect(10, 2, 2, 1.4)
+      break
+    case 'talentSpeed':
+      ctx.fillStyle = '#ffdb49'
+      ctx.beginPath()
+      ctx.arc(cx, cy, 5, 0, Math.PI * 2)
+      ctx.fill()
+      break
+    case 'talentSurvival':
+      ctx.fillStyle = '#5ecbff'
+      ctx.fillRect(6, 5, 6, 5)
+      ctx.beginPath()
+      ctx.moveTo(6, 10)
+      ctx.lineTo(12, 10)
+      ctx.lineTo(9, 14)
+      ctx.closePath()
+      ctx.fill()
+      break
+    case 'talentHunt':
+      ctx.fillStyle = '#ff9f5e'
+      ctx.fillRect(6, 6, 6, 6)
+      break
+  }
+
+  return canvas
+}
+
 export class MenuScene extends Phaser.Scene {
   private waiting = true
   private overlayRoot: HTMLDivElement | null = null
   private currencyValueEl: HTMLSpanElement | null = null
   private goalsTitleEl: HTMLParagraphElement | null = null
   private languageEl: HTMLButtonElement | null = null
+  private guideButtonEl: HTMLButtonElement | null = null
   private talentRowRefreshers: Array<() => void> = []
   private goalRowRefreshers: Array<() => void> = []
   private accessibilityRefreshers: Array<() => void> = []
+  private glossaryOpen = false
+  private glossaryModalEl: HTMLDivElement | null = null
+  private glossaryTitleEl: HTMLHeadingElement | null = null
+  private glossarySubtitleEl: HTMLParagraphElement | null = null
+  private glossaryCloseEl: HTMLButtonElement | null = null
+  private glossaryTabButtons: Partial<Record<GlossaryCategoryId, HTMLButtonElement>> = {}
+  private glossaryListEl: HTMLDivElement | null = null
+  private glossaryCategory: GlossaryCategoryId = 'items'
   private readonly devMode = isDevMode()
 
   public constructor() {
@@ -43,6 +350,9 @@ export class MenuScene extends Phaser.Scene {
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
     this.accessibilityRefreshers = []
+    this.glossaryOpen = false
+    this.glossaryCategory = 'items'
+    this.glossaryTabButtons = {}
     gameState.runObjectiveOffset = rollRunObjectiveOffset()
     setSceneChrome('menu')
     this.mountOverlay()
@@ -83,13 +393,23 @@ export class MenuScene extends Phaser.Scene {
     title.textContent = 'ZNAKE'
     top.append(title)
 
+    const topActions = document.createElement('div')
+    topActions.className = styles.topActions
+    top.append(topActions)
+
+    this.guideButtonEl = document.createElement('button')
+    this.guideButtonEl.type = 'button'
+    this.guideButtonEl.className = styles.guide
+    this.guideButtonEl.addEventListener('click', () => this.toggleGlossary())
+    topActions.append(this.guideButtonEl)
+
     this.languageEl = document.createElement('button')
     this.languageEl.type = 'button'
     this.languageEl.className = styles.lang
     this.languageEl.addEventListener('click', () => {
       void this.switchLanguage()
     })
-    top.append(this.languageEl)
+    topActions.append(this.languageEl)
 
     const stats = document.createElement('div')
     stats.className = styles.stats
@@ -309,6 +629,7 @@ export class MenuScene extends Phaser.Scene {
     }
 
     root.append(start)
+    this.mountGlossaryModal(root)
 
     gameArea.append(root)
     this.overlayRoot = root
@@ -323,12 +644,31 @@ export class MenuScene extends Phaser.Scene {
     this.currencyValueEl = null
     this.goalsTitleEl = null
     this.languageEl = null
+    this.guideButtonEl = null
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
     this.accessibilityRefreshers = []
+    this.glossaryModalEl = null
+    this.glossaryTitleEl = null
+    this.glossarySubtitleEl = null
+    this.glossaryCloseEl = null
+    this.glossaryTabButtons = {}
+    this.glossaryListEl = null
+    this.glossaryOpen = false
   }
 
   private onKeyDown(event: KeyboardEvent): void {
+    if (event.code === 'Escape' && this.glossaryOpen) {
+      this.toggleGlossary(false)
+      return
+    }
+    if (event.code === 'KeyG' || event.code === 'KeyB') {
+      this.toggleGlossary()
+      return
+    }
+    if (this.glossaryOpen) {
+      return
+    }
     if (event.code === 'Enter' || event.code === 'Space') {
       this.startRun()
       return
@@ -391,6 +731,9 @@ export class MenuScene extends Phaser.Scene {
     if (this.languageEl) {
       this.languageEl.textContent = `${t('menu.language')}: ${getLanguage().toUpperCase()}`
     }
+    if (this.guideButtonEl) {
+      this.guideButtonEl.textContent = t('menu.guide')
+    }
     for (const refresh of this.talentRowRefreshers) {
       refresh()
     }
@@ -400,6 +743,7 @@ export class MenuScene extends Phaser.Scene {
     for (const refresh of this.accessibilityRefreshers) {
       refresh()
     }
+    this.refreshGlossaryUi()
   }
 
   private getTalentLabel(talentId: string, fallbackName: string): string {
@@ -459,6 +803,9 @@ export class MenuScene extends Phaser.Scene {
     if (!this.waiting) {
       return
     }
+    if (this.glossaryOpen) {
+      return
+    }
     this.waiting = false
     emitFeedback('confirm')
     gameState.run = 1
@@ -490,5 +837,136 @@ export class MenuScene extends Phaser.Scene {
       return
     }
     transitionToScene(this, 'RelicDraft', { chrome: 'run' })
+  }
+
+  private mountGlossaryModal(root: HTMLDivElement): void {
+    const modal = document.createElement('div')
+    modal.className = styles.glossaryModal
+    modal.setAttribute('aria-hidden', 'true')
+
+    const panel = document.createElement('section')
+    panel.className = styles.glossaryPanel
+    modal.append(panel)
+
+    const panelTop = document.createElement('div')
+    panelTop.className = styles.glossaryTop
+    panel.append(panelTop)
+
+    this.glossaryTitleEl = document.createElement('h2')
+    this.glossaryTitleEl.className = styles.glossaryTitle
+    panelTop.append(this.glossaryTitleEl)
+
+    const close = document.createElement('button')
+    close.type = 'button'
+    close.className = styles.glossaryClose
+    close.addEventListener('click', () => this.toggleGlossary(false))
+    panelTop.append(close)
+    this.glossaryCloseEl = close
+
+    this.glossarySubtitleEl = document.createElement('p')
+    this.glossarySubtitleEl.className = styles.glossarySubtitle
+    panel.append(this.glossarySubtitleEl)
+
+    const tabs = document.createElement('div')
+    tabs.className = styles.glossaryTabs
+    panel.append(tabs)
+
+    for (const category of GLOSSARY_CATEGORIES) {
+      const tab = document.createElement('button')
+      tab.type = 'button'
+      tab.className = styles.glossaryTab
+      tab.addEventListener('click', () => this.selectGlossaryCategory(category))
+      tabs.append(tab)
+      this.glossaryTabButtons[category] = tab
+    }
+
+    this.glossaryListEl = document.createElement('div')
+    this.glossaryListEl.className = styles.glossaryList
+    panel.append(this.glossaryListEl)
+
+    modal.addEventListener('click', (event: MouseEvent) => {
+      if (event.target === modal) {
+        this.toggleGlossary(false)
+      }
+    })
+
+    this.glossaryModalEl = modal
+    root.append(modal)
+  }
+
+  private toggleGlossary(nextState?: boolean): void {
+    const next = nextState ?? !this.glossaryOpen
+    if (next === this.glossaryOpen) {
+      return
+    }
+    this.glossaryOpen = next
+    if (!this.glossaryModalEl) {
+      return
+    }
+    this.glossaryModalEl.classList.toggle(styles.glossaryModalOpen, next)
+    this.glossaryModalEl.setAttribute('aria-hidden', next ? 'false' : 'true')
+    if (next) {
+      this.refreshGlossaryUi()
+      emitFeedback('confirm')
+      return
+    }
+    emitFeedback('tap')
+  }
+
+  private selectGlossaryCategory(category: GlossaryCategoryId): void {
+    if (this.glossaryCategory === category) {
+      return
+    }
+    this.glossaryCategory = category
+    this.refreshGlossaryUi()
+    emitFeedback('tap')
+  }
+
+  private refreshGlossaryUi(): void {
+    if (!this.glossaryTitleEl || !this.glossarySubtitleEl || !this.glossaryListEl) {
+      return
+    }
+    this.glossaryTitleEl.textContent = t('glossary.title')
+    this.glossarySubtitleEl.textContent = t('glossary.subtitle')
+    if (this.glossaryCloseEl) {
+      this.glossaryCloseEl.textContent = t('glossary.close')
+    }
+
+    for (const category of GLOSSARY_CATEGORIES) {
+      const tab = this.glossaryTabButtons[category]
+      if (!tab) {
+        continue
+      }
+      tab.textContent = t(`glossary.category.${category}`)
+      tab.classList.toggle(styles.glossaryTabActive, category === this.glossaryCategory)
+    }
+
+    this.glossaryListEl.textContent = ''
+    const entries = GLOSSARY_ENTRIES.filter((entry) => entry.category === this.glossaryCategory)
+    for (const entry of entries) {
+      const row = document.createElement('article')
+      row.className = styles.glossaryRow
+
+      const marker = document.createElement('span')
+      marker.className = `${styles.glossaryMarker} ${MARKER_CLASS_BY_TONE[entry.marker]}`
+      marker.append(createGlossaryMarkerCanvas(entry.marker))
+      row.append(marker)
+
+      const content = document.createElement('div')
+      content.className = styles.glossaryContent
+      row.append(content)
+
+      const name = document.createElement('p')
+      name.className = styles.glossaryName
+      name.textContent = t(`glossary.entry.${entry.id}.name`)
+      content.append(name)
+
+      const desc = document.createElement('p')
+      desc.className = styles.glossaryDesc
+      desc.textContent = t(`glossary.entry.${entry.id}.description`)
+      content.append(desc)
+
+      this.glossaryListEl.append(row)
+    }
   }
 }

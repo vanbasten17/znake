@@ -42,6 +42,7 @@ const resources = {
         bestScore: 'BEST SCORE: {{best}}',
         talentShop: 'TALENT SHOP',
         startPrompt: 'PRESS START > RELIC DRAFT',
+        guide: 'GUIDE',
         nextObjective: 'NEXT OBJECTIVE: {{objective}}',
         language: 'LANG',
         currency: 'CURRENCY: {{value}}',
@@ -61,6 +62,120 @@ const resources = {
         req: 'REQ {{value}}',
         cost: 'COST {{value}}',
         buy: 'BUY {{value}}',
+      },
+      glossary: {
+        title: 'FIELD GUIDE',
+        subtitle: 'REFERENCE FOR ITEMS, EFFECTS, HAZARDS, AND ENEMIES',
+        close: 'CLOSE',
+        category: {
+          items: 'ITEMS',
+          powerups: 'POWERUPS',
+          hazards: 'HAZARDS',
+          enemies: 'ENEMIES',
+          talents: 'TALENTS',
+        },
+        entry: {
+          red_core: {
+            name: 'Red Core',
+            description: 'Basic food. Grows snake by 1 and gives score.',
+          },
+          portal: {
+            name: 'Portal',
+            description: 'Reach it before squeeze closes the arena.',
+          },
+          rift_battery: {
+            name: 'Rift Battery',
+            description: 'Temporarily suppresses rift pressure.',
+          },
+          portal_beacon: {
+            name: 'Portal Beacon',
+            description: 'Accelerates portal appearance timer.',
+          },
+          power_shield: {
+            name: 'Shield Charge',
+            description: 'Absorbs one lethal collision hit.',
+          },
+          power_slow: {
+            name: 'Time Slow',
+            description: 'Enemies move slower for a while.',
+          },
+          power_ghost: {
+            name: 'Ghost Charge',
+            description: 'Allows one wall pass.',
+          },
+          power_score: {
+            name: 'Score Burst',
+            description: 'Instant bonus score.',
+          },
+          hazard_darkness: {
+            name: 'Darkness',
+            description: 'Limits visibility around the snake head.',
+          },
+          hazard_squeeze: {
+            name: 'Squeeze',
+            description: 'Arena borders close in over time.',
+          },
+          hazard_ice: {
+            name: 'Ice Tiles',
+            description: 'Adds forced extra movement steps.',
+          },
+          hazard_sand: {
+            name: 'Sand Tiles',
+            description: 'Adds movement delay and slows route execution.',
+          },
+          hazard_rift: {
+            name: 'Void Rift',
+            description: 'Ambient danger zone active during runs.',
+          },
+          enemy_normal: {
+            name: 'Hunter',
+            description: 'Standard enemy snake behavior.',
+          },
+          enemy_stalker: {
+            name: 'Stalker',
+            description: 'Faster pursuit-focused elite variant.',
+          },
+          enemy_ambusher: {
+            name: 'Ambusher',
+            description: 'Dash-capable elite that punishes alignment.',
+          },
+          enemy_egg: {
+            name: 'Egg',
+            description: 'Dormant threat that hatches after a timer.',
+          },
+          enemy_mirror: {
+            name: 'Mirror',
+            description: 'Tracks your delayed movement path.',
+          },
+          enemy_boss: {
+            name: 'Boss',
+            description: 'Multi-hit apex enemy on boss floors.',
+          },
+          talent_speed_1: {
+            name: 'Speed I',
+            description: 'Talent: start 5% faster.',
+          },
+          talent_speed_2: {
+            name: 'Speed II',
+            description: 'Talent: start 10% faster.',
+          },
+          talent_survival_1: {
+            name: 'Survival I',
+            description: 'Talent: start with +1 shield.',
+          },
+          talent_survival_2: {
+            name: 'Survival II',
+            description: 'Talent: start with +2 length.',
+          },
+          talent_hunt_1: {
+            name: 'Hunt I',
+            description: 'Talent: stronger score multiplier.',
+          },
+          talent_hunt_2: {
+            name: 'Hunt II',
+            description: 'Talent: enemies move slower.',
+          },
+        },
       },
       goal: {
         floor_5_name: 'Reach Floor 5',
@@ -192,6 +307,7 @@ const resources = {
         bestScore: 'MILLOR PUNTUACIÓ: {{best}}',
         talentShop: 'BOTIGA DE TALENTS',
         startPrompt: 'PREM START > DRAFT DE RELÍQUIA',
+        guide: 'GUIA',
         nextObjective: 'OBJECTIU SEGÜENT: {{objective}}',
         language: 'IDIOMA',
         currency: 'MONEDA: {{value}}',
@@ -211,6 +327,120 @@ const resources = {
         req: 'REQ {{value}}',
         cost: 'COST {{value}}',
         buy: 'COMPRAR {{value}}',
+      },
+      glossary: {
+        title: 'GUIA DE CAMP',
+        subtitle: "REFERÈNCIA D'OBJECTES, EFECTES, HAZARDS I ENEMICS",
+        close: 'TANCAR',
+        category: {
+          items: 'OBJECTES',
+          powerups: 'POWERUPS',
+          hazards: 'HAZARDS',
+          enemies: 'ENEMICS',
+          talents: 'TALENTS',
+        },
+        entry: {
+          red_core: {
+            name: 'Nucli vermell',
+            description: 'Menjar base. Fa créixer la serp +1 i dona punts.',
+          },
+          portal: {
+            name: 'Portal',
+            description: "Arriba-hi abans que el tancament redueixi l'àrea.",
+          },
+          rift_battery: {
+            name: "Bateria d'escletxa",
+            description: "Suprimeix temporalment la pressió de l'escletxa.",
+          },
+          portal_beacon: {
+            name: 'Balisa de portal',
+            description: "Accelera l'aparició del portal.",
+          },
+          power_shield: {
+            name: "Càrrega d'escut",
+            description: 'Absorbeix un impacte letal.',
+          },
+          power_slow: {
+            name: 'Camp lent',
+            description: 'Els enemics es mouen més lents durant uns segons.',
+          },
+          power_ghost: {
+            name: 'Càrrega fantasma',
+            description: 'Permet travessar una paret una vegada.',
+          },
+          power_score: {
+            name: 'Explosió de punts',
+            description: 'Bonus instantani de puntuació.',
+          },
+          hazard_darkness: {
+            name: 'Foscor',
+            description: 'Limita la visibilitat al voltant del cap de la serp.',
+          },
+          hazard_squeeze: {
+            name: 'Tancament',
+            description: "Les vores de l'arena es tanquen amb el temps.",
+          },
+          hazard_ice: {
+            name: 'Rajoles de gel',
+            description: 'Forcen passos extra de moviment.',
+          },
+          hazard_sand: {
+            name: 'Rajoles de sorra',
+            description: "Afegeixen retard de moviment i frenen l'execució.",
+          },
+          hazard_rift: {
+            name: 'Escletxa del buit',
+            description: 'Zona de perill ambiental activa durant la run.',
+          },
+          enemy_normal: {
+            name: 'Caçador',
+            description: "Comportament estàndard d'enemic serp.",
+          },
+          enemy_stalker: {
+            name: 'Stalker',
+            description: "Variant d'elit més ràpida i orientada a persecució.",
+          },
+          enemy_ambusher: {
+            name: 'Ambusher',
+            description: "Elit amb dash que castiga l'alineació.",
+          },
+          enemy_egg: {
+            name: 'Ou',
+            description: 'Amenaça latent que eclosiona després de comptador.',
+          },
+          enemy_mirror: {
+            name: 'Mirall',
+            description: 'Segueix la teva ruta amb retard.',
+          },
+          enemy_boss: {
+            name: 'Boss',
+            description: 'Enemic àpex de múltiples impactes als pisos de boss.',
+          },
+          talent_speed_1: {
+            name: 'Velocitat I',
+            description: 'Talent: comença un 5% més ràpid.',
+          },
+          talent_speed_2: {
+            name: 'Velocitat II',
+            description: 'Talent: comença un 10% més ràpid.',
+          },
+          talent_survival_1: {
+            name: 'Supervivència I',
+            description: 'Talent: comença amb +1 escut.',
+          },
+          talent_survival_2: {
+            name: 'Supervivència II',
+            description: 'Talent: comença amb +2 de longitud.',
+          },
+          talent_hunt_1: {
+            name: 'Caça I',
+            description: 'Talent: millora el multiplicador de puntuació.',
+          },
+          talent_hunt_2: {
+            name: 'Caça II',
+            description: 'Talent: enemics més lents.',
+          },
+        },
       },
       goal: {
         floor_5_name: 'Arriba al pis 5',
