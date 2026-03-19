@@ -1,0 +1,117 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  padding: clamp(56px, 9vh, 84px) var(--space-4) var(--space-8);
+  background: radial-gradient(circle at 74% 20%, rgba(18, 50, 115, 0.22), transparent 35%),
+    linear-gradient(rgba(12, 28, 58, 0.75), rgba(3, 9, 24, 0.92)),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent calc(var(--space-8) - 1px),
+      rgba(18, 72, 150, 0.24) calc(var(--space-8) - 1px),
+      rgba(18, 72, 150, 0.24) var(--space-8)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent calc(var(--space-8) - 1px),
+      rgba(18, 72, 150, 0.24) calc(var(--space-8) - 1px),
+      rgba(18, 72, 150, 0.24) var(--space-8)
+    );
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(24px, 5.2vw, 34px);
+  color: var(--color-accent);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: 0 0 16px rgba(0, 255, 136, 0.45);
+}
+
+.subtitle {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(10px, 2.2vw, 13px);
+  color: #4b607f;
+  letter-spacing: 1px;
+}
+
+.cards {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.card {
+  width: 100%;
+  border: 2px solid #335577;
+  border-radius: 10px;
+  background: rgba(8, 16, 36, 0.95);
+  color: #dff3ff;
+  display: grid;
+  grid-template-columns: 40px 1fr 28px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4);
+  text-align: left;
+  cursor: pointer;
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: #00ffaa;
+  box-shadow: 0 0 0 1px rgba(153, 255, 204, 0.45);
+  outline: none;
+}
+
+.index {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 4vw, 28px);
+  color: #eff6ff;
+  justify-self: center;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(14px, 2.8vw, 18px);
+  color: #9fffd4;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.description {
+  font-family: var(--font-ui);
+  font-size: clamp(10px, 2vw, 13px);
+  color: #8ba8c2;
+}
+
+.hotkey {
+  font-family: var(--font-display);
+  font-size: clamp(14px, 2.8vw, 18px);
+  color: #8bffc0;
+  justify-self: end;
+}
+
+.footer {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(10px, 2vw, 13px);
+  color: #3c4f72;
+  letter-spacing: 1px;
+}

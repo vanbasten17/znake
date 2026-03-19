@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { BASE_COLS, BASE_ROWS, CELL, HEIGHT, WIDTH } from '../core/constants'
+import styles from '../../styles/upgradeOverlay.module.css'
 import { gameState } from '../core/state'
 import type { Upgrade } from '../core/types'
 import { UPGRADE_POOL } from '../core/upgrades'
@@ -17,6 +17,8 @@ export class UpgradeScene extends Phaser.Scene {
   private score = 0
   private floor = 1
   private picked = false
+  private choices: Upgrade[] = []
+  private overlayRoot: HTMLDivElement | null = null
 
   public constructor() {
     super('Upgrade')
@@ -26,38 +28,13 @@ export class UpgradeScene extends Phaser.Scene {
     setSceneChrome('run')
     this.score = data.score ?? 0
     this.floor = data.floor ?? 1
+    this.picked = false
+    this.choices = []
 
-    const g = this.add.graphics()
-    g.fillStyle(0x000000, 0.95)
-    g.fillRect(0, 0, WIDTH, HEIGHT)
-    g.lineStyle(1, 0x111122, 0.4)
-    for (let x = 0; x <= BASE_COLS; x += 1) {
-      g.moveTo(x * CELL, 0)
-      g.lineTo(x * CELL, HEIGHT)
-    }
-    for (let y = 0; y <= BASE_ROWS; y += 1) {
-      g.moveTo(0, y * CELL)
-      g.lineTo(WIDTH, y * CELL)
-    }
-    g.strokePath()
-
-    const titleY = Math.round(HEIGHT * 0.2)
-    const cardHeight = Math.max(96, Math.round(HEIGHT * 0.12))
-    const cardGap = Math.max(14, Math.round(HEIGHT * 0.028))
-    const cardsStartY = Math.round(HEIGHT * 0.29)
-
-    this.add
-      .text(WIDTH / 2, titleY, t('upgrade.floorCleared'), {
-        font: '700 22px Orbitron',
-        color: '#00ff88',
-      })
-      .setOrigin(0.5)
-    this.add
-      .text(WIDTH / 2, titleY + 26, t('upgrade.chooseOne'), {
-        font: '10px Share Tech Mono',
-        color: '#334455',
-      })
-      .setOrigin(0.5)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.teardownOverlay()
+      this.input.keyboard?.removeAllListeners()
+    })
 
     const pool = [...UPGRADE_POOL]
     const choices: Upgrade[] = []
@@ -68,78 +45,20 @@ export class UpgradeScene extends Phaser.Scene {
         choices.push(upgrade)
       }
     }
-
-    for (const [i, upg] of choices.entries()) {
-      const cardY = cardsStartY + i * (cardHeight + cardGap)
-      const cardX = 10
-      const cw = WIDTH - 20
-      const ch = cardHeight
-      const colorHex = `#${upg.color.toString(16).padStart(6, '0')}`
-
-      const card = this.add.graphics()
-      const drawCard = (hover: boolean): void => {
-        card.clear()
-        card.fillStyle(hover ? upg.color : 0x0a0a18, hover ? 0.1 : 1)
-        card.fillRoundedRect(cardX, cardY, cw, ch, 6)
-        card.lineStyle(2, upg.color, hover ? 1 : 0.5)
-        card.strokeRoundedRect(cardX, cardY, cw, ch, 6)
-      }
-      drawCard(false)
-
-      this.add
-        .text(cardX + 30, cardY + ch / 2, upg.icon, {
-          font: '700 16px Share Tech Mono',
-          color: '#ffffff',
-        })
-        .setOrigin(0.5)
-      this.add
-        .text(cardX + 65, cardY + Math.round(ch * 0.26), this.getUpgradeName(upg), {
-          font: '700 10px Orbitron',
-          color: colorHex,
-        })
-        .setOrigin(0, 0.5)
-      this.add
-        .text(cardX + 65, cardY + Math.round(ch * 0.56), this.getUpgradeDescription(upg), {
-          font: '10px Share Tech Mono',
-          color: '#667788',
-        })
-        .setOrigin(0, 0.5)
-      this.add
-        .text(cardX + cw - 14, cardY + ch / 2, `${i + 1}`, {
-          font: '700 12px Orbitron',
-          color: colorHex,
-        })
-        .setOrigin(0.5)
-
-      const zone = this.add.zone(cardX, cardY, cw, ch).setOrigin(0).setInteractive()
-      zone.on('pointerover', () => drawCard(true))
-      zone.on('pointerout', () => drawCard(false))
-      zone.on('pointerdown', () => this.pick(upg))
-    }
+    this.choices = choices
+    this.mountOverlay()
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (event.code === 'Digit1' || event.code === 'Numpad1') {
-        this.pick(choices[0])
+        this.pick(this.choices[0])
       }
       if (event.code === 'Digit2' || event.code === 'Numpad2') {
-        this.pick(choices[1])
+        this.pick(this.choices[1])
       }
       if (event.code === 'Digit3' || event.code === 'Numpad3') {
-        this.pick(choices[2])
+        this.pick(this.choices[2])
       }
     })
-
-    this.add
-      .text(
-        WIDTH / 2,
-        HEIGHT - 12,
-        t('upgrade.scoreFloor', { score: this.score, floor: this.floor }),
-        {
-          font: '9px Share Tech Mono',
-          color: '#222244',
-        },
-      )
-      .setOrigin(0.5)
 
     setHintText(getUpgradeHintText())
   }
@@ -170,7 +89,86 @@ export class UpgradeScene extends Phaser.Scene {
       score: this.score,
       kills: gameState.kills,
     })
+    this.teardownOverlay()
     setHintText(getMoveHintText())
     this.scene.start('Game', { score: this.score })
+  }
+
+  private mountOverlay(): void {
+    this.teardownOverlay()
+    const gameArea = document.getElementById('game-area')
+    if (!gameArea) {
+      return
+    }
+
+    const root = document.createElement('div')
+    root.className = styles.overlay
+
+    const title = document.createElement('h2')
+    title.className = styles.title
+    title.textContent = t('upgrade.floorCleared')
+    root.append(title)
+
+    const subtitle = document.createElement('p')
+    subtitle.className = styles.subtitle
+    subtitle.textContent = t('upgrade.chooseOne')
+    root.append(subtitle)
+
+    const cards = document.createElement('div')
+    cards.className = styles.cards
+    root.append(cards)
+
+    for (const [index, upgrade] of this.choices.entries()) {
+      cards.append(this.createUpgradeCard(upgrade, index))
+    }
+
+    const footer = document.createElement('p')
+    footer.className = styles.footer
+    footer.textContent = t('upgrade.scoreFloor', { score: this.score, floor: this.floor })
+    root.append(footer)
+
+    gameArea.append(root)
+    this.overlayRoot = root
+  }
+
+  private createUpgradeCard(upgrade: Upgrade, index: number): HTMLButtonElement {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = styles.card
+    button.addEventListener('click', () => this.pick(upgrade))
+
+    const icon = document.createElement('span')
+    icon.className = styles.index
+    icon.textContent = upgrade.icon
+    button.append(icon)
+
+    const content = document.createElement('span')
+    content.className = styles.content
+    button.append(content)
+
+    const name = document.createElement('span')
+    name.className = styles.name
+    name.textContent = this.getUpgradeName(upgrade)
+    name.style.color = `#${upgrade.color.toString(16).padStart(6, '0')}`
+    content.append(name)
+
+    const description = document.createElement('span')
+    description.className = styles.description
+    description.textContent = this.getUpgradeDescription(upgrade)
+    content.append(description)
+
+    const hotkey = document.createElement('span')
+    hotkey.className = styles.hotkey
+    hotkey.textContent = String(index + 1)
+    button.append(hotkey)
+
+    return button
+  }
+
+  private teardownOverlay(): void {
+    if (this.overlayRoot) {
+      this.overlayRoot.remove()
+      this.overlayRoot = null
+    }
   }
 }
