@@ -10,12 +10,31 @@ const byId = <T extends HTMLElement>(id: string): T => {
   return node as T
 }
 
-const scoreDisp = byId<HTMLSpanElement>('score-disp')
-const floorDisp = byId<HTMLSpanElement>('floor-disp')
-const killsDisp = byId<HTMLSpanElement>('kills-disp')
-const runNum = byId<HTMLSpanElement>('run-num')
-const hintBar = byId<HTMLDivElement>('hint-bar')
-const runStatus = byId<HTMLDivElement>('run-status')
+type HudNodes = {
+  scoreDisp: HTMLSpanElement
+  floorDisp: HTMLSpanElement
+  killsDisp: HTMLSpanElement
+  runNum: HTMLSpanElement
+  hintBar: HTMLDivElement
+  runStatus: HTMLDivElement
+}
+
+let hudNodes: HudNodes | null = null
+
+const resolveHudNodes = (): HudNodes => {
+  if (hudNodes) {
+    return hudNodes
+  }
+  hudNodes = {
+    scoreDisp: byId<HTMLSpanElement>('score-disp'),
+    floorDisp: byId<HTMLSpanElement>('floor-disp'),
+    killsDisp: byId<HTMLSpanElement>('kills-disp'),
+    runNum: byId<HTMLSpanElement>('run-num'),
+    hintBar: byId<HTMLDivElement>('hint-bar'),
+    runStatus: byId<HTMLDivElement>('run-status'),
+  }
+  return hudNodes
+}
 
 export type UiShellMode = 'menu' | 'run'
 
@@ -28,7 +47,7 @@ export const setUiShell = (mode: UiShellMode): void => {
   document.body.dataset.uiShell = mode
   setShellClasses(mode)
   if (mode !== 'run') {
-    runStatus.textContent = ''
+    resolveHudNodes().runStatus.textContent = ''
   }
 }
 
@@ -49,11 +68,11 @@ export const setSceneChrome = (mode: UiShellMode): void => {
 }
 
 export const setHintText = (value: string): void => {
-  hintBar.textContent = value
+  resolveHudNodes().hintBar.textContent = value
 }
 
 export const setRunStatusText = (value: string): void => {
-  runStatus.textContent = value
+  resolveHudNodes().runStatus.textContent = value
 }
 
 export const getMoveHintText = (): string =>
@@ -69,6 +88,7 @@ export const getUpgradeHintText = (): string =>
   isKeyboardMode() ? t('hint.upgradeKeyboard') : t('hint.upgradeTouch')
 
 export const updateHud = (score: number): void => {
+  const { scoreDisp, floorDisp, killsDisp, runNum } = resolveHudNodes()
   scoreDisp.textContent = String(score)
   floorDisp.textContent = String(gameState.floor)
   killsDisp.textContent = String(gameState.kills)
