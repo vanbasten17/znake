@@ -10,13 +10,14 @@ import {
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { GoalId } from '../core/types'
 import { getControlMode } from '../systems/controlScheme'
+import { setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { getLanguage, t, toggleLanguage } from '../systems/i18n'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 export class MenuScene extends Phaser.Scene {
   private waiting = true
-  private currencyText?: Phaser.GameObjects.Text
+  private currencyValueText?: Phaser.GameObjects.Text
   private goalsTitleText?: Phaser.GameObjects.Text
   private languageText?: Phaser.GameObjects.Text
   private talentRowRefreshers: Array<() => void> = []
@@ -30,11 +31,16 @@ export class MenuScene extends Phaser.Scene {
     this.waiting = true
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
+    setSceneChrome('menu')
 
     const g = this.add.graphics()
-    g.fillStyle(COLORS.bg)
+    g.fillStyle(0x020918)
     g.fillRect(0, 0, WIDTH, HEIGHT)
-    g.lineStyle(1, COLORS.grid, 0.3)
+    g.fillStyle(0x06132b, 0.4)
+    g.fillCircle(WIDTH * 0.74, HEIGHT * 0.24, 100)
+    g.fillStyle(0x07102b, 0.35)
+    g.fillCircle(WIDTH * 0.2, HEIGHT * 0.86, 120)
+    g.lineStyle(1, 0x173b7a, 0.45)
     for (let x = 0; x <= BASE_COLS; x += 1) {
       g.moveTo(x * CELL, 0)
       g.lineTo(x * CELL, HEIGHT)
@@ -44,31 +50,32 @@ export class MenuScene extends Phaser.Scene {
       g.lineTo(WIDTH, y * CELL)
     }
     g.strokePath()
+    g.lineStyle(2, 0x2d4b8d, 0.85)
+    g.strokeRect(0, 0, WIDTH, HEIGHT)
 
     this.add
-      .text(WIDTH / 2, 22, 'ZNAKE', {
-        font: '900 30px Orbitron',
-        color: '#00ff88',
+      .text(22, 16, 'ZNAKE', {
+        font: '900 48px Orbitron',
+        color: '#9dffb7',
+        shadow: {
+          offsetX: 0,
+          offsetY: 0,
+          color: '#45ff8a',
+          blur: 16,
+          fill: true,
+        },
       })
-      .setOrigin(0.5)
+      .setOrigin(0, 0)
     this.languageText = this.add
-      .text(WIDTH - 10, 12, `${t('menu.language')}: ${getLanguage().toUpperCase()}`, {
-        font: '10px Share Tech Mono',
-        color: '#66aacc',
+      .text(WIDTH - 10, 10, `${t('menu.language')}: ${getLanguage().toUpperCase()}`, {
+        font: '700 11px Share Tech Mono',
+        color: '#d3e5ff',
       })
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true })
     this.languageText.on('pointerdown', () => {
       void this.switchLanguage()
     })
-
-    const subtitle = this.add
-      .text(WIDTH / 2, 48, t('menu.subtitle'), {
-        font: '10px Share Tech Mono',
-        color: '#444466',
-      })
-      .setOrigin(0.5)
-    subtitle.setDepth(1)
 
     const best = Number.parseInt(
       localStorage.getItem(STORAGE_KEYS.bestScore) ??
@@ -77,36 +84,70 @@ export class MenuScene extends Phaser.Scene {
       10,
     )
     this.add
-      .text(WIDTH / 2, 66, t('menu.bestScore', { best }), {
-        font: '10px Share Tech Mono',
-        color: '#8899aa',
+      .text(22, 70, `X ${t('menu.bestScore', { best })}`, {
+        font: '700 15px Share Tech Mono',
+        color: '#f2f5ff',
       })
-      .setOrigin(0.5)
-
-    this.currencyText = this.add
-      .text(WIDTH / 2, 84, '', {
-        font: '11px Share Tech Mono',
-        color: '#99ffcc',
-      })
-      .setOrigin(0.5)
+      .setOrigin(0, 0.5)
 
     this.add
-      .text(WIDTH / 2, 101, t('menu.talentShop'), {
-        font: '9px Share Tech Mono',
-        color: '#335577',
+      .text(22, 90, `© ${t('menu.currency', { value: '' })}`, {
+        font: '700 15px Share Tech Mono',
+        color: '#f2f5ff',
+      })
+      .setOrigin(0, 0.5)
+    this.currencyValueText = this.add
+      .text(182, 90, '', {
+        font: '700 17px Share Tech Mono',
+        color: '#66ff95',
+      })
+      .setOrigin(0, 0.5)
+
+    this.add
+      .text(WIDTH / 2, 108, t('menu.talentShop'), {
+        font: '900 18px Orbitron',
+        color: '#b5ffc4',
+        shadow: {
+          offsetX: 0,
+          offsetY: 0,
+          color: '#3cff80',
+          blur: 8,
+          fill: true,
+        },
       })
       .setOrigin(0.5)
 
-    this.renderTalentShop()
-    this.renderGoals()
+    const rowsBottomY = this.renderTalentShop()
+
+    const cta = this.add.graphics()
+    const ctaX = 26
+    const ctaY = HEIGHT - 24
+    const ctaW = WIDTH - 52
+    const ctaH = 16
+    const drawCta = (active: boolean): void => {
+      cta.clear()
+      cta.fillStyle(0x0a1f32, 1)
+      cta.fillRoundedRect(ctaX, ctaY, ctaW, ctaH, 3)
+      cta.lineStyle(2, active ? 0x76ff9f : 0x4de58d, 1)
+      cta.strokeRoundedRect(ctaX, ctaY, ctaW, ctaH, 3)
+      cta.lineStyle(1, 0xa8ffd0, 0.75)
+      cta.strokeRoundedRect(ctaX + 3, ctaY + 3, ctaW - 6, ctaH - 6, 2)
+    }
+    drawCta(false)
+    const startTxt = this.add
+      .text(WIDTH / 2, HEIGHT - 16, t('menu.startPrompt'), {
+        font: '900 11px Orbitron',
+        color: '#9dffb8',
+      })
+      .setOrigin(0.5)
+    const startZone = this.add.zone(ctaX, ctaY, ctaW, ctaH).setOrigin(0).setInteractive()
+    startZone.on('pointerover', () => drawCta(true))
+    startZone.on('pointerout', () => drawCta(false))
+    startZone.on('pointerdown', () => this.startRun())
+
+    this.renderGoals(rowsBottomY, ctaY)
     this.refreshMetaUi()
 
-    const startTxt = this.add
-      .text(WIDTH / 2, HEIGHT - 22, t('menu.startPrompt'), {
-        font: '12px Share Tech Mono',
-        color: '#00ff88',
-      })
-      .setOrigin(0.5)
     this.tweens.add({
       targets: startTxt,
       alpha: 0.2,
@@ -131,21 +172,22 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  private renderTalentShop(): void {
-    const startY = 112
-    const rowHeight = 24
+  private renderTalentShop(): number {
+    const startY = 116
+    const rowHeight = 21
     for (const [index, talent] of TALENT_TREE.entries()) {
       const y = startY + index * rowHeight
       const row = this.add.graphics()
-      const titleText = this.add.text(18, y + 6, '', {
-        font: '9px Share Tech Mono',
-        color: '#aaccdd',
+      const titleText = this.add.text(23, y + 10, '', {
+        font: '700 9px Share Tech Mono',
+        color: '#f5f8ff',
       })
-      const statusText = this.add.text(WIDTH - 18, y + 6, '', {
-        font: '9px Share Tech Mono',
+      titleText.setOrigin(0, 0.5)
+      const statusText = this.add.text(WIDTH - 23, y + 10, '', {
+        font: '700 9px Share Tech Mono',
         color: '#88aabb',
       })
-      statusText.setOrigin(1, 0)
+      statusText.setOrigin(1, 0.5)
 
       const refresh = (): void => {
         const unlocked = playerProfile.unlockedTalents.includes(talent.id)
@@ -154,16 +196,18 @@ export class MenuScene extends Phaser.Scene {
         const actionable = !unlocked && prereqOk && affordable
 
         row.clear()
-        row.fillStyle(actionable ? 0x0b1a16 : 0x0b0b18, 1)
-        row.fillRoundedRect(10, y + 2, WIDTH - 20, 18, 5)
-        row.lineStyle(1, actionable ? 0x00cc88 : 0x334466, 0.9)
-        row.strokeRoundedRect(10, y + 2, WIDTH - 20, 18, 5)
+        row.fillStyle(0x08162b, 1)
+        row.fillRoundedRect(14, y + 2, WIDTH - 28, 17, 3)
+        row.lineStyle(2, actionable ? 0x79ffa0 : 0x70efb2, 1)
+        row.strokeRoundedRect(14, y + 2, WIDTH - 28, 17, 3)
+        row.lineStyle(1, 0xbcffd6, 0.75)
+        row.strokeRoundedRect(17, y + 4, WIDTH - 34, 13, 2)
 
         titleText.setText(`${index + 1}. ${this.getTalentLabel(talent.id, talent.name)}`)
 
         if (unlocked) {
           statusText.setText(t('menu.unlocked'))
-          statusText.setColor('#66ffaa')
+          statusText.setColor('#73ffa4')
         } else if (!prereqOk) {
           const prereq = TALENT_TREE.find((item) => item.id === talent.requires)
           statusText.setText(
@@ -176,27 +220,28 @@ export class MenuScene extends Phaser.Scene {
           statusText.setColor('#667788')
         } else if (!affordable) {
           statusText.setText(t('menu.cost', { value: talent.cost }))
-          statusText.setColor('#887788')
+          statusText.setColor('#7ceca7')
         } else {
           statusText.setText(t('menu.buy', { value: talent.cost }))
-          statusText.setColor('#99ffcc')
+          statusText.setColor('#7ceca7')
         }
       }
 
       const zone = this.add
-        .zone(10, y + 2, WIDTH - 20, 18)
+        .zone(14, y + 2, WIDTH - 28, 17)
         .setOrigin(0)
         .setInteractive()
       zone.on('pointerdown', () => this.tryUnlockByIndex(index))
       zone.on('pointerover', () => {
-        row.lineStyle(1, 0x00ffaa, 1)
-        row.strokeRoundedRect(10, y + 2, WIDTH - 20, 18, 5)
+        row.lineStyle(2, 0xb9ffd4, 1)
+        row.strokeRoundedRect(14, y + 2, WIDTH - 28, 19, 5)
       })
       zone.on('pointerout', refresh)
 
       refresh()
       this.talentRowRefreshers.push(refresh)
     }
+    return startY + TALENT_TREE.length * rowHeight
   }
 
   private onKeyDown(event: KeyboardEvent): void {
@@ -253,8 +298,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private refreshMetaUi(): void {
-    if (this.currencyText) {
-      this.currencyText.setText(t('menu.currency', { value: playerProfile.currency }))
+    if (this.currencyValueText) {
+      this.currencyValueText.setText(String(playerProfile.currency))
     }
     if (this.goalsTitleText) {
       this.goalsTitleText.setText(t('menu.goalsTitle'))
@@ -280,25 +325,30 @@ export class MenuScene extends Phaser.Scene {
     this.scene.restart()
   }
 
-  private renderGoals(): void {
-    const titleY = HEIGHT - 58
+  private renderGoals(rowsBottomY: number, ctaY: number): void {
+    const available = Math.max(14, ctaY - rowsBottomY - 6)
+    const titleScale = Math.max(0.72, Math.min(1, available / 34))
+    const rowScale = Math.max(0.68, Math.min(1, available / 30))
+    const titleY = rowsBottomY + 5
     this.goalsTitleText = this.add
       .text(WIDTH / 2, titleY, t('menu.goalsTitle'), {
-        font: '8px Share Tech Mono',
-        color: '#4b6a88',
+        font: '900 9px Orbitron',
+        color: '#9cffb7',
       })
       .setOrigin(0.5)
+    this.goalsTitleText.setScale(titleScale)
 
     for (const [index, goal] of PROGRESSION_GOALS.entries()) {
-      const y = titleY + 12 + index * 14
-      const rowText = this.add.text(10, y, '', {
-        font: '8px Share Tech Mono',
-        color: '#8aa4bb',
+      const y = titleY + 10 + index * (8 * rowScale)
+      const rowText = this.add.text(WIDTH / 2, y, '', {
+        font: '700 7px Share Tech Mono',
+        color: '#f4f8ff',
       })
-      rowText.setOrigin(0, 0.5)
+      rowText.setOrigin(0.5)
+      rowText.setScale(rowScale)
 
       const rowZone = this.add
-        .zone(8, y - 6, WIDTH - 16, 12)
+        .zone(20, y - 5, WIDTH - 40, 10)
         .setOrigin(0)
         .setInteractive()
       rowZone.on('pointerdown', () => this.tryClaimGoal(goal.id))
@@ -313,8 +363,8 @@ export class MenuScene extends Phaser.Scene {
           : ready
             ? t('menu.goalReady', { reward: goal.reward })
             : t('menu.goalProgress', { progress, target: goal.target })
-        rowText.setText(`${goalLabel} · ${status}`)
-        rowText.setColor(claimed ? '#5f7f93' : ready ? '#9fffcf' : '#8aa4bb')
+        rowText.setText(`${goalLabel} - ${status}`)
+        rowText.setColor(claimed ? '#6f88a1' : ready ? '#8cffb2' : '#f4f8ff')
       }
 
       refresh()

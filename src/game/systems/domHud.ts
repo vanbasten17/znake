@@ -16,6 +16,11 @@ const killsDisp = byId<HTMLSpanElement>('kills-disp')
 const runNum = byId<HTMLSpanElement>('run-num')
 const hintBar = byId<HTMLDivElement>('hint-bar')
 
+export const setSceneChrome = (mode: 'menu' | 'run'): void => {
+  document.body.classList.toggle('scene-menu', mode === 'menu')
+  document.body.classList.toggle('scene-run', mode === 'run')
+}
+
 export const setHintText = (value: string): void => {
   hintBar.textContent = value
 }

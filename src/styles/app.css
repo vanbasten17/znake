@@ -241,6 +241,12 @@ body.keyboard-controls #controls {
   background: #020208;
 }
 
+body.scene-menu #hud,
+body.scene-menu #controls,
+body.scene-menu #hint-bar {
+  display: none;
+}
+
 @media (pointer: coarse), (hover: none) {
   body.touch-controls #dpad {
     width: 164px;

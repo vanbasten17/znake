@@ -17,7 +17,13 @@ import type {
   WorldItemType,
 } from '../core/types'
 import { getControlMode } from '../systems/controlScheme'
-import { getMoveHintText, getRestartHintText, setHintText, updateHud } from '../systems/domHud'
+import {
+  getMoveHintText,
+  getRestartHintText,
+  setHintText,
+  setSceneChrome,
+  updateHud,
+} from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
 import { trackRetentionEvent } from '../systems/telemetry'
@@ -93,6 +99,7 @@ export class GameScene extends Phaser.Scene {
     this.resetLocalState()
     this.runStartMs = this.time.now
     this.isDying = false
+    setSceneChrome('run')
 
     applyTalentEffects(this.cfg, playerProfile)
     applyRelicEffect(this.cfg, gameState.selectedRelicId)

@@ -24,12 +24,17 @@ The system SHALL register scenes in order Menu → Game → Upgrade → Death an
 
 ### Requirement: Menu scene
 
-The system SHALL surface compact progression-goal status in menu.
+The system SHALL support a reference-driven polished menu visual identity without changing menu behavior.
 
-#### Scenario: Menu shows active goals
+#### Scenario: Menu visual language matches reference
 
-- **WHEN** menu scene is created
-- **THEN** current goal progress and claim-ready states are visible to the player
+- **WHEN** menu scene is rendered
+- **THEN** hero title, stat strip, talent rows, goals, and start CTA use a cohesive neon-grid style aligned to the provided design reference
+
+#### Scenario: Menu behavior remains stable
+
+- **WHEN** player uses menu interactions (start, talent unlock, goal claim, language switch)
+- **THEN** all interactions behave equivalently to pre-redesign behavior
 
 ### Requirement: Game scene
 
