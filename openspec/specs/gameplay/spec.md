@@ -138,6 +138,12 @@ The system SHALL support temporary hazard-pressure modulation through item inter
 - **THEN** progression remains tied to boss elimination
 - **AND** timed portal objective is not required for that floor
 
+#### Scenario: Darkness modifier can apply on configured non-boss floors
+
+- **WHEN** floor setup flags darkness modifier as active
+- **THEN** gameplay applies reduced visibility around snake head
+- **AND** core mechanics (collision, movement, objectives) remain unchanged
+
 ### Requirement: Snake body render continuity
 
 The system SHALL render snake head and all remaining body segments in every frame where those segments exist.
@@ -193,4 +199,26 @@ The system SHALL provide distinct visual signatures for core gameplay entities w
 - **WHEN** project evolves from procedural canvas glyphs to authored PNG sprite assets
 - **THEN** gameplay entity semantics (food, portal, hazards, powerups, enemies, snake hierarchy) remain consistent
 - **AND** sprite-asset migration can replace current visual primitives without changing gameplay rules
+
+### Requirement: Developer scenario bootstrap
+
+The system SHALL support deterministic debug scenario bootstrap for fast smoke testing.
+
+#### Scenario: Game scene applies scenario floor and score bootstrap
+
+- **WHEN** `GameScene` starts with a valid `devScenarioId`
+- **THEN** scene bootstrap applies preset floor and score overrides before runtime setup
+- **AND** base run config and regular gameplay systems still initialize normally
+
+#### Scenario: Scenario flags force targeted runtime conditions
+
+- **WHEN** a dev scenario includes optional flags (e.g. magnet, extra shields, darkness, short portal timer, near-head food)
+- **THEN** those conditions are applied at startup
+- **AND** the resulting state is immediately testable without replaying prior floors
+
+#### Scenario: Invalid scenario id degrades to normal run setup
+
+- **WHEN** `GameScene` receives an unknown `devScenarioId`
+- **THEN** gameplay starts with normal progression bootstrap
+- **AND** no runtime error is thrown
 

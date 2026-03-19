@@ -14,7 +14,7 @@
 - [x] 3.1 Run `openspec validate znake-floor-modifier-darkness-v1`.
 - [x] 3.2 Run `pnpm check`.
 - [x] 3.3 Run `pnpm build`.
-- [ ] 3.4 Manual smoke:
-- [ ] floor with darkness renders correctly
-- [ ] boss floor unaffected
-- [ ] objective readability remains acceptable on mobile viewport
+- [x] 3.4 Manual smoke:
+- [x] floor with darkness renders correctly
+- [x] boss floor unaffected
+- [x] objective readability remains acceptable on mobile viewport

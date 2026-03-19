@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import styles from '../../styles/menuOverlay.module.css'
 import { STORAGE_KEYS } from '../core/constants'
+import { DEV_SCENARIOS, type DevScenarioId, isDevMode } from '../core/devScenarios'
 import {
   PROGRESSION_GOALS,
   TALENT_TREE,
@@ -30,6 +31,7 @@ export class MenuScene extends Phaser.Scene {
   private talentRowRefreshers: Array<() => void> = []
   private goalRowRefreshers: Array<() => void> = []
   private accessibilityRefreshers: Array<() => void> = []
+  private readonly devMode = isDevMode()
 
   public constructor() {
     super('Menu')
@@ -279,6 +281,33 @@ export class MenuScene extends Phaser.Scene {
     })
     root.append(objective)
 
+    if (this.devMode) {
+      const devSection = document.createElement('div')
+      devSection.className = styles.devSection
+
+      const devTitle = document.createElement('p')
+      devTitle.className = styles.devTitle
+      devTitle.textContent = 'DEV SCENARIOS'
+      devSection.append(devTitle)
+
+      const devRows = document.createElement('div')
+      devRows.className = styles.devRows
+      devSection.append(devRows)
+
+      for (const scenario of DEV_SCENARIOS) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = styles.devButton
+        button.textContent = scenario.label
+        button.addEventListener('click', () => {
+          this.startDevScenario(scenario.id)
+        })
+        devRows.append(button)
+      }
+
+      root.append(devSection)
+    }
+
     root.append(start)
 
     gameArea.append(root)
@@ -419,6 +448,14 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private startRun(): void {
+    this.startRunInternal()
+  }
+
+  private startDevScenario(scenarioId: DevScenarioId): void {
+    this.startRunInternal(scenarioId)
+  }
+
+  private startRunInternal(devScenarioId?: DevScenarioId): void {
     if (!this.waiting) {
       return
     }
@@ -434,16 +471,24 @@ export class MenuScene extends Phaser.Scene {
     playerProfile.lifetimeStats.runsPlayed += 1
     saveProfile(playerProfile)
     trackRetentionEvent('run_start', {
-      source: 'menu',
+      source: devScenarioId ? 'menu_dev' : 'menu',
       currency: playerProfile.currency,
       unlockedTalents: playerProfile.unlockedTalents.length,
+      devScenarioId: devScenarioId ?? null,
     })
     trackRetentionEvent('input_mode', {
       mode: getControlMode(),
-      source: 'run_start_menu',
+      source: devScenarioId ? 'run_start_menu_dev' : 'run_start_menu',
       run: gameState.run,
     })
     this.teardownOverlay()
+    if (devScenarioId) {
+      transitionToScene(this, 'Game', {
+        chrome: 'run',
+        data: { devScenarioId, score: 0 },
+      })
+      return
+    }
     transitionToScene(this, 'RelicDraft', { chrome: 'run' })
   }
 }

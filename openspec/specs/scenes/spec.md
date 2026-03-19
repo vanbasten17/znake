@@ -50,6 +50,19 @@ The system SHALL support a reference-driven polished menu visual identity withou
 - **AND** high-contrast / large-text / reduced-effects remain implemented but hidden from menu UI
 - **AND** the next run uses the configured visible accessibility/input preferences
 
+#### Scenario: Dev scenario launcher appears only in dev mode
+
+- **WHEN** menu scene is rendered with URL query `?dev=1`
+- **THEN** a developer scenario launcher is visible with quick-start entries
+- **AND** selecting an entry starts gameplay directly using that scenario preset
+- **AND** normal start CTA remains available
+
+#### Scenario: Dev scenario launcher stays hidden in normal mode
+
+- **WHEN** menu scene is rendered without URL query `?dev=1`
+- **THEN** no developer launcher UI is shown
+- **AND** menu interactions remain equivalent to production flow
+
 ### Requirement: Game scene
 
 The system SHALL render gameplay UI text in the active locale.

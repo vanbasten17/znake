@@ -1,6 +1,8 @@
 import Phaser from 'phaser'
 import { BALANCE, createBaseRunConfig, getFloorSetup } from '../core/balance'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH } from '../core/constants'
+import { getDevScenario } from '../core/devScenarios'
+import type { DevScenarioId } from '../core/devScenarios'
 import { applyRelicEffect, applyTalentEffects } from '../core/meta'
 import { getFloorObjective } from '../core/objectives'
 import { gameState, playerProfile } from '../core/state'
@@ -36,6 +38,7 @@ import { trackRetentionEvent } from '../systems/telemetry'
 
 type GameSceneData = {
   score?: number
+  devScenarioId?: DevScenarioId
 }
 
 type DeathReason = 'wall' | 'self' | 'enemy' | 'rift'
@@ -115,7 +118,11 @@ export class GameScene extends Phaser.Scene {
 
   public create(data: GameSceneData): void {
     resetVirtualInput()
-    this.score = data.score ?? 0
+    const debugScenario = data.devScenarioId ? getDevScenario(data.devScenarioId) : null
+    if (debugScenario) {
+      gameState.floor = debugScenario.floor
+    }
+    this.score = debugScenario?.score ?? data.score ?? 0
     this.resetLocalState()
     this.runStartMs = this.time.now
     this.isDying = false
@@ -128,6 +135,12 @@ export class GameScene extends Phaser.Scene {
     }
     this.shields = this.cfg.bonusShields
     this.ghostCharges = this.cfg.ghostCharges
+    if (debugScenario?.forceMagnet) {
+      this.cfg.hasMagnet = true
+    }
+    if (debugScenario?.startShields) {
+      this.shields += debugScenario.startShields
+    }
 
     const floorSetup = getFloorSetup(gameState.floor, this.cfg.enemySlow)
     this.wallCount = floorSetup.wallCount
@@ -154,6 +167,9 @@ export class GameScene extends Phaser.Scene {
     this.walls = this.generateWalls()
     this.snake = this.spawnSnake()
     this.setupPortalFlow()
+    if (debugScenario?.portalCountdownMs !== undefined) {
+      this.portalCountdownMs = Math.max(0, debugScenario.portalCountdownMs)
+    }
     this.enemies = []
     if (this.isBossFloor) {
       this.enemyCount = 1
@@ -165,6 +181,18 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.spawnFood()
+    if (debugScenario?.placeFoodNearHead) {
+      const head = this.snake[0]
+      if (head) {
+        const candidate = { x: Math.min(BASE_COLS - 2, head.x + 1), y: head.y }
+        const occupiedBySnake = this.snake.some(
+          (segment, index) => index > 0 && segment.x === candidate.x && segment.y === candidate.y,
+        )
+        if (!this.isWall(candidate.x, candidate.y) && !occupiedBySnake) {
+          this.food = { x: candidate.x, y: candidate.y, pulse: 0 }
+        }
+      }
+    }
     if (Math.random() < BALANCE.spawn.powerupAtFloorStartChance) {
       this.spawnPowerup()
     }
@@ -175,6 +203,9 @@ export class GameScene extends Phaser.Scene {
       alpha: 0.15 + Math.random() * 0.4,
     }))
     this.riftCell = this.pickOpenCell()
+    if (debugScenario?.forceDarkness) {
+      this.darknessActive = true
+    }
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       const dir = directionMap[event.code]
