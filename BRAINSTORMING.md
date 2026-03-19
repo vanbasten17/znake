@@ -269,13 +269,14 @@ Each biome would have 2–3 map templates assigned to ensure visual variety acro
 Ordered by impact on game feel vs. implementation cost:
 
 1. **Timed portal + squeeze** — minimal code, completely changes tension
-2. **Dual portal with biome choice** — extends the portal and gives player agency
-3. **Darkness and Ice as floor modifiers** — simple to implement, high gameplay impact
-4. **Egg and Mirror Snake** — enemies that teach new patterns without being unfair
-5. **Room-based map generation** — immediately improves the sense of exploration
-6. **Core Biome** — feeding pressure via passive timer, trivial to add
-7. **Boss Floor with Giant Snake** — climactic moment every 3 floors
-8. **Starting Relics** — lightweight meta-progression, very high replayability gain
+2. **Accessibility mode + voice controls** — large UX value and broader reach with moderate implementation cost
+3. **Dual portal with biome choice** — extends the portal and gives player agency
+4. **Darkness and Ice as floor modifiers** — simple to implement, high gameplay impact
+5. **Egg and Mirror Snake** — enemies that teach new patterns without being unfair
+6. **Room-based map generation** — immediately improves the sense of exploration
+7. **Core Biome** — feeding pressure via passive timer, trivial to add
+8. **Boss Floor with Giant Snake** — climactic moment every 3 floors
+9. **Starting Relics** — lightweight meta-progression, very high replayability gain
 
 ---
 
@@ -341,3 +342,32 @@ With multiple power-ups, consumption order follows **LIFO** (last-in-first-out) 
 In Elimination Runs specifically, venom segments on the tail act as **charges** for the spit ability. Each venom segment = 1 projectile. When fired, the rearmost venom segment disappears. This connects Section 13 and Section 14 into a single coherent system: collecting venom power-ups during a floor loads up your attack capacity for the next elimination run.
 
 > *Reference: Sonic the Hedgehog's ring system is the closest visual analog — collected items form a visible buffer that absorbs hits. The ordered inventory-as-body-segments concept is more directly inspired by Noita's wand system, where the order of spells in the wand determines firing behavior. The "stored but not yet active" power-up model also appears in Mega Man's weapon select and Celeste's dash crystal — the player carries potential energy that is spent deliberately.*
+
+---
+
+## 15. Accessibility Mode + Voice Commands
+
+Add an optional **Accessibility Mode** with clear visual readability upgrades and alternative input pathways, including voice-driven movement.
+
+### Accessibility Mode (UI + Gameplay Assist)
+- High-contrast palette preset (stronger separation of snake, enemies, hazards, portal)
+- Scalable text and HUD sizing presets (`normal`, `large`, `x-large`)
+- Reduced visual noise option (lower background effects, fewer flashes)
+- Optional slowdown assist (e.g. 10–20% slower global tick) for training/onboarding
+
+### Voice Control MVP
+- Listen for directional commands: **up, down, left, right**
+- Optional commands: **pause, start**
+- Debounce + cooldown so repeated recognition doesn't flood the input queue
+- Fallback priority: keyboard/touch always overrides if used in same window
+
+### Safety and UX Constraints
+- Voice mode is opt-in from menu settings, never forced by default
+- Local processing preference where possible; if browser speech APIs are used, show clear permission and privacy notice
+- Real-time indicator of recognition state (`listening`, `heard`, `error`, `muted`)
+- Graceful failure: if recognition drops, game remains fully playable via existing controls
+
+### Why this matters now
+This expands audience reach (motor accessibility, one-handed use, fatigue reduction), improves first-session onboarding, and creates a clear differentiation point for a mobile-first game concept.
+
+> *Reference: Voice command accessibility patterns are used in iOS Voice Control and Xbox Adaptive Controller ecosystems. In games, command-driven input appears in titles like* Tom Clancy's EndWar *(voice strategy commands) and in accessibility overlays that map speech to discrete input actions.*
