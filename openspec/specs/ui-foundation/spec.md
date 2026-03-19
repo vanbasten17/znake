@@ -30,6 +30,12 @@ The system SHALL provide a shared design-token and shell-primitive layer for non
 - **THEN** styles are applied through a scene-scoped CSS Module backed by shared tokens
 - **AND** global gameplay styling remains isolated
 
+#### Scenario: Gameplay readability palette stays token-coherent
+
+- **WHEN** gameplay readability visuals are tuned
+- **THEN** color/contrast changes remain coherent with shared token palette intent
+- **AND** shell and gameplay accents do not diverge into conflicting visual languages
+
 ### Requirement: Runtime UI shell mount
 
 The system SHALL create the shared HUD/gameplay/controls shell structure at runtime before gameplay systems bind DOM behavior.
