@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import styles from '../../styles/relicDraftOverlay.module.css'
 import { drawRelicDraft } from '../core/meta'
+import { getFloorObjective } from '../core/objectives'
 import { gameState } from '../core/state'
 import type { RelicDefinition } from '../core/types'
 import { getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
@@ -68,6 +69,13 @@ export class RelicDraftScene extends Phaser.Scene {
     subtitle.textContent = t('upgrade.chooseOne')
     root.append(subtitle)
 
+    const objective = document.createElement('p')
+    objective.className = styles.objective
+    objective.textContent = t('menu.nextObjective', {
+      objective: this.getObjectivePreview(gameState.floor),
+    })
+    root.append(objective)
+
     const cards = document.createElement('div')
     cards.className = styles.cards
     root.append(cards)
@@ -78,6 +86,20 @@ export class RelicDraftScene extends Phaser.Scene {
 
     gameArea.append(root)
     this.overlayRoot = root
+  }
+
+  private getObjectivePreview(floor: number): string {
+    const objective = getFloorObjective(floor, gameState.runObjectiveOffset)
+    if (objective.kind === 'boss') {
+      return t('game.objectiveBossPreview')
+    }
+    if (objective.kind === 'score') {
+      return t('game.objectiveScorePreview', { target: objective.scoreTarget })
+    }
+    if (objective.kind === 'kills') {
+      return t('game.objectiveKillsPreview', { target: objective.killsTarget })
+    }
+    return t('game.objectivePortalPreview')
   }
 
   private createRelicCard(relic: RelicDefinition, index: number): HTMLButtonElement {

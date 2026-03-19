@@ -1,4 +1,4 @@
-import type { RunConfig, TalentId } from './types'
+import type { NonBossObjectiveKind, RunConfig, TalentId } from './types'
 
 export const BALANCE = {
   run: {
@@ -26,6 +26,23 @@ export const BALANCE = {
     enemyIntervalBaseMs: 550,
     enemyIntervalPerFloorMs: 30,
     enemyIntervalMinMs: 350,
+  },
+  portal: {
+    countdownBaseMs: 10000,
+    countdownPerFloorMs: 0,
+    countdownMinMs: 10000,
+    graceMs: 7000,
+    squeezeStepMs: 3600,
+    squeezeMaxInset: 8,
+  },
+  objectives: {
+    rotation: ['portal', 'score', 'kills'] satisfies ReadonlyArray<NonBossObjectiveKind>,
+    scoreTargetBase: 36,
+    scoreTargetPerFloor: 8,
+    scoreTargetCap: 180,
+    killTargetBase: 1,
+    killTargetPerFloorStep: 2,
+    killTargetCap: 4,
   },
   spawn: {
     powerupAtFloorStartChance: 0.4,
@@ -90,13 +107,14 @@ export const BALANCE = {
   },
   item: {
     spawnByFloor: [
-      { minFloor: 1, riftBatteryOnFoodChance: 0 },
-      { minFloor: 2, riftBatteryOnFoodChance: 0.08 },
-      { minFloor: 4, riftBatteryOnFoodChance: 0.14 },
-      { minFloor: 7, riftBatteryOnFoodChance: 0.2 },
+      { minFloor: 1, riftBatteryOnFoodChance: 0, portalBeaconOnFoodChance: 0 },
+      { minFloor: 2, riftBatteryOnFoodChance: 0.08, portalBeaconOnFoodChance: 0.02 },
+      { minFloor: 4, riftBatteryOnFoodChance: 0.14, portalBeaconOnFoodChance: 0.025 },
+      { minFloor: 7, riftBatteryOnFoodChance: 0.2, portalBeaconOnFoodChance: 0.03 },
     ],
     effectDurations: {
       riftSuppressionMs: 9000,
+      portalAccelerateMs: 4500,
     },
   },
   biome: {

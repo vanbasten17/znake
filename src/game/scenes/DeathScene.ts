@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import styles from '../../styles/deathOverlay.module.css'
 import { STORAGE_KEYS } from '../core/constants'
 import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
+import { rollRunObjectiveOffset } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { Upgrade } from '../core/types'
 import { getControlMode } from '../systems/controlScheme'
@@ -257,6 +258,7 @@ export class DeathScene extends Phaser.Scene {
     gameState.kills = 0
     gameState.eliteKills = 0
     gameState.floor = 1
+    gameState.runObjectiveOffset = rollRunObjectiveOffset()
     gameState.persistentUpgrades = []
     gameState.selectedRelicId = null
     playerProfile.lifetimeStats.runsPlayed += 1

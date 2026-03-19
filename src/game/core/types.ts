@@ -9,7 +9,7 @@ export type SnakeSegment = Vec2
 
 export type PowerupType = 'shield' | 'slow' | 'ghost' | 'score'
 export type EnemyKind = 'normal' | 'stalker' | 'ambusher' | 'boss'
-export type WorldItemType = 'core' | 'rift_battery'
+export type WorldItemType = 'core' | 'rift_battery' | 'portal_beacon'
 
 export type Upgrade = {
   id: string
@@ -77,6 +77,7 @@ export type GameState = {
   kills: number
   eliteKills: number
   floor: number
+  runObjectiveOffset: number
   persistentUpgrades: Upgrade[]
   selectedRelicId: RelicId | null
 }
@@ -125,6 +126,9 @@ export type GoalDefinition = {
   target: number
   reward: number
 }
+
+export type NonBossObjectiveKind = 'portal' | 'score' | 'kills'
+export type FloorObjectiveKind = NonBossObjectiveKind | 'boss'
 
 export type PlayerProfile = {
   profileVersion: number

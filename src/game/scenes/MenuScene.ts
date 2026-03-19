@@ -8,6 +8,7 @@ import {
   saveProfile,
   unlockTalent,
 } from '../core/meta'
+import { getFloorObjective, rollRunObjectiveOffset } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { GoalId } from '../core/types'
 import { getControlMode } from '../systems/controlScheme'
@@ -36,6 +37,7 @@ export class MenuScene extends Phaser.Scene {
     this.waiting = true
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
+    gameState.runObjectiveOffset = rollRunObjectiveOffset()
     setSceneChrome('menu')
     this.mountOverlay()
 
@@ -200,6 +202,14 @@ export class MenuScene extends Phaser.Scene {
     start.className = styles.start
     start.textContent = t('menu.startPrompt')
     start.addEventListener('click', () => this.startRun())
+
+    const objective = document.createElement('p')
+    objective.className = styles.nextObjective
+    objective.textContent = t('menu.nextObjective', {
+      objective: this.getObjectivePreview(1),
+    })
+    root.append(objective)
+
     root.append(start)
 
     gameArea.append(root)
@@ -292,6 +302,20 @@ export class MenuScene extends Phaser.Scene {
 
   private getTalentLabel(talentId: string, fallbackName: string): string {
     return t(`talent.${talentId}_name`, { defaultValue: fallbackName })
+  }
+
+  private getObjectivePreview(floor: number): string {
+    const objective = getFloorObjective(floor, gameState.runObjectiveOffset)
+    if (objective.kind === 'boss') {
+      return t('game.objectiveBossPreview')
+    }
+    if (objective.kind === 'score') {
+      return t('game.objectiveScorePreview', { target: objective.scoreTarget })
+    }
+    if (objective.kind === 'kills') {
+      return t('game.objectiveKillsPreview', { target: objective.killsTarget })
+    }
+    return t('game.objectivePortalPreview')
   }
 
   private async switchLanguage(): Promise<void> {

@@ -44,6 +44,15 @@
   letter-spacing: 1px;
 }
 
+.objective {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(11px, 2.2vw, 14px);
+  color: #b9ffe2;
+  letter-spacing: 0.8px;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.32);
+}
+
 .cards {
   width: 100%;
   display: flex;

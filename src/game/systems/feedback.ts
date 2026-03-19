@@ -1,4 +1,12 @@
-type FeedbackKind = 'tap' | 'confirm' | 'success' | 'danger' | 'pause' | 'crash'
+type FeedbackKind =
+  | 'tap'
+  | 'confirm'
+  | 'success'
+  | 'danger'
+  | 'pause'
+  | 'crash'
+  | 'portal'
+  | 'urgent'
 
 let audioContext: AudioContext | null = null
 let audioUnlocked = false
@@ -9,6 +17,8 @@ const vibrationForKind = (kind: FeedbackKind): number | number[] => {
   if (kind === 'success') return [12, 18, 18]
   if (kind === 'danger') return [25, 20, 25]
   if (kind === 'crash') return [35, 25, 35, 25, 50]
+  if (kind === 'portal') return [16, 12, 24]
+  if (kind === 'urgent') return 6
   return 10
 }
 
@@ -18,6 +28,8 @@ const toneForKind = (kind: FeedbackKind): { freq: number; durationMs: number; ga
   if (kind === 'success') return { freq: 740, durationMs: 85, gain: 0.017 }
   if (kind === 'danger') return { freq: 220, durationMs: 120, gain: 0.02 }
   if (kind === 'crash') return { freq: 130, durationMs: 190, gain: 0.028 }
+  if (kind === 'portal') return { freq: 860, durationMs: 180, gain: 0.02 }
+  if (kind === 'urgent') return { freq: 980, durationMs: 65, gain: 0.012 }
   return { freq: 360, durationMs: 60, gain: 0.013 }
 }
 
@@ -55,10 +67,12 @@ const playTone = (kind: FeedbackKind): void => {
   const now = ctx.currentTime
   const oscillator = ctx.createOscillator()
   const gainNode = ctx.createGain()
-  oscillator.type = kind === 'crash' ? 'sawtooth' : 'square'
+  oscillator.type = kind === 'crash' ? 'sawtooth' : kind === 'portal' ? 'triangle' : 'square'
   oscillator.frequency.value = tone.freq
   if (kind === 'crash') {
     oscillator.frequency.exponentialRampToValueAtTime(85, now + tone.durationMs / 1000)
+  } else if (kind === 'portal') {
+    oscillator.frequency.exponentialRampToValueAtTime(640, now + tone.durationMs / 1000)
   }
   gainNode.gain.value = 0
   gainNode.gain.setValueAtTime(0, now)

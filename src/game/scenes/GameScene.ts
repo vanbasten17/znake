@@ -2,11 +2,13 @@ import Phaser from 'phaser'
 import { BALANCE, createBaseRunConfig, getFloorSetup } from '../core/balance'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH } from '../core/constants'
 import { applyRelicEffect, applyTalentEffects } from '../core/meta'
+import { getFloorObjective } from '../core/objectives'
 import { gameState, playerProfile } from '../core/state'
 import type {
   BiomeItem,
   Enemy,
   EnemyKind,
+  FloorObjectiveKind,
   Food,
   Particle,
   Powerup,
@@ -36,6 +38,7 @@ type GameSceneData = {
 }
 
 type DeathReason = 'wall' | 'self' | 'enemy' | 'rift'
+type PortalCell = Vec2 & { pulse: number }
 
 const directionMap: Record<string, Vec2> = {
   ArrowUp: { x: 0, y: -1 },
@@ -66,9 +69,18 @@ export class GameScene extends Phaser.Scene {
   private regenTimer = 0
   private wallCount = 0
   private enemyCount = 0
-  private snakeLengthGoal = 0
-  private floorStartLength = 0
   private pendingGrowth = 0
+  private objectiveType: FloorObjectiveKind = 'portal'
+  private objectiveScoreStart = 0
+  private objectiveScoreTarget = 0
+  private objectiveKillsStart = 0
+  private objectiveKillsTarget = 0
+  private portal: PortalCell | null = null
+  private portalCountdownMs = 0
+  private portalGraceMs = 0
+  private portalGraceSecondCue = -1
+  private squeezeStepTimerMs = 0
+  private squeezeInset = 0
   private snake: SnakeSegment[] = []
   private walls = new Set<string>()
   private enemies: Enemy[] = []
@@ -114,9 +126,14 @@ export class GameScene extends Phaser.Scene {
     const floorSetup = getFloorSetup(gameState.floor, this.cfg.enemySlow)
     this.wallCount = floorSetup.wallCount
     this.enemyCount = floorSetup.enemyCount
-    this.snakeLengthGoal = floorSetup.snakeLengthGoal
     this.enemyInterval = floorSetup.enemyIntervalMs
     this.isBossFloor = gameState.floor % BALANCE.biome.boss.floorInterval === 0
+    const floorObjective = getFloorObjective(gameState.floor, gameState.runObjectiveOffset)
+    this.objectiveType = floorObjective.kind
+    this.objectiveScoreStart = this.score
+    this.objectiveKillsStart = gameState.kills
+    this.objectiveScoreTarget = floorObjective.scoreTarget
+    this.objectiveKillsTarget = floorObjective.killsTarget
 
     this.bgGraphics = this.add.graphics()
     this.wallGraphics = this.add.graphics()
@@ -125,7 +142,7 @@ export class GameScene extends Phaser.Scene {
 
     this.walls = this.generateWalls()
     this.snake = this.spawnSnake()
-    this.floorStartLength = this.snake.length
+    this.setupPortalFlow()
     this.enemies = []
     if (this.isBossFloor) {
       this.enemyCount = 1
@@ -199,7 +216,9 @@ export class GameScene extends Phaser.Scene {
     const dt = delta / 1000
     this.updateCameraShake(dt)
     this.updateEnemyMovement(delta)
+    this.ensureObjectiveEnemyAvailability()
     this.updateVoidRift(delta)
+    this.updatePortalFlow(delta)
     this.updateRegen(delta)
     this.updateSnakeMovement(delta)
     this.updateMagnetFood()
@@ -214,29 +233,22 @@ export class GameScene extends Phaser.Scene {
     if (this.biomeItem) {
       this.biomeItem.pulse += dt * 4.5
     }
+    if (this.portal) {
+      this.portal.pulse += dt * 4.2
+    }
     const localizedBiome = t(`biome.${BALANCE.biome.id.replaceAll('-', '_')}`, {
       defaultValue: BALANCE.biome.name,
     })
-    const effectiveLengthGoal = Math.max(this.snakeLengthGoal, this.floorStartLength + 1)
-    const remaining = Math.max(0, effectiveLengthGoal - this.snake.length)
-    const progress =
-      this.isBossFloor || effectiveLengthGoal <= 0
-        ? ''
-        : `${Math.min(this.snake.length, effectiveLengthGoal)}/${effectiveLengthGoal}`
-    const nextInfo =
+    const hazardInfo =
       this.riftSuppressionMsRemaining > 0
         ? t('game.riftSuppressed', {
             seconds: Math.ceil(this.riftSuppressionMsRemaining / 1000),
           })
-        : this.isBossFloor
-          ? t('game.bossAdvance')
-          : t('game.toNextFloor', {
-              remaining,
-            })
-
-    const hudStatus = progress
-      ? `${localizedBiome} · ${progress} · ${nextInfo}`
-      : `${localizedBiome} · ${nextInfo}`
+        : null
+    const objectiveInfo = this.getObjectiveStatusText()
+    const hudStatus = hazardInfo
+      ? `${localizedBiome} · ${objectiveInfo} · ${hazardInfo}`
+      : `${localizedBiome} · ${objectiveInfo}`
     setRunStatusText(hudStatus)
 
     this.drawFrame()
@@ -255,9 +267,18 @@ export class GameScene extends Phaser.Scene {
     this.shields = 0
     this.ghostCharges = 0
     this.regenTimer = 0
-    this.snakeLengthGoal = 0
-    this.floorStartLength = 0
     this.pendingGrowth = 0
+    this.objectiveType = 'portal'
+    this.objectiveScoreStart = 0
+    this.objectiveScoreTarget = 0
+    this.objectiveKillsStart = 0
+    this.objectiveKillsTarget = 0
+    this.portal = null
+    this.portalCountdownMs = 0
+    this.portalGraceMs = 0
+    this.portalGraceSecondCue = -1
+    this.squeezeStepTimerMs = 0
+    this.squeezeInset = 0
     this.enemyMoveTimer = 0
     this.riftTimer = 0
     this.riftSuppressionMsRemaining = 0
@@ -433,6 +454,51 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  private getObjectiveScoreProgress(): number {
+    return Math.max(0, this.score - this.objectiveScoreStart)
+  }
+
+  private getObjectiveKillsProgress(): number {
+    return Math.max(0, gameState.kills - this.objectiveKillsStart)
+  }
+
+  private getPressureStatusText(): string {
+    if (this.portalCountdownMs > 0) {
+      return t('game.pressureIn', { seconds: Math.ceil(this.portalCountdownMs / 1000) })
+    }
+    if (this.portalGraceMs > 0) {
+      return t('game.squeezeIn', { seconds: Math.ceil(this.portalGraceMs / 1000) })
+    }
+    return t('game.squeezeActive')
+  }
+
+  private getObjectiveStatusText(): string {
+    if (this.isBossFloor || this.objectiveType === 'boss') {
+      return t('game.bossAdvance')
+    }
+    if (this.objectiveType === 'portal') {
+      if (!this.portal) {
+        return t('game.portalIn', { seconds: Math.ceil(this.portalCountdownMs / 1000) })
+      }
+      if (this.portalGraceMs > 0) {
+        return `${t('game.portalFind')} · ${t('game.squeezeIn', { seconds: Math.ceil(this.portalGraceMs / 1000) })}`
+      }
+      return `${t('game.portalFind')} · ${t('game.squeezeActive')}`
+    }
+    if (this.objectiveType === 'score') {
+      return t('game.objectiveScoreStatus', {
+        progress: this.getObjectiveScoreProgress(),
+        target: this.objectiveScoreTarget,
+        pressure: this.getPressureStatusText(),
+      })
+    }
+    return t('game.objectiveKillsStatus', {
+      progress: this.getObjectiveKillsProgress(),
+      target: this.objectiveKillsTarget,
+      pressure: this.getPressureStatusText(),
+    })
+  }
+
   private spawnSnake(): SnakeSegment[] {
     const cx = Math.floor(BASE_COLS / 2)
     const cy = Math.floor(BASE_ROWS / 2)
@@ -474,7 +540,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isWall(x: number, y: number): boolean {
-    if (x < 0 || x >= BASE_COLS || y < 0 || y >= BASE_ROWS) {
+    const inset = this.squeezeInset
+    const minX = inset
+    const maxX = BASE_COLS - 1 - inset
+    const minY = inset
+    const maxY = BASE_ROWS - 1 - inset
+    if (x < minX || x > maxX || y < minY || y > maxY) {
       return true
     }
     return this.walls.has(`${x},${y}`)
@@ -487,9 +558,91 @@ export class GameScene extends Phaser.Scene {
     if (this.snake.some((segment) => segment.x === x && segment.y === y)) {
       return false
     }
+    if (this.portal && this.portal.x === x && this.portal.y === y) {
+      return false
+    }
     return !this.enemies.some((enemy) =>
       enemy.body.some((segment) => segment.x === x && segment.y === y),
     )
+  }
+
+  private setupPortalFlow(): void {
+    if (this.isBossFloor) {
+      this.portal = null
+      this.portalCountdownMs = 0
+      this.portalGraceMs = 0
+      this.portalGraceSecondCue = -1
+      this.squeezeStepTimerMs = 0
+      this.squeezeInset = 0
+      return
+    }
+    const floorOffset = Math.max(0, gameState.floor - 1)
+    const countdown =
+      BALANCE.portal.countdownBaseMs - floorOffset * BALANCE.portal.countdownPerFloorMs
+    this.portalCountdownMs = Math.max(BALANCE.portal.countdownMinMs, countdown)
+    this.portalGraceMs = BALANCE.portal.graceMs
+    this.portalGraceSecondCue = -1
+    this.portal = null
+    this.squeezeStepTimerMs = 0
+    this.squeezeInset = 0
+  }
+
+  private spawnPortal(): void {
+    if (this.portal || this.isBossFloor || this.objectiveType !== 'portal') {
+      return
+    }
+    const portalCell = this.pickOpenCell()
+    this.portal = { ...portalCell, pulse: 0 }
+    emitFeedback('portal')
+    this.portalGraceSecondCue = Math.ceil(this.portalGraceMs / 1000) + 1
+    setHintText(t('game.portalFind'))
+  }
+
+  private updatePortalFlow(delta: number): void {
+    if (this.isBossFloor || this.isDying) {
+      return
+    }
+    const countdownWasRunning = this.portalCountdownMs > 0
+    if (countdownWasRunning) {
+      this.portalCountdownMs = Math.max(0, this.portalCountdownMs - delta)
+      if (this.portalCountdownMs <= 0 && this.objectiveType === 'portal') {
+        this.spawnPortal()
+      }
+      if (this.portalCountdownMs <= 0 && this.portalGraceSecondCue < 0) {
+        this.portalGraceSecondCue = Math.ceil(this.portalGraceMs / 1000) + 1
+      }
+    }
+    if (this.portalCountdownMs > 0) {
+      return
+    }
+
+    if (this.portalGraceMs > 0) {
+      const next = Math.max(0, this.portalGraceMs - delta)
+      const second = Math.ceil(next / 1000)
+      if (second > 0 && second < this.portalGraceSecondCue) {
+        this.portalGraceSecondCue = second
+        emitFeedback('urgent')
+      }
+      this.portalGraceMs = next
+      return
+    }
+    this.squeezeStepTimerMs += delta
+    if (this.squeezeStepTimerMs < BALANCE.portal.squeezeStepMs) {
+      return
+    }
+    this.squeezeStepTimerMs = 0
+    if (this.squeezeInset >= BALANCE.portal.squeezeMaxInset) {
+      return
+    }
+    this.squeezeInset += 1
+    if (this.portal && this.isWall(this.portal.x, this.portal.y)) {
+      const portalCell = this.pickOpenCell()
+      this.portal = { ...portalCell, pulse: 0 }
+    }
+    const head = this.snake[0]
+    if (head && this.isWall(head.x, head.y)) {
+      this.die('wall')
+    }
   }
 
   private spawnFood(): void {
@@ -568,9 +721,19 @@ export class GameScene extends Phaser.Scene {
     }
     const cell = this.pickOpenCell()
     const floorItemConfig = this.getItemSpawnConfig()
+    const portalBeaconRoll =
+      this.objectiveType === 'portal' &&
+      !this.portal &&
+      Math.random() < floorItemConfig.portalBeaconOnFoodChance
     const riftBatteryRoll = Math.random() < floorItemConfig.riftBatteryOnFoodChance
     const coreRoll = Math.random() < BALANCE.biome.coreItem.spawnChanceOnFood
-    const type: WorldItemType | null = riftBatteryRoll ? 'rift_battery' : coreRoll ? 'core' : null
+    const type: WorldItemType | null = portalBeaconRoll
+      ? 'portal_beacon'
+      : riftBatteryRoll
+        ? 'rift_battery'
+        : coreRoll
+          ? 'core'
+          : null
     if (!type) {
       return
     }
@@ -741,6 +904,22 @@ export class GameScene extends Phaser.Scene {
     return moved
   }
 
+  private ensureObjectiveEnemyAvailability(): void {
+    if (
+      this.isBossFloor ||
+      this.objectiveType !== 'kills' ||
+      this.isDying ||
+      this.getObjectiveKillsProgress() >= this.objectiveKillsTarget
+    ) {
+      return
+    }
+    const aliveCount = this.enemies.reduce((count, enemy) => (enemy.alive ? count + 1 : count), 0)
+    if (aliveCount > 0) {
+      return
+    }
+    this.spawnEnemy()
+  }
+
   private checkEnemyCollision(): boolean {
     const head = this.snake[0]
     if (!head) {
@@ -867,6 +1046,21 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    if (
+      !this.isBossFloor &&
+      this.objectiveType === 'portal' &&
+      this.portal &&
+      nx === this.portal.x &&
+      ny === this.portal.y
+    ) {
+      emitFeedback('confirm')
+      transitionToScene(this, 'Upgrade', {
+        chrome: 'run',
+        data: { score: this.score, floor: gameState.floor },
+      })
+      return
+    }
+
     if (this.food && nx === this.food.x && ny === this.food.y) {
       emitFeedback('success')
       this.score += Math.floor(BALANCE.food.scoreOnEat * this.cfg.scoreMult)
@@ -903,6 +1097,24 @@ export class GameScene extends Phaser.Scene {
           score: this.score,
         })
         this.spawnParticles(nx, ny, COLORS.slow, 12)
+      } else if (this.biomeItem.type === 'portal_beacon') {
+        if (this.objectiveType === 'portal') {
+          this.portalCountdownMs = Math.max(
+            0,
+            this.portalCountdownMs - BALANCE.item.effectDurations.portalAccelerateMs,
+          )
+        }
+        trackRetentionEvent('item_collected', {
+          item: 'portal_beacon',
+          floor: gameState.floor,
+          score: this.score,
+        })
+        this.spawnParticles(nx, ny, COLORS.beacon, 12)
+        if (this.objectiveType === 'portal' && !this.portal && this.portalCountdownMs <= 0) {
+          this.spawnPortal()
+        } else if (this.objectiveType === 'portal' && !this.portal) {
+          setHintText(t('game.portalAccelerated'))
+        }
       } else {
         this.score += Math.floor(BALANCE.biome.coreItem.scoreBonus * this.cfg.scoreMult)
         this.pendingGrowth += BALANCE.biome.coreItem.growthBonus
@@ -942,6 +1154,11 @@ export class GameScene extends Phaser.Scene {
         this.spawnEnemy()
       }
     }
+
+    if (this.completeObjectiveIfReady()) {
+      return
+    }
+
     if (this.isBossFloor && this.enemies.length === 0) {
       transitionToScene(this, 'Upgrade', {
         chrome: 'run',
@@ -955,13 +1172,35 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.snake.pop()
     }
-    const effectiveLengthGoal = Math.max(this.snakeLengthGoal, this.floorStartLength + 1)
-    if (!this.isBossFloor && this.snake.length >= effectiveLengthGoal) {
+  }
+
+  private completeObjectiveIfReady(): boolean {
+    if (this.isBossFloor) {
+      return false
+    }
+    if (
+      this.objectiveType === 'score' &&
+      this.getObjectiveScoreProgress() >= this.objectiveScoreTarget
+    ) {
+      emitFeedback('confirm')
       transitionToScene(this, 'Upgrade', {
         chrome: 'run',
         data: { score: this.score, floor: gameState.floor },
       })
+      return true
     }
+    if (
+      this.objectiveType === 'kills' &&
+      this.getObjectiveKillsProgress() >= this.objectiveKillsTarget
+    ) {
+      emitFeedback('confirm')
+      transitionToScene(this, 'Upgrade', {
+        chrome: 'run',
+        data: { score: this.score, floor: gameState.floor },
+      })
+      return true
+    }
+    return false
   }
 
   private applyPowerup(type: PowerupType): void {
@@ -1082,6 +1321,25 @@ export class GameScene extends Phaser.Scene {
       const s = CELL * 0.4 * pulse
       g.fillRect(fx + CELL / 2 - s / 2, fy + CELL / 2 - s / 2, s, s)
     }
+    if (this.portal && !this.isBossFloor) {
+      const pulse = Math.sin(this.portal.pulse) * 0.35 + 0.75
+      const px = this.portal.x * CELL
+      const py = this.portal.y * CELL
+      g.fillStyle(COLORS.portalGlow, 0.22 * pulse)
+      g.fillCircle(px + CELL / 2, py + CELL / 2, CELL * 0.95)
+      g.lineStyle(2, COLORS.portal, 0.9)
+      g.strokeCircle(px + CELL / 2, py + CELL / 2, CELL * 0.35)
+      g.fillStyle(COLORS.portal, 0.95)
+      const s = CELL * 0.35 * pulse
+      g.fillTriangle(
+        px + CELL / 2,
+        py + CELL / 2 - s / 1.5,
+        px + CELL / 2 - s / 1.2,
+        py + CELL / 2 + s / 1.5,
+        px + CELL / 2 + s / 1.2,
+        py + CELL / 2 + s / 1.5,
+      )
+    }
     if (this.riftCell) {
       const rx = this.riftCell.x * CELL
       const ry = this.riftCell.y * CELL
@@ -1119,12 +1377,17 @@ export class GameScene extends Phaser.Scene {
       const pulse = Math.sin(this.biomeItem.pulse) * 0.3 + 0.7
       const ix = this.biomeItem.x * CELL
       const iy = this.biomeItem.y * CELL
+      const isBeacon = this.biomeItem.type === 'portal_beacon'
       const isRiftBattery = this.biomeItem.type === 'rift_battery'
-      g.fillStyle(isRiftBattery ? 0x8866ff : 0x7ef2ff, 0.18 * pulse)
+      g.fillStyle(isBeacon ? COLORS.beacon : isRiftBattery ? 0x8866ff : 0x7ef2ff, 0.18 * pulse)
       g.fillCircle(ix + CELL / 2, iy + CELL / 2, CELL * 0.95)
-      g.fillStyle(isRiftBattery ? 0xcf77ff : 0x2affff, 0.95)
+      g.fillStyle(isBeacon ? 0xfff7b8 : isRiftBattery ? 0xcf77ff : 0x2affff, 0.95)
       const s = CELL * 0.34 * pulse
-      if (isRiftBattery) {
+      if (isBeacon) {
+        g.fillCircle(ix + CELL / 2, iy + CELL / 2, s * 0.48)
+        g.lineStyle(2, 0xf8d845, 0.9)
+        g.strokeCircle(ix + CELL / 2, iy + CELL / 2, s * 0.62)
+      } else if (isRiftBattery) {
         g.fillTriangle(
           ix + CELL / 2,
           iy + CELL / 2 - s / 1.4,
@@ -1207,6 +1470,19 @@ export class GameScene extends Phaser.Scene {
     for (const particle of this.particles) {
       g.fillStyle(particle.color, particle.life)
       g.fillCircle(particle.x, particle.y, particle.size * particle.life)
+    }
+
+    if (this.squeezeInset > 0) {
+      const insetPx = this.squeezeInset * CELL
+      const safeWidth = WIDTH - insetPx * 2
+      const safeHeight = HEIGHT - insetPx * 2
+      g.fillStyle(COLORS.squeeze, 0.08)
+      g.fillRect(0, 0, WIDTH, insetPx)
+      g.fillRect(0, HEIGHT - insetPx, WIDTH, insetPx)
+      g.fillRect(0, insetPx, insetPx, safeHeight)
+      g.fillRect(WIDTH - insetPx, insetPx, insetPx, safeHeight)
+      g.lineStyle(2, COLORS.squeeze, 0.55)
+      g.strokeRect(insetPx, insetPx, safeWidth, safeHeight)
     }
 
     for (let i = 0; i < this.shields; i += 1) {
