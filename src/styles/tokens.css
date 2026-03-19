@@ -18,6 +18,9 @@
   --color-accent-soft: #00ff8866;
   --color-line: #1a1a3e;
   --color-line-strong: #2a2a5a;
+  --color-text-primary: #f3f8ff;
+  --color-text-secondary: #bed0e6;
+  --color-text-tertiary: #7f98b5;
   --color-text-dim: #333333;
   --color-text-muted: #445566;
   --color-text-hint: #222244;
@@ -48,6 +51,7 @@
   /* Borders and glow */
   --border-width: 1.5px;
   --glow-accent-title: 0 0 12px var(--color-accent-soft);
+  --shadow-text-soft: 0 1px 0 rgba(0, 0, 0, 0.45);
 
   /* Motion */
   --motion-fast: 0.08s;
