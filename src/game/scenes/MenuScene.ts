@@ -14,6 +14,8 @@ import { getControlMode } from '../systems/controlScheme'
 import { setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { getLanguage, t, toggleLanguage } from '../systems/i18n'
+import { resetVirtualInput } from '../systems/input'
+import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 export class MenuScene extends Phaser.Scene {
@@ -30,6 +32,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   public create(): void {
+    resetVirtualInput()
     this.waiting = true
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
@@ -343,6 +346,6 @@ export class MenuScene extends Phaser.Scene {
       run: gameState.run,
     })
     this.teardownOverlay()
-    this.scene.start('RelicDraft')
+    transitionToScene(this, 'RelicDraft', { chrome: 'run' })
   }
 }

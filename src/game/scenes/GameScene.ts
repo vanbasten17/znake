@@ -27,6 +27,8 @@ import {
 } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
+import { resetVirtualInput } from '../systems/input'
+import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 type GameSceneData = {
@@ -94,6 +96,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   public create(data: GameSceneData): void {
+    resetVirtualInput()
     this.score = data.score ?? 0
     this.resetLocalState()
     this.runStartMs = this.time.now
@@ -153,6 +156,14 @@ export class GameScene extends Phaser.Scene {
       if (event.code === 'Space') {
         this.togglePause()
       }
+    })
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.removeAllListeners()
+      if (this.pauseText) {
+        this.pauseText.destroy()
+        this.pauseText = undefined
+      }
+      setRunStatusText('')
     })
 
     this.drawBackground()
@@ -932,7 +943,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (this.isBossFloor && this.enemies.length === 0) {
-      this.scene.start('Upgrade', { score: this.score, floor: gameState.floor })
+      transitionToScene(this, 'Upgrade', {
+        chrome: 'run',
+        data: { score: this.score, floor: gameState.floor },
+      })
       return
     }
 
@@ -943,7 +957,10 @@ export class GameScene extends Phaser.Scene {
     }
     const effectiveLengthGoal = Math.max(this.snakeLengthGoal, this.floorStartLength + 1)
     if (!this.isBossFloor && this.snake.length >= effectiveLengthGoal) {
-      this.scene.start('Upgrade', { score: this.score, floor: gameState.floor })
+      transitionToScene(this, 'Upgrade', {
+        chrome: 'run',
+        data: { score: this.score, floor: gameState.floor },
+      })
     }
   }
 
@@ -992,7 +1009,10 @@ export class GameScene extends Phaser.Scene {
       inputMode: getControlMode(),
     })
     this.time.delayedCall(600, () =>
-      this.scene.start('Death', { score: this.score, deathReason: reason, timeAliveMs }),
+      transitionToScene(this, 'Death', {
+        chrome: 'run',
+        data: { score: this.score, deathReason: reason, timeAliveMs },
+      }),
     )
     emitFeedback(reason === 'rift' ? 'danger' : 'crash')
     setHintText(getRestartHintText())

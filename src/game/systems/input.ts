@@ -7,6 +7,12 @@ declare global {
   }
 }
 
+export const resetVirtualInput = (): void => {
+  window.virtualInput.dir = null
+  window.virtualInput.start = false
+  window.virtualInput.pause = false
+}
+
 window.virtualInput = { dir: null, start: false, pause: false }
 
 const bindPointerPress = (element: HTMLElement, onPress: () => void): void => {
@@ -20,6 +26,7 @@ const bindPointerPress = (element: HTMLElement, onPress: () => void): void => {
 }
 
 export const setupInput = (): void => {
+  resetVirtualInput()
   setupSwipe()
   setupDpad()
   setupActionButtons()

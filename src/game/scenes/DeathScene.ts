@@ -14,6 +14,8 @@ import {
 } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
+import { resetVirtualInput } from '../systems/input'
+import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 type DeathData = {
@@ -40,9 +42,7 @@ export class DeathScene extends Phaser.Scene {
   public create(data: DeathData): void {
     setSceneChrome('run')
     this.waiting = true
-    window.virtualInput.start = false
-    window.virtualInput.pause = false
-    window.virtualInput.dir = null
+    resetVirtualInput()
 
     const score = data.score ?? 0
     const deathReason = data.deathReason ?? 'unknown'
@@ -273,7 +273,7 @@ export class DeathScene extends Phaser.Scene {
     })
     this.teardownOverlay()
     setHintText(getMoveHintText())
-    this.scene.start('RelicDraft')
+    transitionToScene(this, 'RelicDraft', { chrome: 'run' })
   }
 
   private backToMenu(): void {
@@ -284,6 +284,6 @@ export class DeathScene extends Phaser.Scene {
     emitFeedback('tap')
     this.teardownOverlay()
     setHintText(getStartHintText())
-    this.scene.start('Menu')
+    transitionToScene(this, 'Menu', { chrome: 'menu' })
   }
 }

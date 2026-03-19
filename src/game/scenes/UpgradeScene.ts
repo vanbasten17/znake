@@ -6,6 +6,8 @@ import { UPGRADE_POOL } from '../core/upgrades'
 import { getMoveHintText, getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
+import { resetVirtualInput } from '../systems/input'
+import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 type UpgradeData = {
@@ -26,6 +28,7 @@ export class UpgradeScene extends Phaser.Scene {
 
   public create(data: UpgradeData): void {
     setSceneChrome('run')
+    resetVirtualInput()
     this.score = data.score ?? 0
     this.floor = data.floor ?? 1
     this.picked = false
@@ -91,7 +94,7 @@ export class UpgradeScene extends Phaser.Scene {
     })
     this.teardownOverlay()
     setHintText(getMoveHintText())
-    this.scene.start('Game', { score: this.score })
+    transitionToScene(this, 'Game', { chrome: 'run', data: { score: this.score } })
   }
 
   private mountOverlay(): void {

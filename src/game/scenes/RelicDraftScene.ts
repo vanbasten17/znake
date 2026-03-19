@@ -5,6 +5,8 @@ import { gameState } from '../core/state'
 import type { RelicDefinition } from '../core/types'
 import { getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
 import { t } from '../systems/i18n'
+import { resetVirtualInput } from '../systems/input'
+import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
 
 export class RelicDraftScene extends Phaser.Scene {
@@ -18,6 +20,7 @@ export class RelicDraftScene extends Phaser.Scene {
 
   public create(): void {
     setSceneChrome('run')
+    resetVirtualInput()
     this.picked = false
     this.choices = []
     this.input.keyboard?.removeAllListeners()
@@ -125,6 +128,6 @@ export class RelicDraftScene extends Phaser.Scene {
       run: gameState.run,
     })
     this.teardownOverlay()
-    this.scene.start('Game')
+    transitionToScene(this, 'Game', { chrome: 'run' })
   }
 }
