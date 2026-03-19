@@ -8,7 +8,7 @@ export type Vec2 = {
 export type SnakeSegment = Vec2
 
 export type PowerupType = 'shield' | 'slow' | 'ghost' | 'score'
-export type EnemyKind = 'normal' | 'stalker' | 'ambusher' | 'boss'
+export type EnemyKind = 'normal' | 'stalker' | 'ambusher' | 'boss' | 'egg' | 'mirror'
 export type WorldItemType = 'core' | 'rift_battery' | 'portal_beacon'
 
 export type Upgrade = {
@@ -38,6 +38,8 @@ export type Enemy = {
   kind: EnemyKind
   health: number
   dashCooldown: number
+  hatchTurnsRemaining: number
+  mirrorDelaySteps: number
 }
 
 export type Particle = {

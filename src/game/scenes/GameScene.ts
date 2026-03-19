@@ -86,6 +86,7 @@ export class GameScene extends Phaser.Scene {
   private squeezeStepTimerMs = 0
   private squeezeInset = 0
   private snake: SnakeSegment[] = []
+  private playerHeadHistory: SnakeSegment[] = []
   private walls = new Set<string>()
   private enemies: Enemy[] = []
   private food: Food | null = null
@@ -192,6 +193,7 @@ export class GameScene extends Phaser.Scene {
     this.iceTiles = this.generateIceTiles()
     this.sandTiles = this.generateSandTiles()
     this.snake = this.spawnSnake()
+    this.playerHeadHistory = this.snake[0] ? [{ ...this.snake[0] }] : []
     if (debugScenario?.forceIce) {
       this.seedDebugIceLane()
     }
@@ -209,6 +211,10 @@ export class GameScene extends Phaser.Scene {
     } else {
       for (let i = 0; i < this.enemyCount; i += 1) {
         this.spawnEnemy()
+      }
+      if (debugScenario?.forceEggMirror) {
+        this.spawnEnemy('egg')
+        this.spawnEnemy('mirror')
       }
     }
 
@@ -371,6 +377,7 @@ export class GameScene extends Phaser.Scene {
     this.portalGraceSecondCue = -1
     this.squeezeStepTimerMs = 0
     this.squeezeInset = 0
+    this.playerHeadHistory = []
     this.enemyMoveTimer = 0
     this.riftTimer = 0
     this.riftSuppressionMsRemaining = 0
@@ -935,6 +942,19 @@ export class GameScene extends Phaser.Scene {
     return sorted.find((config) => floor >= config.minFloor) ?? BALANCE.elite.spawnByFloor[0]
   }
 
+  private getEnemyVariantConfig(): {
+    eggChance: number
+    mirrorChance: number
+  } {
+    const floor = gameState.floor
+    const eggEnabled = floor >= BALANCE.enemyVariants.egg.minFloor
+    const mirrorEnabled = floor >= BALANCE.enemyVariants.mirror.minFloor
+    return {
+      eggChance: eggEnabled ? BALANCE.enemyVariants.egg.spawnChance : 0,
+      mirrorChance: mirrorEnabled ? BALANCE.enemyVariants.mirror.spawnChance : 0,
+    }
+  }
+
   private getItemSpawnConfig(): (typeof BALANCE.item.spawnByFloor)[number] {
     const floor = gameState.floor
     const sorted = [...BALANCE.item.spawnByFloor].sort((a, b) => b.minFloor - a.minFloor)
@@ -952,6 +972,20 @@ export class GameScene extends Phaser.Scene {
     }
     const roll = Math.random() * totalWeight
     return roll < config.kindWeights.stalker ? 'stalker' : 'ambusher'
+  }
+
+  private resolveSpecialEnemyKind(): EnemyKind | null {
+    const config = this.getEnemyVariantConfig()
+    const totalWeight = config.eggChance + config.mirrorChance
+    if (totalWeight <= 0) {
+      return null
+    }
+    const roll = Math.random()
+    if (roll >= totalWeight) {
+      return null
+    }
+    const weightedRoll = Math.random() * totalWeight
+    return weightedRoll < config.eggChance ? 'egg' : 'mirror'
   }
 
   private activateRiftSuppression(source: WorldItemType): void {
@@ -1008,14 +1042,23 @@ export class GameScene extends Phaser.Scene {
       BALANCE.enemy.lengthBase +
       Math.floor(Math.random() * BALANCE.enemy.lengthRandomRange) +
       Math.floor(gameState.floor / BALANCE.enemy.lengthFloorStep)
-    const resolvedKind = kind === 'normal' ? (this.resolveEliteKind() ?? 'normal') : kind
+    const resolvedKind =
+      kind === 'normal'
+        ? (this.resolveSpecialEnemyKind() ?? this.resolveEliteKind() ?? 'normal')
+        : kind
     const len =
       resolvedKind === 'boss'
         ? BALANCE.biome.boss.length
-        : Math.max(
-            2,
-            resolvedKind === 'stalker' || resolvedKind === 'ambusher' ? randomLen + 1 : randomLen,
-          )
+        : resolvedKind === 'egg'
+          ? 1
+          : resolvedKind === 'mirror'
+            ? Math.max(3, randomLen + 1)
+            : Math.max(
+                2,
+                resolvedKind === 'stalker' || resolvedKind === 'ambusher'
+                  ? randomLen + 1
+                  : randomLen,
+              )
     const body = Array.from({ length: len }, (_, i) => ({ x: Math.max(0, x - i), y }))
     if (resolvedKind !== 'normal') {
       trackRetentionEvent('elite_spawned', {
@@ -1031,11 +1074,21 @@ export class GameScene extends Phaser.Scene {
       kind: resolvedKind,
       health: resolvedKind === 'boss' ? BALANCE.biome.boss.health : 1,
       dashCooldown: 0,
+      hatchTurnsRemaining: resolvedKind === 'egg' ? BALANCE.enemyVariants.egg.hatchTurns : 0,
+      mirrorDelaySteps: resolvedKind === 'mirror' ? BALANCE.enemyVariants.mirror.delaySteps : 0,
     })
   }
 
   private moveEnemy(enemy: Enemy): void {
     if (!enemy.alive) {
+      return
+    }
+    if (enemy.kind === 'egg') {
+      this.updateEggEnemy(enemy)
+      return
+    }
+    if (enemy.kind === 'mirror') {
+      this.moveMirrorEnemy(enemy)
       return
     }
     const head = enemy.body[0]
@@ -1082,6 +1135,62 @@ export class GameScene extends Phaser.Scene {
       }
       this.advanceEnemyStep(enemy, dir)
       break
+    }
+  }
+
+  private updateEggEnemy(enemy: Enemy): void {
+    enemy.hatchTurnsRemaining = Math.max(0, enemy.hatchTurnsRemaining - 1)
+    if (enemy.hatchTurnsRemaining > 0) {
+      return
+    }
+    const head = enemy.body[0]
+    if (!head) {
+      return
+    }
+    enemy.kind = 'normal'
+    enemy.mirrorDelaySteps = 0
+    enemy.body = Array.from({ length: BALANCE.enemyVariants.egg.hatchLength }, (_, i) => ({
+      x: Math.max(0, head.x - i),
+      y: head.y,
+    }))
+    this.spawnParticles(head.x, head.y, COLORS.enemyHead, 8)
+  }
+
+  private moveMirrorEnemy(enemy: Enemy): void {
+    const head = enemy.body[0]
+    if (!head) {
+      return
+    }
+    const history = this.playerHeadHistory
+    const delay = Math.max(1, enemy.mirrorDelaySteps)
+    const targetIndex = history.length - 1 - delay
+    const target = targetIndex >= 0 ? history[targetIndex] : this.snake[0]
+    if (!target) {
+      return
+    }
+    const dx = Math.sign(target.x - head.x)
+    const dy = Math.sign(target.y - head.y)
+    const preferred: Vec2[] =
+      Math.abs(target.x - head.x) >= Math.abs(target.y - head.y)
+        ? [
+            { x: dx, y: 0 },
+            { x: 0, y: dy },
+            { x: -dx, y: 0 },
+            { x: 0, y: -dy },
+          ]
+        : [
+            { x: 0, y: dy },
+            { x: dx, y: 0 },
+            { x: 0, y: -dy },
+            { x: -dx, y: 0 },
+          ]
+    for (const dir of preferred) {
+      if (dir.x === 0 && dir.y === 0) {
+        continue
+      }
+      if (this.advanceEnemyStep(enemy, dir)) {
+        return
+      }
     }
   }
 
@@ -1249,6 +1358,10 @@ export class GameScene extends Phaser.Scene {
           ? BALANCE.elite.stalker.scoreOnKill
           : BALANCE.elite.ambusher.scoreOnKill
       this.score += Math.floor(eliteScore * this.cfg.scoreMult)
+    } else if (enemy.kind === 'egg') {
+      this.score += Math.floor(BALANCE.enemyVariants.egg.scoreOnKill * this.cfg.scoreMult)
+    } else if (enemy.kind === 'mirror') {
+      this.score += Math.floor(BALANCE.enemyVariants.mirror.scoreOnKill * this.cfg.scoreMult)
     } else {
       this.score += Math.floor(BALANCE.enemy.scoreOnKill * this.cfg.scoreMult)
     }
@@ -1304,6 +1417,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.snake.unshift({ x: nx, y: ny })
+    this.playerHeadHistory.push({ x: nx, y: ny })
+    if (this.playerHeadHistory.length > 80) {
+      this.playerHeadHistory.splice(0, this.playerHeadHistory.length - 80)
+    }
     const landedOnIce = this.isIce(nx, ny)
     if (this.riftCell && nx === this.riftCell.x && ny === this.riftCell.y) {
       if (this.shields > 0) {
@@ -1828,6 +1945,10 @@ export class GameScene extends Phaser.Scene {
         const stalkerBody = 0xcc2288
         const ambusherHead = 0xb86dff
         const ambusherBody = 0x7a3fb8
+        const eggHead = 0xffe48b
+        const eggBody = 0x9f7a33
+        const mirrorHead = 0x8ae6ff
+        const mirrorBody = 0x3b90c7
         const bossHead = 0xfff066
         const bossBody = 0xbd6a13
         const color =
@@ -1835,25 +1956,49 @@ export class GameScene extends Phaser.Scene {
             ? i === 0
               ? bossHead
               : bossBody
-            : enemy.kind === 'ambusher'
+            : enemy.kind === 'egg'
               ? i === 0
-                ? ambusherHead
-                : ambusherBody
-              : enemy.kind === 'stalker'
+                ? eggHead
+                : eggBody
+              : enemy.kind === 'mirror'
                 ? i === 0
-                  ? stalkerHead
-                  : stalkerBody
-                : i === 0
-                  ? normalHead
-                  : normalBody
+                  ? mirrorHead
+                  : mirrorBody
+                : enemy.kind === 'ambusher'
+                  ? i === 0
+                    ? ambusherHead
+                    : ambusherBody
+                  : enemy.kind === 'stalker'
+                    ? i === 0
+                      ? stalkerHead
+                      : stalkerBody
+                    : i === 0
+                      ? normalHead
+                      : normalBody
         g.fillStyle(color, i === 0 ? 1 : 0.7)
         if (i === 0) {
-          g.fillRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)
-          g.lineStyle(1, 0xffffff, 0.55)
-          g.strokeRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)
-          g.fillStyle(0x000000)
-          g.fillCircle(segment.x * CELL + 5, segment.y * CELL + 5, 2)
-          g.fillCircle(segment.x * CELL + CELL - 5, segment.y * CELL + 5, 2)
+          if (enemy.kind === 'egg') {
+            const cx = segment.x * CELL + CELL / 2
+            const cy = segment.y * CELL + CELL / 2
+            g.fillStyle(eggHead, 0.95)
+            g.fillCircle(cx, cy, CELL * 0.38)
+            g.lineStyle(1, 0xfff7d4, 0.7)
+            g.strokeCircle(cx, cy, CELL * 0.38)
+            g.lineStyle(1, 0x6e5120, 0.8)
+            g.beginPath()
+            g.moveTo(cx - 3, cy - 1)
+            g.lineTo(cx - 1, cy + 1)
+            g.lineTo(cx + 1, cy - 1)
+            g.lineTo(cx + 3, cy + 1)
+            g.strokePath()
+          } else {
+            g.fillRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)
+            g.lineStyle(1, 0xffffff, 0.55)
+            g.strokeRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)
+            g.fillStyle(0x000000)
+            g.fillCircle(segment.x * CELL + 5, segment.y * CELL + 5, 2)
+            g.fillCircle(segment.x * CELL + CELL - 5, segment.y * CELL + 5, 2)
+          }
           if (enemy.kind === 'boss') {
             for (let hp = 0; hp < enemy.health; hp += 1) {
               g.fillStyle(0xffcc55, 0.9)

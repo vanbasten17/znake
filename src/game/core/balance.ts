@@ -88,6 +88,21 @@ export const BALANCE = {
     lengthRandomRange: 2,
     lengthFloorStep: 3,
   },
+  enemyVariants: {
+    egg: {
+      minFloor: 3,
+      spawnChance: 0.16,
+      hatchTurns: 3,
+      hatchLength: 3,
+      scoreOnKill: 24,
+    },
+    mirror: {
+      minFloor: 4,
+      spawnChance: 0.12,
+      delaySteps: 3,
+      scoreOnKill: 30,
+    },
+  },
   elite: {
     spawnByFloor: [
       {

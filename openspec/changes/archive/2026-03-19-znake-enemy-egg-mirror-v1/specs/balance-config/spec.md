@@ -1,8 +1,5 @@
-# balance-config Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change znake-data-driven-balance-v1. Update Purpose after archive.
-## Requirements
 ### Requirement: Central balance source
 
 The system SHALL keep elite and item variety tuning in centralized balance tables.
@@ -26,4 +23,3 @@ The system SHALL keep elite and item variety tuning in centralized balance table
 
 - **WHEN** gameplay resolves Egg/Mirror spawn and behavior parameters
 - **THEN** floor thresholds, spawn chances, and behavior values are read from centralized balance config
-

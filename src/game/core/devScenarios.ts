@@ -3,6 +3,7 @@ export type DevScenarioId =
   | 'darkness_preboss'
   | 'ice_slide_modifier'
   | 'sand_slow_modifier'
+  | 'egg_mirror_encounter'
   | 'magnet_food_lock'
   | 'portal_final_seconds'
 
@@ -16,6 +17,7 @@ export type DevScenario = {
   forceDarkness?: boolean
   forceIce?: boolean
   forceSand?: boolean
+  forceEggMirror?: boolean
   portalCountdownMs?: number
   placeFoodNearHead?: boolean
 }
@@ -48,6 +50,13 @@ export const DEV_SCENARIOS: DevScenario[] = [
     floor: 2,
     score: 60,
     forceSand: true,
+  },
+  {
+    id: 'egg_mirror_encounter',
+    label: 'Egg + Mirror Encounter',
+    floor: 4,
+    score: 90,
+    forceEggMirror: true,
   },
   {
     id: 'magnet_food_lock',

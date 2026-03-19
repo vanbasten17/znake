@@ -94,6 +94,18 @@ The system SHALL provide explicit feedback for lethal collision outcomes.
 - **WHEN** player collides with boss without shield
 - **THEN** run ends per existing lethal collision rules
 
+#### Scenario: Egg enemy hatches into active threat
+
+- **WHEN** Egg enemy hatch countdown reaches zero
+- **THEN** Egg transforms into a moving enemy archetype
+- **AND** subsequent movement follows existing enemy collision rules
+
+#### Scenario: Mirror enemy tracks delayed player path
+
+- **WHEN** Mirror enemy updates movement
+- **THEN** it follows a delayed snapshot of player head path
+- **AND** movement remains bounded by wall/self constraints
+
 ### Requirement: Floor progression
 
 The system SHALL support temporary hazard-pressure modulation through item interaction.
