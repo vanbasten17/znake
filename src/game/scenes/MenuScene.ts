@@ -53,8 +53,14 @@ export class MenuScene extends Phaser.Scene {
     g.lineStyle(2, 0x2d4b8d, 0.85)
     g.strokeRect(0, 0, WIDTH, HEIGHT)
 
+    const titleY = Math.round(HEIGHT * 0.03)
+    const bestY = Math.round(HEIGHT * 0.125)
+    const currencyY = Math.round(HEIGHT * 0.153)
+    const shopY = Math.round(HEIGHT * 0.225)
+    const ctaY = HEIGHT - Math.max(48, Math.round(HEIGHT * 0.08))
+
     this.add
-      .text(22, 16, 'ZNAKE', {
+      .text(22, titleY, 'ZNAKE', {
         font: '900 48px Orbitron',
         color: '#9dffb7',
         shadow: {
@@ -84,27 +90,27 @@ export class MenuScene extends Phaser.Scene {
       10,
     )
     this.add
-      .text(22, 70, `X ${t('menu.bestScore', { best })}`, {
+      .text(22, bestY, `X ${t('menu.bestScore', { best })}`, {
         font: '700 15px Share Tech Mono',
         color: '#f2f5ff',
       })
       .setOrigin(0, 0.5)
 
     this.add
-      .text(22, 90, `© ${t('menu.currency', { value: '' })}`, {
+      .text(22, currencyY, `© ${t('menu.currency', { value: '' })}`, {
         font: '700 15px Share Tech Mono',
         color: '#f2f5ff',
       })
       .setOrigin(0, 0.5)
     this.currencyValueText = this.add
-      .text(182, 90, '', {
+      .text(182, currencyY, '', {
         font: '700 17px Share Tech Mono',
         color: '#66ff95',
       })
       .setOrigin(0, 0.5)
 
     this.add
-      .text(WIDTH / 2, 108, t('menu.talentShop'), {
+      .text(WIDTH / 2, shopY, t('menu.talentShop'), {
         font: '900 18px Orbitron',
         color: '#b5ffc4',
         shadow: {
@@ -117,13 +123,12 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
 
-    const rowsBottomY = this.renderTalentShop()
+    const rowsBottomY = this.renderTalentShop(shopY)
 
     const cta = this.add.graphics()
     const ctaX = 26
-    const ctaY = HEIGHT - 24
     const ctaW = WIDTH - 52
-    const ctaH = 16
+    const ctaH = Math.max(22, Math.round(HEIGHT * 0.035))
     const drawCta = (active: boolean): void => {
       cta.clear()
       cta.fillStyle(0x0a1f32, 1)
@@ -135,7 +140,7 @@ export class MenuScene extends Phaser.Scene {
     }
     drawCta(false)
     const startTxt = this.add
-      .text(WIDTH / 2, HEIGHT - 16, t('menu.startPrompt'), {
+      .text(WIDTH / 2, ctaY + ctaH / 2, t('menu.startPrompt'), {
         font: '900 11px Orbitron',
         color: '#9dffb8',
       })
@@ -172,18 +177,19 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  private renderTalentShop(): number {
-    const startY = 116
-    const rowHeight = 21
+  private renderTalentShop(shopY: number): number {
+    const startY = shopY + 12
+    const rowHeight = Math.max(22, Math.round(HEIGHT * 0.052))
+    const rowInnerHeight = rowHeight - 4
     for (const [index, talent] of TALENT_TREE.entries()) {
       const y = startY + index * rowHeight
       const row = this.add.graphics()
-      const titleText = this.add.text(23, y + 10, '', {
+      const titleText = this.add.text(23, y + rowInnerHeight / 2 + 2, '', {
         font: '700 9px Share Tech Mono',
         color: '#f5f8ff',
       })
       titleText.setOrigin(0, 0.5)
-      const statusText = this.add.text(WIDTH - 23, y + 10, '', {
+      const statusText = this.add.text(WIDTH - 23, y + rowInnerHeight / 2 + 2, '', {
         font: '700 9px Share Tech Mono',
         color: '#88aabb',
       })
@@ -197,11 +203,11 @@ export class MenuScene extends Phaser.Scene {
 
         row.clear()
         row.fillStyle(0x08162b, 1)
-        row.fillRoundedRect(14, y + 2, WIDTH - 28, 17, 3)
+        row.fillRoundedRect(14, y + 2, WIDTH - 28, rowInnerHeight, 3)
         row.lineStyle(2, actionable ? 0x79ffa0 : 0x70efb2, 1)
-        row.strokeRoundedRect(14, y + 2, WIDTH - 28, 17, 3)
+        row.strokeRoundedRect(14, y + 2, WIDTH - 28, rowInnerHeight, 3)
         row.lineStyle(1, 0xbcffd6, 0.75)
-        row.strokeRoundedRect(17, y + 4, WIDTH - 34, 13, 2)
+        row.strokeRoundedRect(17, y + 4, WIDTH - 34, Math.max(10, rowInnerHeight - 4), 2)
 
         titleText.setText(`${index + 1}. ${this.getTalentLabel(talent.id, talent.name)}`)
 
@@ -228,13 +234,13 @@ export class MenuScene extends Phaser.Scene {
       }
 
       const zone = this.add
-        .zone(14, y + 2, WIDTH - 28, 17)
+        .zone(14, y + 2, WIDTH - 28, rowInnerHeight)
         .setOrigin(0)
         .setInteractive()
       zone.on('pointerdown', () => this.tryUnlockByIndex(index))
       zone.on('pointerover', () => {
         row.lineStyle(2, 0xb9ffd4, 1)
-        row.strokeRoundedRect(14, y + 2, WIDTH - 28, 19, 5)
+        row.strokeRoundedRect(14, y + 2, WIDTH - 28, rowInnerHeight, 5)
       })
       zone.on('pointerout', refresh)
 
@@ -326,7 +332,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private renderGoals(rowsBottomY: number, ctaY: number): void {
-    const available = Math.max(14, ctaY - rowsBottomY - 6)
+    const available = Math.max(14, ctaY - rowsBottomY - 10)
     const titleScale = Math.max(0.72, Math.min(1, available / 34))
     const rowScale = Math.max(0.68, Math.min(1, available / 30))
     const titleY = rowsBottomY + 5

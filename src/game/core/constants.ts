@@ -1,5 +1,5 @@
 export const BASE_COLS = 20
-export const BASE_ROWS = 16
+export const BASE_ROWS = 27
 export const CELL = 20
 export const WIDTH = BASE_COLS * CELL
 export const HEIGHT = BASE_ROWS * CELL

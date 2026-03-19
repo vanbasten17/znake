@@ -3,7 +3,7 @@ import { CELL, COLORS, HEIGHT, WIDTH } from '../core/constants'
 import { drawRelicDraft } from '../core/meta'
 import { gameState } from '../core/state'
 import type { RelicDefinition } from '../core/types'
-import { getUpgradeHintText, setHintText } from '../systems/domHud'
+import { getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
 import { t } from '../systems/i18n'
 import { trackRetentionEvent } from '../systems/telemetry'
 
@@ -16,6 +16,7 @@ export class RelicDraftScene extends Phaser.Scene {
   }
 
   public create(): void {
+    setSceneChrome('run')
     this.picked = false
     this.choices = []
     this.input.keyboard?.removeAllListeners()
@@ -37,16 +38,28 @@ export class RelicDraftScene extends Phaser.Scene {
     }
     g.strokePath()
 
+    const titleY = Math.round(HEIGHT * 0.2)
+    const cardHeight = Math.max(96, Math.round(HEIGHT * 0.12))
+    const cardGap = Math.max(14, Math.round(HEIGHT * 0.028))
+    const cardsStartY = Math.round(HEIGHT * 0.29)
+
     this.add
-      .text(WIDTH / 2, 24, t('relic.selectTitle'), {
+      .text(WIDTH / 2, titleY, t('relic.selectTitle'), {
         font: '700 20px Orbitron',
         color: '#00ff88',
       })
       .setOrigin(0.5)
 
+    this.add
+      .text(WIDTH / 2, titleY + 24, t('upgrade.chooseOne'), {
+        font: '10px Share Tech Mono',
+        color: '#334455',
+      })
+      .setOrigin(0.5)
+
     this.choices = drawRelicDraft()
     for (const [index, relic] of this.choices.entries()) {
-      this.renderRelicCard(relic, index)
+      this.renderRelicCard(relic, index, cardsStartY, cardHeight, cardGap)
     }
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
@@ -64,11 +77,17 @@ export class RelicDraftScene extends Phaser.Scene {
     setHintText(getUpgradeHintText())
   }
 
-  private renderRelicCard(relic: RelicDefinition, index: number): void {
+  private renderRelicCard(
+    relic: RelicDefinition,
+    index: number,
+    cardsStartY: number,
+    cardHeight: number,
+    cardGap: number,
+  ): void {
     const cardX = 10
-    const cardY = 62 + index * 82
+    const cardY = cardsStartY + index * (cardHeight + cardGap)
     const width = WIDTH - 20
-    const height = 72
+    const height = cardHeight
 
     const card = this.add.graphics()
     const draw = (hovered: boolean): void => {
@@ -81,7 +100,7 @@ export class RelicDraftScene extends Phaser.Scene {
     draw(false)
 
     this.add
-      .text(cardX + 16, cardY + 14, `${index + 1}`, {
+      .text(cardX + 16, cardY + Math.round(height * 0.2), `${index + 1}`, {
         font: '700 14px Orbitron',
         color: '#00ffaa',
       })
@@ -93,14 +112,14 @@ export class RelicDraftScene extends Phaser.Scene {
     })
 
     this.add
-      .text(cardX + 44, cardY + 14, relicName, {
+      .text(cardX + 44, cardY + Math.round(height * 0.2), relicName, {
         font: '700 12px Orbitron',
         color: '#99ffcc',
       })
       .setOrigin(0, 0)
 
     this.add
-      .text(cardX + 44, cardY + 36, relicDescription, {
+      .text(cardX + 44, cardY + Math.round(height * 0.5), relicDescription, {
         font: '10px Share Tech Mono',
         color: '#88aabb',
       })

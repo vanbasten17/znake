@@ -31,3 +31,13 @@ The system SHALL provide best-effort tactile/audio feedback and resilient profil
 - **WHEN** primary profile payload is unavailable or malformed
 - **THEN** loader attempts backup payload before defaulting profile state
 
+### Requirement: Portrait-first gameplay canvas
+
+The system SHALL use a portrait-first internal game canvas ratio for mobile-oriented composition.
+
+#### Scenario: Portrait ratio is active
+
+- **WHEN** Phaser game is created
+- **THEN** internal width/height ratio is portrait-oriented (height greater than width)
+- **AND** run scenes can place gameplay and overlays without vertical overlap
+

@@ -30,6 +30,7 @@ The system SHALL support a reference-driven polished menu visual identity withou
 
 - **WHEN** menu scene is rendered
 - **THEN** hero title, stat strip, talent rows, goals, and start CTA use a cohesive neon-grid style aligned to the provided design reference
+- **AND** composition avoids text overlap on portrait-first dimensions
 
 #### Scenario: Menu behavior remains stable
 
@@ -64,4 +65,24 @@ The system SHALL render death summary text in the active locale.
 - **WHEN** death scene is shown
 - **THEN** summary labels, action labels, and rewards text are localized
 - **AND** earned-upgrade names are localized
+
+### Requirement: Relic draft polished composition
+
+The system SHALL render relic selection in a portrait-first polished composition aligned with the approved reference.
+
+#### Scenario: Relic selection fits vertical layout
+
+- **WHEN** relic draft scene is shown
+- **THEN** title, subtitle, and three relic cards fit without overlap
+- **AND** card hit zones remain fully interactive
+
+### Requirement: Upgrade selection polished composition
+
+The system SHALL render upgrade selection in a portrait-first polished composition aligned with the approved reference.
+
+#### Scenario: Upgrade selection fits vertical layout
+
+- **WHEN** floor-clear upgrade scene is shown
+- **THEN** title, subtitle, and three upgrade cards fit without overlap
+- **AND** card hit zones remain fully interactive
 

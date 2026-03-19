@@ -32,6 +32,8 @@ body {
   align-items: center;
   justify-content: flex-start;
   font-family: "Share Tech Mono", monospace;
+  min-height: 100svh;
+  height: 100dvh;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -92,6 +94,10 @@ body {
 
 #phaser-container {
   width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 0;
 }
 
@@ -241,10 +247,69 @@ body.keyboard-controls #controls {
   background: #020208;
 }
 
+body.scene-menu #hud {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.scene-menu #game-area {
+  width: min(100%, 520px);
+  height: 100%;
+  overflow: hidden;
+}
+
+body.scene-menu {
+  display: grid;
+  grid-template-rows: auto minmax(0, 2fr) minmax(0, 1fr) auto;
+  justify-items: center;
+  align-items: stretch;
+}
+
+body.scene-menu #game-area,
 body.scene-menu #hud,
 body.scene-menu #controls,
 body.scene-menu #hint-bar {
-  display: none;
+  width: min(100%, 520px);
+}
+
+body.scene-menu #phaser-container {
+  width: 100%;
+  height: 100%;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+body.scene-menu #phaser-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+}
+
+body.scene-run {
+  display: grid;
+  grid-template-rows: auto minmax(0, 2fr) minmax(0, 1fr) auto;
+  justify-items: center;
+  align-items: stretch;
+}
+
+body.scene-run #game-area,
+body.scene-run #controls {
+  width: min(100%, 520px);
+  min-height: 0;
+}
+
+body.scene-run #game-area {
+  overflow: hidden;
+}
+
+body.scene-run #phaser-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+}
+
+body.scene-run.keyboard-controls {
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 @media (pointer: coarse), (hover: none) {

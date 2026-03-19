@@ -3,7 +3,7 @@ import { BASE_COLS, BASE_ROWS, CELL, HEIGHT, WIDTH } from '../core/constants'
 import { gameState } from '../core/state'
 import type { Upgrade } from '../core/types'
 import { UPGRADE_POOL } from '../core/upgrades'
-import { getMoveHintText, getUpgradeHintText, setHintText } from '../systems/domHud'
+import { getMoveHintText, getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
 import { trackRetentionEvent } from '../systems/telemetry'
@@ -23,6 +23,7 @@ export class UpgradeScene extends Phaser.Scene {
   }
 
   public create(data: UpgradeData): void {
+    setSceneChrome('run')
     this.score = data.score ?? 0
     this.floor = data.floor ?? 1
 
@@ -40,14 +41,19 @@ export class UpgradeScene extends Phaser.Scene {
     }
     g.strokePath()
 
+    const titleY = Math.round(HEIGHT * 0.2)
+    const cardHeight = Math.max(96, Math.round(HEIGHT * 0.12))
+    const cardGap = Math.max(14, Math.round(HEIGHT * 0.028))
+    const cardsStartY = Math.round(HEIGHT * 0.29)
+
     this.add
-      .text(WIDTH / 2, 28, t('upgrade.floorCleared'), {
+      .text(WIDTH / 2, titleY, t('upgrade.floorCleared'), {
         font: '700 22px Orbitron',
         color: '#00ff88',
       })
       .setOrigin(0.5)
     this.add
-      .text(WIDTH / 2, 55, t('upgrade.chooseOne'), {
+      .text(WIDTH / 2, titleY + 26, t('upgrade.chooseOne'), {
         font: '10px Share Tech Mono',
         color: '#334455',
       })
@@ -64,10 +70,10 @@ export class UpgradeScene extends Phaser.Scene {
     }
 
     for (const [i, upg] of choices.entries()) {
-      const cardY = 75 + i * 72
+      const cardY = cardsStartY + i * (cardHeight + cardGap)
       const cardX = 10
       const cw = WIDTH - 20
-      const ch = 65
+      const ch = cardHeight
       const colorHex = `#${upg.color.toString(16).padStart(6, '0')}`
 
       const card = this.add.graphics()
@@ -87,13 +93,13 @@ export class UpgradeScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
       this.add
-        .text(cardX + 65, cardY + 16, this.getUpgradeName(upg), {
+        .text(cardX + 65, cardY + Math.round(ch * 0.26), this.getUpgradeName(upg), {
           font: '700 10px Orbitron',
           color: colorHex,
         })
         .setOrigin(0, 0.5)
       this.add
-        .text(cardX + 65, cardY + 36, this.getUpgradeDescription(upg), {
+        .text(cardX + 65, cardY + Math.round(ch * 0.56), this.getUpgradeDescription(upg), {
           font: '10px Share Tech Mono',
           color: '#667788',
         })
