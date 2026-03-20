@@ -94,7 +94,9 @@ const main = (): void => {
     '  [ ] src/game/render/markerExportSpec.ts — only place for logical/inner/scale defaults',
   )
   console.log('  [ ] markerHiRes.ts — NEAREST filter after addCanvas; uses spec constants')
-  console.log('  [ ] GameScene — marker Images: Math.round position + display size')
+  console.log(
+    '  [ ] GameScene — hi-res marker Image (markerTextureKey) for world entities; Graphics = glow only',
+  )
   console.log(
     '  [ ] MenuScene glossary — same draw as export (scale transform), GLOSSARY_MARKER_DISPLAY_PX',
   )
@@ -110,7 +112,9 @@ const main = (): void => {
     }
     process.exitCode = 1
   } else {
-    console.log('OK — see docs/assets/MARKER_PIXEL_PIPELINE.md and .cursor/skills/znake-marker-pipeline/')
+    console.log(
+      'OK — see docs/assets/MARKER_PIXEL_PIPELINE.md and .cursor/skills/znake-marker-pipeline/',
+    )
   }
 }
 

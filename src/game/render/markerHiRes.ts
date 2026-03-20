@@ -1,6 +1,10 @@
 /**
- * Registers canvas textures for glossary/game markers at the same resolution as
+ * Registers canvas textures for **glossary + in-game** markers at the same resolution as
  * `pnpm generate:sprites` (see `markerExportSpec.ts`).
+ *
+ * **GameScene** uses `Phaser.GameObjects.Image` with `markerTextureKey(tone)` so world entities
+ * (food, portals, rift, powerups, biome items) match export/PNG quality — do not draw those icons
+ * with `Graphics` + `drawMarkerSpritePhaser` only; keep `Graphics` for glows/rings under the image.
  */
 import Phaser from 'phaser'
 import { GLOSSARY_MARKER_TONES, type GlossaryMarkerTone } from '../core/glossary'
