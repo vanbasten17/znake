@@ -22,6 +22,7 @@ import type {
   Vec2,
   WorldItemType,
 } from '../core/types'
+import { drawMarkerSpritePhaser } from '../render/markerRenderer'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -2288,33 +2289,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private drawPixelGlyph(
-    g: Phaser.GameObjects.Graphics,
-    cx: number,
-    cy: number,
-    rows: string[],
-    color: number,
-    alpha = 1,
-  ): void {
-    const pixel = 2
-    const glyphHeight = rows.length * pixel
-    const glyphWidth = (rows[0]?.length ?? 0) * pixel
-    const ox = Math.round(cx - glyphWidth / 2)
-    const oy = Math.round(cy - glyphHeight / 2)
-    g.fillStyle(color, alpha)
-    for (let y = 0; y < rows.length; y += 1) {
-      const row = rows[y]
-      if (!row) {
-        continue
-      }
-      for (let x = 0; x < row.length; x += 1) {
-        if (row[x] === '1') {
-          g.fillRect(ox + x * pixel, oy + y * pixel, pixel, pixel)
-        }
-      }
-    }
-  }
-
   private drawFrame(): void {
     const g = this.gameGraphics
     g.clear()
@@ -2373,15 +2347,11 @@ export class GameScene extends Phaser.Scene {
       const fy = this.food.y * CELL
       const cx = fx + CELL / 2
       const cy = fy + CELL / 2
-      const s = CELL * 0.5 * pulse
       g.fillStyle(COLORS.foodGlow, 0.22 * pulse)
       g.fillCircle(cx, cy, CELL * 0.95)
       g.lineStyle(1, 0xff88aa, 0.8)
       g.strokeCircle(cx, cy, CELL * 0.36)
-      g.fillStyle(COLORS.food, 0.95)
-      g.fillTriangle(cx, cy - s / 1.15, cx - s / 1.15, cy, cx, cy + s / 1.15)
-      g.fillTriangle(cx, cy - s / 1.15, cx + s / 1.15, cy, cx, cy + s / 1.15)
-      this.drawPixelGlyph(g, cx, cy, ['00100', '01110', '11111', '01110', '00100'], 0xffe4ea, 0.95)
+      drawMarkerSpritePhaser(g, 'core', cx, cy, CELL * 0.88, 0.95)
     }
     if (this.portals.length > 0 && !this.isBossFloor) {
       for (const portal of this.portals) {
@@ -2398,23 +2368,12 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(2, stroke, 0.9)
         g.strokeCircle(px + CELL / 2, py + CELL / 2, CELL * 0.35)
         g.fillStyle(fill, 0.95)
-        const s = CELL * 0.35 * pulse
-        g.fillTriangle(
-          px + CELL / 2,
-          py + CELL / 2 - s / 1.5,
-          px + CELL / 2 - s / 1.2,
-          py + CELL / 2 + s / 1.5,
-          px + CELL / 2 + s / 1.2,
-          py + CELL / 2 + s / 1.5,
-        )
-        this.drawPixelGlyph(
+        drawMarkerSpritePhaser(
           g,
+          portal.route === 'riskier' ? 'beacon' : 'portal',
           px + CELL / 2,
           py + CELL / 2,
-          portal.route === 'riskier'
-            ? ['11111', '10001', '11111', '10101', '11111']
-            : ['01110', '10001', '10101', '10001', '01110'],
-          glyphColor,
+          CELL * 0.88,
           0.95,
         )
       }
@@ -2435,7 +2394,7 @@ export class GameScene extends Phaser.Scene {
       g.lineTo(cx - 2, cy + 2)
       g.lineTo(cx + 4, cy + 5)
       g.strokePath()
-      this.drawPixelGlyph(g, cx, cy, ['10001', '01010', '00100', '01010', '10001'], 0xf3d3ff, 0.9)
+      drawMarkerSpritePhaser(g, 'rift', cx, cy, CELL * 0.84, 0.9)
     }
 
     if (this.powerup) {
@@ -2458,50 +2417,8 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(1, 0xffffff, 0.32)
       g.strokeCircle(cx, cy, CELL * 0.36)
       g.fillStyle(color, 0.95)
-      if (this.powerup.type === 'shield') {
-        g.fillRect(cx - s * 0.44, cy - s * 0.45, s * 0.88, s * 0.58)
-        g.fillTriangle(
-          cx - s * 0.44,
-          cy + s * 0.12,
-          cx + s * 0.44,
-          cy + s * 0.12,
-          cx,
-          cy + s * 0.56,
-        )
-      } else if (this.powerup.type === 'slow') {
-        g.fillCircle(cx, cy, s * 0.38)
-        g.lineStyle(2, color, 0.95)
-        g.beginPath()
-        g.moveTo(cx, cy)
-        g.lineTo(cx, cy - s * 0.3)
-        g.moveTo(cx, cy)
-        g.lineTo(cx + s * 0.22, cy)
-        g.strokePath()
-      } else if (this.powerup.type === 'ghost') {
-        g.fillCircle(cx, cy - s * 0.08, s * 0.35)
-        g.fillRect(cx - s * 0.35, cy - s * 0.08, s * 0.7, s * 0.43)
-        g.fillStyle(0x111111, 0.85)
-        g.fillRect(cx - s * 0.18, cy - s * 0.02, s * 0.09, s * 0.09)
-        g.fillRect(cx + s * 0.09, cy - s * 0.02, s * 0.09, s * 0.09)
-      } else if (this.powerup.type === 'venom') {
-        g.fillRect(cx - s * 0.16, cy - s * 0.4, s * 0.32, s * 0.8)
-        g.fillTriangle(cx, cy - s * 0.55, cx - s * 0.2, cy - s * 0.32, cx + s * 0.2, cy - s * 0.32)
-      } else {
-        g.fillRect(cx - s * 0.34, cy - s * 0.34, s * 0.68, s * 0.68)
-        g.fillStyle(0xfff0b0, 0.95)
-        g.fillRect(cx - 1, cy - 1, 2, 2)
-      }
-      const glyph =
-        this.powerup.type === 'shield'
-          ? ['00100', '01110', '11111', '01110', '00100']
-          : this.powerup.type === 'slow'
-            ? ['01110', '10011', '10101', '11001', '01110']
-            : this.powerup.type === 'ghost'
-              ? ['01110', '10101', '11111', '10101', '10101']
-              : this.powerup.type === 'venom'
-                ? ['00100', '01110', '11111', '01110', '00100']
-                : ['11111', '10001', '10101', '10001', '11111']
-      this.drawPixelGlyph(g, cx, cy, glyph, 0xf6fbff, 0.9)
+      const markerTone: 'shield' | 'slow' | 'ghost' | 'score' | 'venom' = this.powerup.type
+      drawMarkerSpritePhaser(g, markerTone, cx, cy, s * 2, 0.95)
     }
     if (this.biomeItem) {
       const pulse = Math.sin(this.biomeItem.pulse) * 0.3 + 0.7
@@ -2529,12 +2446,14 @@ export class GameScene extends Phaser.Scene {
       } else {
         g.fillRect(ix + CELL / 2 - s / 2, iy + CELL / 2 - s / 2, s, s)
       }
-      const glyph = isBeacon
-        ? ['00100', '01110', '11111', '01110', '00100']
-        : isRiftBattery
-          ? ['00100', '01110', '11111', '01110', '00100']
-          : ['10101', '01010', '10101', '01010', '10101']
-      this.drawPixelGlyph(g, ix + CELL / 2, iy + CELL / 2, glyph, 0xf4f8ff, 0.9)
+      drawMarkerSpritePhaser(
+        g,
+        isBeacon ? 'beacon' : isRiftBattery ? 'battery' : 'core',
+        ix + CELL / 2,
+        iy + CELL / 2,
+        CELL * 0.84,
+        0.9,
+      )
     }
 
     for (const enemy of this.enemies) {
