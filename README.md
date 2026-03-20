@@ -25,11 +25,13 @@ pnpm preview    # preview production build
 pnpm check      # biome lint + formatting checks
 pnpm check:fix  # biome auto-fix
 pnpm format     # format all files
-pnpm generate:sprites   # export procedural marker PNGs + manifest (see docs/MARKER_PIXEL_PIPELINE.md)
+pnpm generate:sprites   # export procedural marker PNGs + manifest (see docs/assets/MARKER_PIXEL_PIPELINE.md)
 pnpm validate:markers   # verify manifest vs markerExportSpec + crisp-pixel checklist
 ```
 
-**Glossary / marker art pipeline:** `docs/MARKER_PIXEL_PIPELINE.md` — dimensions live in `src/game/render/markerExportSpec.ts`. Cursor: skill **`znake-marker-pipeline`**, command **`/znake-markers`**.
+**Glossary / marker art pipeline:** `docs/assets/MARKER_PIXEL_PIPELINE.md` — dimensions live in `src/game/render/markerExportSpec.ts`. Cursor: skill **`znake-marker-pipeline`**, command **`/znake-markers`**.
+
+**Asset & sprite docs (index):** [docs/assets/README.md](docs/assets/README.md)
 
 ## Project Structure
 

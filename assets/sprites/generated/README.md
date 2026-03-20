@@ -1,6 +1,6 @@
 # Generated marker sprites
 
-PNG exports of the **current procedural** marker art (`src/game/render/markerRenderer.ts`). Dimensions come from **`src/game/render/markerExportSpec.ts`** (same as Phaser `markerHiRes` and glossary). Operational checklist: [docs/MARKER_PIXEL_PIPELINE.md](../../../docs/MARKER_PIXEL_PIPELINE.md); lore/prompts: [docs/SPRITE_GENERATION_REFERENCE.md](../../../docs/SPRITE_GENERATION_REFERENCE.md).
+PNG exports of the **current procedural** marker art (`src/game/render/markerRenderer.ts`). Dimensions come from **`src/game/render/markerExportSpec.ts`** (same as Phaser `markerHiRes` and glossary). Operational checklist: [docs/assets/MARKER_PIXEL_PIPELINE.md](../../../docs/assets/MARKER_PIXEL_PIPELINE.md); lore/prompts: [docs/assets/SPRITE_GENERATION_REFERENCE.md](../../../docs/assets/SPRITE_GENERATION_REFERENCE.md).
 
 - **Per-tone files:** `marker_<tone>.png`
 - **Atlas:** `marker_atlas.png` — horizontal strip, one frame per tone (left-to-right order in `manifest.json`)

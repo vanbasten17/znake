@@ -16,6 +16,6 @@ pnpm validate:markers    # manifest vs spec + checklist
 
 **Single source of truth:** `src/game/render/markerExportSpec.ts`
 
-**Human doc:** `docs/MARKER_PIXEL_PIPELINE.md`
+**Human doc:** `docs/assets/MARKER_PIXEL_PIPELINE.md`
 
 When editing markers, glyphs, or marker-related UI, read the skill and keep **NEAREST** textures, **integer** display sizes, and **one spec** for logical/inner/scale.

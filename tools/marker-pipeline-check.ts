@@ -100,7 +100,7 @@ const main = (): void => {
   )
   console.log('  [ ] menuOverlay — .glossaryMarkerCanvas { image-rendering: pixelated }')
   console.log('  [ ] phaser.ts — render.pixelArt: true, antialias: false')
-  console.log('  [ ] pnpm generate:sprites after changing drawMarkerSpriteCanvas / spec')
+  console.log('  [ ] pnpm generate:sprites after changing markerRenderer / markerVectorArt / spec')
   console.log('')
 
   if (errors.length > 0) {
@@ -110,7 +110,7 @@ const main = (): void => {
     }
     process.exitCode = 1
   } else {
-    console.log('OK — see docs/MARKER_PIXEL_PIPELINE.md and .cursor/skills/znake-marker-pipeline/')
+    console.log('OK — see docs/assets/MARKER_PIXEL_PIPELINE.md and .cursor/skills/znake-marker-pipeline/')
   }
 }
 
