@@ -76,6 +76,7 @@ Icon art lives in **`markerVectorArt.ts`** (vector icons on premium tokens), inv
 ## Related docs
 
 - [GAME_RENDER_SCALING_AND_PERFORMANCE.md](./GAME_RENDER_SCALING_AND_PERFORMANCE.md) — **CELL**, `cellPx`, marker export scale, `generate-sprites` scale cap, FPS-oriented notes (HUD, darkness, terrain cache, Phaser)
+- [MANUAL_MARKER_PNG_REPLACEMENT.md](./MANUAL_MARKER_PNG_REPLACEMENT.md) — how to rebuild `marker_atlas.png` after swapping `marker_<tone>.png` manually
 - [SPRITE_GENERATION_REFERENCE.md](./SPRITE_GENERATION_REFERENCE.md) — lore, prompts, asset layout
 - [`assets/sprites/generated/README.md`](../../assets/sprites/generated/README.md) — output files
 - Cursor: `.cursor/skills/znake-marker-pipeline/SKILL.md` — agent workflow
