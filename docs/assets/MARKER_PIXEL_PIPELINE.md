@@ -47,6 +47,8 @@ World pickups and objectives must use **canvas textures** registered by `registe
 
 **Adding a new world element with a glossary tone:** register is global (all tones pre-rasterized). Add an `Image`, wire `markerTextureKey('<tone>')`, and follow the same hide/show/position/size pattern as existing markers.
 
+**Dev reference board** (`referenceBoard` debug scenario): the glossary-tone grid uses **pooled `Phaser.Image`** + `markerTextureKey` (not `Graphics` + `drawMarkerSpritePhaser`), so previews match guide/in-game hi-res markers including optional `marker_<tone>.png` overrides.
+
 ## Rules (why it looked blurry before)
 
 1. **One spec** — Do not duplicate `20` / `18` / `8` in multiple files; import from `markerExportSpec.ts` or the aliases in `markerHiRes.ts`.

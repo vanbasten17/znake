@@ -24,7 +24,6 @@ import type {
   WorldItemType,
 } from '../core/types'
 import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerHiRes'
-import { drawMarkerSpritePhaser } from '../render/markerRenderer'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -162,6 +161,8 @@ export class GameScene extends Phaser.Scene {
   private pauseText?: Phaser.GameObjects.Text
   private referenceBoardMode = false
   private referenceMarkers: ReferenceMarker[] = []
+  /** Hi-res marker previews (same textures as gameplay); dev reference board only. */
+  private referenceMarkerImages: Phaser.GameObjects.Image[] = []
   private referenceHoverLabelByCell = new Map<string, string>()
   private referenceHoverLabel: string | null = null
   /** False until async `create()` finishes — Phaser may call `update` before then. */
@@ -555,6 +556,7 @@ export class GameScene extends Phaser.Scene {
     this.sandTileCount = 0
     this.sandMovePenaltyMs = 0
     this.isDying = false
+    this.destroyReferenceMarkerImages()
     this.referenceBoardMode = false
     this.referenceMarkers = []
     this.referenceHoverLabelByCell.clear()
@@ -800,6 +802,13 @@ export class GameScene extends Phaser.Scene {
     return `${x},${y}`
   }
 
+  private destroyReferenceMarkerImages(): void {
+    for (const img of this.referenceMarkerImages) {
+      img.destroy()
+    }
+    this.referenceMarkerImages = []
+  }
+
   private markReferenceLabel(x: number, y: number, label: string): void {
     this.referenceHoverLabelByCell.set(this.cellKey(x, y), label)
   }
@@ -988,6 +997,17 @@ export class GameScene extends Phaser.Scene {
       const marker = markerSpecs[i]
       this.referenceMarkers.push({ x, y, tone: marker.tone, label: marker.label })
       this.markReferenceLabel(x, y, marker.label)
+    }
+
+    this.destroyReferenceMarkerImages()
+    const refMarkerDepth = 8
+    for (const marker of this.referenceMarkers) {
+      const img = this.add
+        .image(0, 0, markerTextureKey(marker.tone))
+        .setOrigin(0.5, 0.5)
+        .setVisible(false)
+        .setDepth(refMarkerDepth)
+      this.referenceMarkerImages.push(img)
     }
 
     for (const wall of this.walls) {
@@ -2680,6 +2700,9 @@ export class GameScene extends Phaser.Scene {
     this.markerRift.setVisible(false)
     this.markerPowerup.setVisible(false)
     this.markerBiome.setVisible(false)
+    for (const refImg of this.referenceMarkerImages) {
+      refImg.setVisible(false)
+    }
 
     if (!isReducedEffectsEnabled() && this.flashTimer > 0) {
       this.fxGraphics.clear()
@@ -2821,15 +2844,19 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.referenceBoardMode && this.referenceMarkers.length > 0) {
       const markerSize = Math.round(CELL * 0.9)
-      for (const marker of this.referenceMarkers) {
-        drawMarkerSpritePhaser(
-          g,
-          marker.tone,
-          marker.x * CELL + CELL / 2,
-          marker.y * CELL + CELL / 2,
-          markerSize,
-          0.98,
-        )
+      for (let i = 0; i < this.referenceMarkers.length; i += 1) {
+        const marker = this.referenceMarkers[i]
+        const img = this.referenceMarkerImages[i]
+        if (!img) {
+          continue
+        }
+        const cx = marker.x * CELL + CELL / 2
+        const cy = marker.y * CELL + CELL / 2
+        img.setTexture(markerTextureKey(marker.tone))
+        img.setPosition(Math.round(cx), Math.round(cy))
+        img.setDisplaySize(markerSize, markerSize)
+        img.setAlpha(0.98)
+        img.setVisible(true)
       }
     }
 

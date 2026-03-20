@@ -42,6 +42,16 @@ The system SHALL render gameplay UI text in the active locale.
 - **WHEN** game scene updates floor progress label
 - **THEN** biome name is rendered in the selected locale
 
+### Requirement: Dev reference board marker preview
+
+When the **dev reference board** scenario is active, the system SHALL render each glossary marker preview cell using the same **hi-res marker textures** (`marker_hi_<tone>`) used for gameplay world markers, so optional `marker_<tone>.png` bitmaps and procedural fallbacks match guide and in-game appearance.
+
+#### Scenario: Reference grid uses texture keys
+
+- **WHEN** reference board mode is active and reference marker cells are drawn
+- **THEN** each cell uses `Phaser.GameObjects.Image` with `markerTextureKey(tone)` for that cell’s tone
+- **AND** those previews do not use `drawMarkerSpritePhaser` alone for the marker interior
+
 ### Requirement: Upgrade scene
 
 The system SHALL render upgrade UI text in the active locale.
