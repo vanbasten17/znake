@@ -571,6 +571,18 @@
   border-color: rgba(255, 223, 173, 0.66);
 }
 
+.glossaryMarkerVenom {
+  border-color: rgba(95, 255, 157, 0.82);
+}
+
+.glossaryMarkerVenom .glossaryMarkerSprite {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #a9ffc3, #45f38d);
+  border-color: rgba(205, 255, 220, 0.68);
+}
+
 .glossaryMarkerDarkness {
   border-color: rgba(100, 116, 160, 0.8);
 }

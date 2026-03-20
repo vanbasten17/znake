@@ -126,6 +126,10 @@ const resources = {
             name: 'Score Burst',
             description: 'Instant bonus score.',
           },
+          power_venom: {
+            name: 'Venom Charge',
+            description: 'Stores one venom shot for elimination combat.',
+          },
           hazard_darkness: {
             name: 'Darkness',
             description: 'Limits visibility around the snake head.',
@@ -289,10 +293,17 @@ const resources = {
         objectiveBossPreview: 'DEFEAT BOSS',
         objectiveScoreStatus: 'SCORE {{progress}}/{{target}} · {{pressure}}',
         objectiveKillsStatus: 'KILLS {{progress}}/{{target}} · {{pressure}}',
+        objectiveKillsStatusWithVenom:
+          'KILLS {{progress}}/{{target}} · {{pressure}} · {{venomStatus}}',
         modifierDarkness: 'DARKNESS',
         modifierIce: 'ICE',
         modifierSand: 'SAND',
         bossKnockback: 'BOSS IMPACT - KNOCKBACK',
+        venomReady: 'VENOM x{{charges}} READY',
+        venomCooldown: 'VENOM RELOAD {{seconds}}s',
+        venomEmpty: 'VENOM EMPTY',
+        venomBlocked: 'VENOM BLOCKED',
+        tailDamaged: 'HIT TAKEN · -{{lost}} SEG',
       },
     },
   },
@@ -421,6 +432,10 @@ const resources = {
           power_score: {
             name: 'Explosió de punts',
             description: 'Bonus instantani de puntuació.',
+          },
+          power_venom: {
+            name: 'Càrrega de verí',
+            description: "Guarda un tret de verí per al combat d'eliminació.",
           },
           hazard_darkness: {
             name: 'Foscor',
@@ -585,10 +600,17 @@ const resources = {
         objectiveBossPreview: 'DERROTA EL BOSS',
         objectiveScoreStatus: 'PUNTS {{progress}}/{{target}} · {{pressure}}',
         objectiveKillsStatus: 'KILLS {{progress}}/{{target}} · {{pressure}}',
+        objectiveKillsStatusWithVenom:
+          'KILLS {{progress}}/{{target}} · {{pressure}} · {{venomStatus}}',
         modifierDarkness: 'FOSCOR',
         modifierIce: 'GEL',
         modifierSand: 'SORRA',
         bossKnockback: 'IMPACTE DE BOSS - RETROCÉS',
+        venomReady: 'VERÍ x{{charges}} LLEST',
+        venomCooldown: 'RECÀRREGA VERÍ {{seconds}}s',
+        venomEmpty: 'SENSE VERÍ',
+        venomBlocked: 'VERÍ BLOQUEJAT',
+        tailDamaged: 'IMPACTE · -{{lost}} SEG',
       },
     },
   },

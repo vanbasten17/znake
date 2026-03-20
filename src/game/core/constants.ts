@@ -18,6 +18,7 @@ export const COLORS = {
   powerup: 0xffdd00,
   shield: 0x00aaff,
   slow: 0xff88cc,
+  venom: 0x59ff87,
   portal: 0x68ffe8,
   portalGlow: 0x2ab8ff,
   squeeze: 0x7a2fff,

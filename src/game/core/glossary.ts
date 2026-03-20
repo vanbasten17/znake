@@ -9,6 +9,7 @@ export type GlossaryMarkerTone =
   | 'slow'
   | 'ghost'
   | 'score'
+  | 'venom'
   | 'darkness'
   | 'squeeze'
   | 'ice'
@@ -49,6 +50,7 @@ export const GLOSSARY_ENTRIES: GlossaryEntry[] = [
   { id: 'power_slow', category: 'powerups', marker: 'slow' },
   { id: 'power_ghost', category: 'powerups', marker: 'ghost' },
   { id: 'power_score', category: 'powerups', marker: 'score' },
+  { id: 'power_venom', category: 'powerups', marker: 'venom' },
 
   { id: 'hazard_darkness', category: 'hazards', marker: 'darkness' },
   { id: 'hazard_squeeze', category: 'hazards', marker: 'squeeze' },

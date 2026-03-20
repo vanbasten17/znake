@@ -52,6 +52,18 @@ type RoomTemplateLayout = {
   corridorCells: Set<string>
 }
 type BossPhase = 'alpha' | 'rage'
+type EnemyCollisionPart = 'head' | 'body'
+type EnemyCollision = {
+  enemy: Enemy
+  part: EnemyCollisionPart
+}
+type VenomProjectile = {
+  x: number
+  y: number
+  dir: Vec2
+  stepTimerMs: number
+  stepsRemaining: number
+}
 
 const directionMap: Record<string, Vec2> = {
   ArrowUp: { x: 0, y: -1 },
@@ -85,6 +97,9 @@ export class GameScene extends Phaser.Scene {
   private floorTemplateFallbackUsed = false
   private enemyCount = 0
   private pendingGrowth = 0
+  private venomCharges = 0
+  private venomCooldownMs = 0
+  private venomProjectiles: VenomProjectile[] = []
   private objectiveType: FloorObjectiveKind = 'portal'
   private objectiveScoreStart = 0
   private objectiveScoreTarget = 0
@@ -262,10 +277,13 @@ export class GameScene extends Phaser.Scene {
     if (!this.isBossFloor && Math.random() < BALANCE.spawn.powerupAtFloorStartChance) {
       this.spawnPowerup()
     }
-    if (this.isBossFloor && BALANCE.biome.boss.supportShieldSpawnAtStart) {
+    if (this.isBossFloor) {
       this.powerup = null
-      this.spawnPowerup('shield')
+      this.spawnPowerup('venom')
       this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
+    }
+    if (this.objectiveType === 'kills' && !this.isBossFloor) {
+      this.spawnPowerup('venom')
     }
     this.stars = Array.from({ length: BALANCE.biome.starCount }, () => ({
       x: Math.floor(Math.random() * WIDTH),
@@ -287,6 +305,9 @@ export class GameScene extends Phaser.Scene {
       const dir = directionMap[event.code]
       if (dir) {
         this.pushDirection(dir)
+      }
+      if (event.code === 'KeyE') {
+        window.virtualInput.ability = true
       }
       if (event.code === 'Space') {
         this.togglePause()
@@ -333,6 +354,10 @@ export class GameScene extends Phaser.Scene {
       }
       window.virtualInput.turn = null
     }
+    if (window.virtualInput.ability) {
+      this.tryFireVenom()
+      window.virtualInput.ability = false
+    }
 
     if (this.paused) {
       return
@@ -346,6 +371,7 @@ export class GameScene extends Phaser.Scene {
     this.updatePortalFlow(delta)
     this.updateCorePressure(delta)
     this.updateBossSupport(delta)
+    this.updateVenomState(delta)
     this.updateRegen(delta)
     this.updateSnakeMovement(delta)
     this.updateMagnetFood()
@@ -420,6 +446,9 @@ export class GameScene extends Phaser.Scene {
     this.floorTemplate = 'classic'
     this.floorTemplateFallbackUsed = false
     this.pendingGrowth = 0
+    this.venomCharges = 0
+    this.venomCooldownMs = 0
+    this.venomProjectiles = []
     this.objectiveType = 'portal'
     this.objectiveScoreStart = 0
     this.objectiveScoreTarget = 0
@@ -604,17 +633,21 @@ export class GameScene extends Phaser.Scene {
     if (!this.isBossFloor || this.isDying || this.paused) {
       return
     }
-    // Boss support only offers a collectible shield powerup when player is out of shields.
-    // It never grants shield charges directly.
-    if (this.shields > 0 || this.powerup) {
-      this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
+    if (this.powerup) {
       return
     }
     this.bossSupportShieldRespawnMs = Math.max(0, this.bossSupportShieldRespawnMs - delta)
     if (this.bossSupportShieldRespawnMs > 0) {
       return
     }
-    this.spawnPowerup('shield')
+    // Keep boss fights supplied with actionable pickups.
+    // If the player has no shield, prioritize survival support.
+    // If shielded already, prioritize venom so offense keeps flowing.
+    if (this.shields <= 0) {
+      this.spawnPowerup(Math.random() < 0.65 ? 'shield' : 'venom')
+    } else {
+      this.spawnPowerup(Math.random() < 0.85 ? 'venom' : 'shield')
+    }
     this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
   }
 
@@ -695,6 +728,80 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  private getVenomStatusText(): string {
+    if (this.venomCooldownMs > 0) {
+      return t('game.venomCooldown', { seconds: Math.ceil(this.venomCooldownMs / 1000) })
+    }
+    if (this.venomCharges > 0) {
+      return t('game.venomReady', { charges: this.venomCharges })
+    }
+    return t('game.venomEmpty')
+  }
+
+  private updateVenomState(delta: number): void {
+    this.venomCooldownMs = Math.max(0, this.venomCooldownMs - delta)
+    if (this.venomProjectiles.length === 0) {
+      return
+    }
+    const active: VenomProjectile[] = []
+    for (const projectile of this.venomProjectiles) {
+      projectile.stepTimerMs += delta
+      while (projectile.stepTimerMs >= BALANCE.elimination.venomStepMs) {
+        projectile.stepTimerMs -= BALANCE.elimination.venomStepMs
+        projectile.x += projectile.dir.x
+        projectile.y += projectile.dir.y
+        projectile.stepsRemaining -= 1
+        if (this.isWall(projectile.x, projectile.y) || projectile.stepsRemaining <= 0) {
+          projectile.stepsRemaining = 0
+          break
+        }
+        const enemyHit = this.enemies.find(
+          (enemy) =>
+            enemy.alive &&
+            enemy.body.some((segment) => segment.x === projectile.x && segment.y === projectile.y),
+        )
+        if (enemyHit) {
+          this.killEnemy(enemyHit)
+          this.spawnParticles(projectile.x, projectile.y, COLORS.venom, 8)
+          emitFeedback('success')
+          projectile.stepsRemaining = 0
+          break
+        }
+      }
+      if (projectile.stepsRemaining > 0) {
+        active.push(projectile)
+      }
+    }
+    this.venomProjectiles = active
+  }
+
+  private tryFireVenom(): void {
+    if (this.paused || this.isDying || this.venomCharges <= 0 || this.venomCooldownMs > 0) {
+      return
+    }
+    const head = this.snake[0]
+    if (!head) {
+      return
+    }
+    const startX = head.x + this.currentDir.x
+    const startY = head.y + this.currentDir.y
+    if (this.isWall(startX, startY)) {
+      setHintText(t('game.venomBlocked'))
+      emitFeedback('danger')
+      return
+    }
+    this.venomCharges -= 1
+    this.venomCooldownMs = BALANCE.elimination.venomCooldownMs
+    this.venomProjectiles.push({
+      x: startX,
+      y: startY,
+      dir: { ...this.currentDir },
+      stepTimerMs: 0,
+      stepsRemaining: BALANCE.elimination.venomMaxTravelSteps,
+    })
+    emitFeedback('confirm')
+  }
+
   private getObjectiveScoreProgress(): number {
     return Math.max(0, this.score - this.objectiveScoreStart)
   }
@@ -747,6 +854,14 @@ export class GameScene extends Phaser.Scene {
         progress: this.getObjectiveScoreProgress(),
         target: this.objectiveScoreTarget,
         pressure: this.getPressureStatusText(),
+      })
+    }
+    if (this.objectiveType === 'kills') {
+      return t('game.objectiveKillsStatusWithVenom', {
+        progress: this.getObjectiveKillsProgress(),
+        target: this.objectiveKillsTarget,
+        pressure: this.getPressureStatusText(),
+        venomStatus: this.getVenomStatusText(),
       })
     }
     return t('game.objectiveKillsStatus', {
@@ -1252,6 +1367,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnFood(): void {
+    if (this.objectiveType === 'kills') {
+      this.food = null
+      return
+    }
     const cell = this.pickOpenCell({
       preferredZone: this.floorTemplate === 'rooms_v1' ? 'room' : null,
     })
@@ -1259,7 +1378,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnPowerup(forcedType?: PowerupType): void {
-    const types: PowerupType[] = ['shield', 'slow', 'ghost', 'score']
+    const types: PowerupType[] =
+      this.objectiveType === 'kills'
+        ? ['venom', 'venom', 'venom', 'shield', 'slow', 'ghost', 'score']
+        : this.isBossFloor
+          ? ['venom', 'venom', 'shield', 'shield', 'slow', 'ghost', 'score']
+          : ['shield', 'slow', 'ghost', 'score']
     const cell = this.pickOpenCell()
     const type = forcedType ?? types[Math.floor(Math.random() * types.length)] ?? 'shield'
     this.powerup = { x: cell.x, y: cell.y, type, pulse: 0 }
@@ -1423,7 +1547,7 @@ export class GameScene extends Phaser.Scene {
         : kind
     const len =
       resolvedKind === 'boss'
-        ? BALANCE.biome.boss.length
+        ? Math.max(2, BALANCE.biome.boss.health + 1)
         : resolvedKind === 'egg'
           ? 1
           : resolvedKind === 'mirror'
@@ -1656,7 +1780,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnEnemy()
   }
 
-  private checkEnemyCollision(): Enemy | null {
+  private checkEnemyCollision(): EnemyCollision | null {
     const head = this.snake[0]
     if (!head) {
       return null
@@ -1665,9 +1789,14 @@ export class GameScene extends Phaser.Scene {
       if (!enemy.alive) {
         continue
       }
-      if (enemy.body.some((segment) => segment.x === head.x && segment.y === head.y)) {
+      const enemyHead = enemy.body[0]
+      if (enemyHead && enemyHead.x === head.x && enemyHead.y === head.y) {
         this.killEnemy(enemy)
-        return enemy
+        return { enemy, part: 'head' }
+      }
+      if (enemy.body.slice(1).some((segment) => segment.x === head.x && segment.y === head.y)) {
+        this.killEnemy(enemy)
+        return { enemy, part: 'body' }
       }
     }
     return null
@@ -1686,9 +1815,42 @@ export class GameScene extends Phaser.Scene {
     setHintText(t('game.bossKnockback'))
   }
 
+  private getEnemyCollisionDamage(enemy: Enemy, part: EnemyCollisionPart): number {
+    if (enemy.kind === 'boss') {
+      return part === 'head'
+        ? BALANCE.enemyCollision.bossHeadDamageSegments
+        : BALANCE.enemyCollision.bossBodyDamageSegments
+    }
+    return part === 'head'
+      ? BALANCE.enemyCollision.headDamageSegments
+      : BALANCE.enemyCollision.bodyDamageSegments
+  }
+
+  private applySnakeSegmentDamage(enemy: Enemy, part: EnemyCollisionPart): boolean {
+    const damage = Math.max(1, this.getEnemyCollisionDamage(enemy, part))
+    let removed = 0
+    while (removed < damage && this.snake.length > 1) {
+      this.snake.pop()
+      removed += 1
+    }
+    if (removed < damage) {
+      this.die('enemy')
+      return false
+    }
+    this.flashColor = COLORS.enemyHead
+    this.flashTimer = 0.14
+    this.shakeTimer = 0.18
+    setHintText(t('game.tailDamaged', { lost: removed }))
+    emitFeedback('danger')
+    return true
+  }
+
   private killEnemy(enemy: Enemy): void {
     enemy.health -= 1
     if (enemy.health > 0) {
+      if (enemy.kind === 'boss' && enemy.body.length > 1) {
+        enemy.body.pop()
+      }
       const head = enemy.body[0]
       if (head) {
         this.spawnParticles(head.x, head.y, COLORS.shield, 6)
@@ -1862,9 +2024,13 @@ export class GameScene extends Phaser.Scene {
 
     if (this.powerup && nx === this.powerup.x && ny === this.powerup.y) {
       emitFeedback('confirm')
-      this.applyPowerup(this.powerup.type)
-      this.spawnParticles(nx, ny, COLORS.powerup, 10)
+      const collectedType = this.powerup.type
       this.powerup = null
+      this.applyPowerup(collectedType)
+      this.spawnParticles(nx, ny, COLORS.powerup, 10)
+      if (this.isBossFloor) {
+        this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
+      }
       if (Math.random() < BALANCE.spawn.powerupRespawnChance) {
         this.time.delayedCall(BALANCE.spawn.powerupRespawnDelayMs, () => {
           if (this.scene.isActive('Game')) {
@@ -1927,8 +2093,9 @@ export class GameScene extends Phaser.Scene {
       this.biomeItem = null
     }
 
-    const collidedEnemy = this.checkEnemyCollision()
-    if (collidedEnemy) {
+    const enemyCollision = this.checkEnemyCollision()
+    if (enemyCollision) {
+      const collidedEnemy = enemyCollision.enemy
       if (this.shields > 0) {
         this.shields = Math.max(0, this.shields - 1)
         this.shakeTimer = 0.2
@@ -1942,8 +2109,14 @@ export class GameScene extends Phaser.Scene {
           this.spawnEnemy()
         }
       } else {
-        this.die('enemy')
-        return
+        const survived = this.applySnakeSegmentDamage(collidedEnemy, enemyCollision.part)
+        if (!survived) {
+          return
+        }
+        if (collidedEnemy.kind === 'boss' && collidedEnemy.alive) {
+          this.applyBossKnockback(head)
+        }
+        this.enemies = this.enemies.filter((enemy) => enemy.alive)
       }
     } else {
       this.enemies = this.enemies.filter((enemy) => enemy.alive)
@@ -2012,6 +2185,10 @@ export class GameScene extends Phaser.Scene {
   private applyPowerup(type: PowerupType): void {
     if (type === 'shield') {
       this.shields += 1
+      return
+    }
+    if (type === 'venom') {
+      this.venomCharges += 1
       return
     }
     if (type === 'slow') {
@@ -2268,6 +2445,7 @@ export class GameScene extends Phaser.Scene {
         slow: COLORS.slow,
         ghost: 0xaaaaff,
         score: COLORS.powerup,
+        venom: COLORS.venom,
       }
       const color = colorMap[this.powerup.type]
       const px = this.powerup.x * CELL
@@ -2305,6 +2483,9 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(0x111111, 0.85)
         g.fillRect(cx - s * 0.18, cy - s * 0.02, s * 0.09, s * 0.09)
         g.fillRect(cx + s * 0.09, cy - s * 0.02, s * 0.09, s * 0.09)
+      } else if (this.powerup.type === 'venom') {
+        g.fillRect(cx - s * 0.16, cy - s * 0.4, s * 0.32, s * 0.8)
+        g.fillTriangle(cx, cy - s * 0.55, cx - s * 0.2, cy - s * 0.32, cx + s * 0.2, cy - s * 0.32)
       } else {
         g.fillRect(cx - s * 0.34, cy - s * 0.34, s * 0.68, s * 0.68)
         g.fillStyle(0xfff0b0, 0.95)
@@ -2317,7 +2498,9 @@ export class GameScene extends Phaser.Scene {
             ? ['01110', '10011', '10101', '11001', '01110']
             : this.powerup.type === 'ghost'
               ? ['01110', '10101', '11111', '10101', '10101']
-              : ['11111', '10001', '10101', '10001', '11111']
+              : this.powerup.type === 'venom'
+                ? ['00100', '01110', '11111', '01110', '00100']
+                : ['11111', '10001', '10101', '10001', '11111']
       this.drawPixelGlyph(g, cx, cy, glyph, 0xf6fbff, 0.9)
     }
     if (this.biomeItem) {
@@ -2471,6 +2654,14 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(particle.color, particle.life)
       g.fillCircle(particle.x, particle.y, particle.size * particle.life)
     }
+    for (const projectile of this.venomProjectiles) {
+      const px = projectile.x * CELL + CELL / 2
+      const py = projectile.y * CELL + CELL / 2
+      g.fillStyle(COLORS.venom, 0.9)
+      g.fillCircle(px, py, 4)
+      g.lineStyle(1, 0xd8ffe4, 0.8)
+      g.strokeCircle(px, py, 5)
+    }
 
     if (this.squeezeInset > 0) {
       const insetPx = this.squeezeInset * CELL
@@ -2512,6 +2703,10 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < this.ghostCharges; i += 1) {
       g.fillStyle(0xaaaaff, 0.6)
       g.fillCircle(12 + i * 17, HEIGHT - 28, 4)
+    }
+    for (let i = 0; i < this.venomCharges; i += 1) {
+      g.fillStyle(COLORS.venom, 0.85)
+      g.fillCircle(12 + i * 17, HEIGHT - 44, 4)
     }
   }
 }

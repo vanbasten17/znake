@@ -114,6 +114,18 @@ export const BALANCE = {
     lengthRandomRange: 2,
     lengthFloorStep: 3,
   },
+  enemyCollision: {
+    headDamageSegments: 2,
+    bodyDamageSegments: 1,
+    bossHeadDamageSegments: 3,
+    bossBodyDamageSegments: 2,
+  },
+  elimination: {
+    venomPowerupWeight: 3,
+    venomCooldownMs: 1150,
+    venomStepMs: 70,
+    venomMaxTravelSteps: 22,
+  },
   enemyVariants: {
     egg: {
       minFloor: 3,
@@ -214,7 +226,7 @@ export const BALANCE = {
     boss: {
       floorInterval: 3,
       health: 3,
-      length: 7,
+      length: 4,
       scoreOnDefeat: 140,
       supportShieldSpawnAtStart: true,
       supportShieldRespawnMs: 8500,

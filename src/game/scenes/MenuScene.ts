@@ -44,6 +44,7 @@ const MARKER_CLASS_BY_TONE: Record<GlossaryMarkerTone, string> = {
   slow: styles.glossaryMarkerSlow,
   ghost: styles.glossaryMarkerGhost,
   score: styles.glossaryMarkerScore,
+  venom: styles.glossaryMarkerVenom,
   darkness: styles.glossaryMarkerDarkness,
   squeeze: styles.glossaryMarkerSqueeze,
   ice: styles.glossaryMarkerIce,
@@ -215,6 +216,22 @@ const createGlossaryMarkerCanvas = (tone: GlossaryMarkerTone): HTMLCanvasElement
       ctx.fill()
       ctx.fillStyle = '#ffb400'
       ctx.fillRect(6, 6, 6, 6)
+      break
+    case 'venom':
+      ctx.fillStyle = colorHex(COLORS.venom)
+      ctx.beginPath()
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#c8ffd5'
+      ctx.beginPath()
+      ctx.moveTo(cx, 6)
+      ctx.lineTo(8, 10)
+      ctx.lineTo(10, 10)
+      ctx.lineTo(9, 14)
+      ctx.lineTo(13, 9)
+      ctx.lineTo(11, 9)
+      ctx.closePath()
+      ctx.fill()
       break
     case 'darkness':
       ctx.fillStyle = '#131b35'

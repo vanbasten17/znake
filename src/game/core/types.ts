@@ -7,7 +7,7 @@ export type Vec2 = {
 
 export type SnakeSegment = Vec2
 
-export type PowerupType = 'shield' | 'slow' | 'ghost' | 'score'
+export type PowerupType = 'shield' | 'slow' | 'ghost' | 'score' | 'venom'
 export type EnemyKind = 'normal' | 'stalker' | 'ambusher' | 'boss' | 'egg' | 'mirror'
 export type WorldItemType = 'core' | 'rift_battery' | 'portal_beacon'
 
@@ -90,6 +90,7 @@ export type VirtualInput = {
   turn: 'left' | 'right' | null
   start: boolean
   pause: boolean
+  ability: boolean
 }
 
 export type TalentId = 'speed_1' | 'speed_2' | 'survival_1' | 'survival_2' | 'hunt_1' | 'hunt_2'

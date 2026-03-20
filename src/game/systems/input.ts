@@ -12,9 +12,10 @@ export const resetVirtualInput = (): void => {
   window.virtualInput.turn = null
   window.virtualInput.start = false
   window.virtualInput.pause = false
+  window.virtualInput.ability = false
 }
 
-window.virtualInput = { dir: null, turn: null, start: false, pause: false }
+window.virtualInput = { dir: null, turn: null, start: false, pause: false, ability: false }
 
 export const setupInput = (): void => {
   resetVirtualInput()
@@ -29,7 +30,9 @@ const setupRelativeSwipe = (): void => {
   let startX = 0
   let startY = 0
   let active = false
+  let lastTapAt = 0
   const minDistance = 16
+  const doubleTapWindowMs = 280
 
   const shouldCapture = (event: Event): boolean => {
     if (document.body.dataset.uiShell !== 'run') {
@@ -83,6 +86,14 @@ const setupRelativeSwipe = (): void => {
     const dy = point.clientY - startY
     active = false
     if (Math.hypot(dx, dy) < minDistance) {
+      const now = performance.now()
+      if (now - lastTapAt <= doubleTapWindowMs) {
+        window.virtualInput.ability = true
+        emitFeedback('tap')
+        lastTapAt = 0
+        return
+      }
+      lastTapAt = now
       return
     }
     if (Math.abs(dx) >= Math.abs(dy)) {
