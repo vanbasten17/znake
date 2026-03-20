@@ -13,6 +13,7 @@
     "stitch:map": "node --import tsx tools/stitch-phaser-mapper/cli.ts",
     "generate:sprites": "node --import tsx tools/generate-sprites.ts",
     "validate:markers": "node --import tsx tools/marker-pipeline-check.ts",
+    "validate:visual-language": "node --import tsx tools/visual-language-check.ts",
     "sprites:svg2png": "node --import tsx tools/svg-to-png.ts"
   },
   "dependencies": {

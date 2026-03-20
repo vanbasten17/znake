@@ -24,6 +24,7 @@ import type {
   WorldItemType,
 } from '../core/types'
 import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerHiRes'
+import { PAINT_BY_TONE } from '../render/markerVectorArt'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -39,6 +40,7 @@ import { t } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
 import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
+import { allowsMarkerGlow } from '../visual/visualLanguage'
 
 type GameSceneData = {
   score?: number
@@ -2714,13 +2716,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.food) {
-      const pulse = Math.sin(this.food.pulse) * 0.3 + 0.7
       const fx = this.food.x * CELL
       const fy = this.food.y * CELL
       const cx = fx + CELL / 2
       const cy = fy + CELL / 2
-      g.fillStyle(COLORS.foodGlow, 0.22 * pulse)
-      g.fillCircle(cx, cy, CELL * 0.95)
       this.markerFood.setTexture(markerTextureKey('core'))
       this.markerFood.setPosition(Math.round(cx), Math.round(cy))
       this.markerFood.setDisplaySize(CELL, CELL)
@@ -2779,10 +2778,12 @@ export class GameScene extends Phaser.Scene {
       const cx = px + CELL / 2
       const cy = py + CELL / 2
       const s = CELL * 0.46 * pulse
-      g.fillStyle(color, 0.2 * pulse)
-      g.fillCircle(cx, cy, CELL * 0.82)
       g.fillStyle(color, 0.95)
       const markerTone: 'shield' | 'slow' | 'ghost' | 'score' | 'venom' = this.powerup.type
+      if (allowsMarkerGlow(markerTone)) {
+        g.fillStyle(color, 0.2 * pulse)
+        g.fillCircle(cx, cy, CELL * 0.82)
+      }
       const powerupDisp = Math.max(1, Math.round(s * 2))
       this.markerPowerup.setTexture(markerTextureKey(markerTone))
       this.markerPowerup.setPosition(Math.round(cx), Math.round(cy))
@@ -2796,8 +2797,11 @@ export class GameScene extends Phaser.Scene {
       const iy = this.biomeItem.y * CELL
       const isBeacon = this.biomeItem.type === 'portal_beacon'
       const isRiftBattery = this.biomeItem.type === 'rift_battery'
-      g.fillStyle(isBeacon ? COLORS.beacon : isRiftBattery ? 0x8866ff : 0x7ef2ff, 0.18 * pulse)
-      g.fillCircle(ix + CELL / 2, iy + CELL / 2, CELL * 0.95)
+      const biomeTone = isBeacon ? 'beacon' : isRiftBattery ? 'battery' : 'biomeCore'
+      if (allowsMarkerGlow(biomeTone)) {
+        g.fillStyle(isBeacon ? COLORS.beacon : isRiftBattery ? 0x8866ff : 0x7ef2ff, 0.18 * pulse)
+        g.fillCircle(ix + CELL / 2, iy + CELL / 2, CELL * 0.95)
+      }
       g.fillStyle(isBeacon ? 0xfff7b8 : isRiftBattery ? 0xcf77ff : 0x2affff, 0.95)
       const s = CELL * 0.34 * pulse
       if (isBeacon) {
@@ -2814,7 +2818,6 @@ export class GameScene extends Phaser.Scene {
       } else {
         g.fillRect(ix + CELL / 2 - s / 2, iy + CELL / 2 - s / 2, s, s)
       }
-      const biomeTone = isBeacon ? 'beacon' : isRiftBattery ? 'battery' : 'biomeCore'
       const biomeDisp = Math.round(CELL * 0.84)
       const bcx = ix + CELL / 2
       const bcy = iy + CELL / 2
@@ -2826,6 +2829,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.referenceBoardMode && this.referenceMarkers.length > 0) {
       const markerSize = Math.round(CELL * 0.9)
+      const parseHexColor = (hex: string): number => Number.parseInt(hex.replace('#', ''), 16)
       for (let i = 0; i < this.referenceMarkers.length; i += 1) {
         const marker = this.referenceMarkers[i]
         const img = this.referenceMarkerImages[i]
@@ -2834,6 +2838,12 @@ export class GameScene extends Phaser.Scene {
         }
         const cx = marker.x * CELL + CELL / 2
         const cy = marker.y * CELL + CELL / 2
+        if (allowsMarkerGlow(marker.tone)) {
+          const pulse = Math.sin(this.time.now * 0.006 + i * 0.55) * 0.25 + 0.75
+          const glowColor = parseHexColor(PAINT_BY_TONE[marker.tone].glow)
+          g.fillStyle(glowColor, 0.2 * pulse)
+          g.fillCircle(cx, cy, CELL * 0.88)
+        }
         img.setTexture(markerTextureKey(marker.tone))
         img.setPosition(Math.round(cx), Math.round(cy))
         img.setDisplaySize(markerSize, markerSize)
