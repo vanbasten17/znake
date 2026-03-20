@@ -98,6 +98,10 @@ export class GameScene extends Phaser.Scene {
   private riftTimer = 0
   private riftSuppressionMsRemaining = 0
   private riftCell: Vec2 | null = null
+  private corePressureActive = false
+  private corePressureIntervalMs = 0
+  private corePressureRemainingMs = 0
+  private corePressureCoolantCharges = 0
   private stars: Array<{ x: number; y: number; size: number; alpha: number }> = []
   private isBossFloor = false
   private appliedFloorRoute: FloorRouteChoice | null = null
@@ -204,6 +208,7 @@ export class GameScene extends Phaser.Scene {
       this.seedDebugSandLane()
     }
     this.setupPortalFlow()
+    this.setupCorePressureFlow()
     if (debugScenario?.portalCountdownMs !== undefined) {
       this.portalCountdownMs = Math.max(0, debugScenario.portalCountdownMs)
     }
@@ -309,6 +314,7 @@ export class GameScene extends Phaser.Scene {
     this.ensureObjectiveEnemyAvailability()
     this.updateVoidRift(delta)
     this.updatePortalFlow(delta)
+    this.updateCorePressure(delta)
     this.updateRegen(delta)
     this.updateSnakeMovement(delta)
     this.updateMagnetFood()
@@ -329,12 +335,18 @@ export class GameScene extends Phaser.Scene {
     const localizedBiome = t(`biome.${BALANCE.biome.id.replaceAll('-', '_')}`, {
       defaultValue: BALANCE.biome.name,
     })
-    const hazardInfo =
-      this.riftSuppressionMsRemaining > 0
-        ? t('game.riftSuppressed', {
-            seconds: Math.ceil(this.riftSuppressionMsRemaining / 1000),
-          })
-        : null
+    const hazardParts: string[] = []
+    if (this.riftSuppressionMsRemaining > 0) {
+      hazardParts.push(
+        t('game.riftSuppressed', {
+          seconds: Math.ceil(this.riftSuppressionMsRemaining / 1000),
+        }),
+      )
+    }
+    const corePressureStatus = this.getCorePressureStatusText()
+    if (corePressureStatus) {
+      hazardParts.push(corePressureStatus)
+    }
     const objectiveInfo = this.getObjectiveStatusText()
     const activeModifiers: string[] = []
     if (this.darknessActive) {
@@ -352,9 +364,10 @@ export class GameScene extends Phaser.Scene {
       )
     }
     const modifierInfo = activeModifiers.length > 0 ? ` · ${activeModifiers.join(' · ')}` : ''
-    const hudStatus = hazardInfo
-      ? `${localizedBiome} · ${objectiveInfo}${modifierInfo} · ${hazardInfo}`
-      : `${localizedBiome} · ${objectiveInfo}${modifierInfo}`
+    const hudStatus =
+      hazardParts.length > 0
+        ? `${localizedBiome} · ${objectiveInfo}${modifierInfo} · ${hazardParts.join(' · ')}`
+        : `${localizedBiome} · ${objectiveInfo}${modifierInfo}`
     setRunStatusText(hudStatus)
 
     this.drawFrame()
@@ -390,6 +403,10 @@ export class GameScene extends Phaser.Scene {
     this.riftTimer = 0
     this.riftSuppressionMsRemaining = 0
     this.riftCell = null
+    this.corePressureActive = false
+    this.corePressureIntervalMs = 0
+    this.corePressureRemainingMs = 0
+    this.corePressureCoolantCharges = 0
     this.biomeItem = null
     this.stars = []
     this.isBossFloor = false
@@ -641,6 +658,20 @@ export class GameScene extends Phaser.Scene {
     return t('game.squeezeActive')
   }
 
+  private getCorePressureStatusText(): string | null {
+    if (!this.corePressureActive) {
+      return null
+    }
+    const seconds = Math.ceil(this.corePressureRemainingMs / 1000)
+    if (this.corePressureCoolantCharges > 0) {
+      return t('game.corePressureWithCoolant', {
+        seconds,
+        charges: this.corePressureCoolantCharges,
+      })
+    }
+    return t('game.corePressure', { seconds })
+  }
+
   private getObjectiveStatusText(): string {
     if (this.isBossFloor || this.objectiveType === 'boss') {
       return t('game.bossAdvance')
@@ -872,6 +903,62 @@ export class GameScene extends Phaser.Scene {
     this.portals = []
     this.squeezeStepTimerMs = 0
     this.squeezeInset = 0
+  }
+
+  private setupCorePressureFlow(): void {
+    const cfg = BALANCE.biome.pressure
+    if (!cfg.enabled || this.isBossFloor || gameState.floor < cfg.startFloor) {
+      this.corePressureActive = false
+      this.corePressureIntervalMs = 0
+      this.corePressureRemainingMs = 0
+      this.corePressureCoolantCharges = 0
+      return
+    }
+    const floorOffset = Math.max(0, gameState.floor - cfg.startFloor)
+    const interval = Math.max(
+      cfg.intervalMinMs,
+      cfg.intervalBaseMs - floorOffset * cfg.intervalPerFloorMs,
+    )
+    this.corePressureActive = true
+    this.corePressureIntervalMs = interval
+    this.corePressureRemainingMs = interval
+    this.corePressureCoolantCharges = 0
+  }
+
+  private updateCorePressure(delta: number): void {
+    if (!this.corePressureActive || this.isDying) {
+      return
+    }
+    this.corePressureRemainingMs = Math.max(0, this.corePressureRemainingMs - delta)
+    if (this.corePressureRemainingMs > 0) {
+      return
+    }
+    if (this.corePressureCoolantCharges > 0) {
+      this.corePressureCoolantCharges -= 1
+      this.corePressureRemainingMs = this.corePressureIntervalMs
+      trackRetentionEvent('core_pressure_absorbed', {
+        floor: gameState.floor,
+        coolantRemaining: this.corePressureCoolantCharges,
+      })
+      emitFeedback('confirm')
+      return
+    }
+    const decaySegments = Math.max(1, BALANCE.biome.pressure.decaySegments)
+    let removed = 0
+    while (removed < decaySegments && this.snake.length > 2) {
+      this.snake.pop()
+      removed += 1
+    }
+    this.corePressureRemainingMs = this.corePressureIntervalMs
+    trackRetentionEvent('core_pressure_tick', {
+      floor: gameState.floor,
+      removedSegments: removed,
+      snakeLength: this.snake.length,
+    })
+    emitFeedback('urgent')
+    if (removed === 0) {
+      this.die('rift')
+    }
   }
 
   private spawnPortals(): void {
@@ -1498,6 +1585,9 @@ export class GameScene extends Phaser.Scene {
       emitFeedback('success')
       this.score += Math.floor(BALANCE.food.scoreOnEat * this.cfg.scoreMult)
       this.pendingGrowth += 1
+      if (this.corePressureActive) {
+        this.corePressureRemainingMs = this.corePressureIntervalMs
+      }
       this.spawnParticles(nx, ny, COLORS.food, 8)
       this.spawnFood()
       if (Math.random() < BALANCE.spawn.powerupOnFoodChance) {
@@ -1555,6 +1645,14 @@ export class GameScene extends Phaser.Scene {
       } else {
         this.score += Math.floor(BALANCE.biome.coreItem.scoreBonus * this.cfg.scoreMult)
         this.pendingGrowth += BALANCE.biome.coreItem.growthBonus
+        if (this.corePressureActive) {
+          this.corePressureCoolantCharges += BALANCE.biome.pressure.coolantPerCoreItem
+          this.corePressureRemainingMs = this.corePressureIntervalMs
+          trackRetentionEvent('core_pressure_coolant_gained', {
+            floor: gameState.floor,
+            coolantTotal: this.corePressureCoolantCharges,
+          })
+        }
         trackRetentionEvent('item_collected', {
           item: 'core',
           floor: gameState.floor,

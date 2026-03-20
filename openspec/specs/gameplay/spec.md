@@ -110,23 +110,28 @@ The system SHALL provide explicit feedback for lethal collision outcomes.
 
 The system SHALL support temporary hazard-pressure modulation through item interaction.
 
-#### Scenario: Portal objective presents dual destination routes
+#### Scenario: Core pressure activates on eligible non-boss floors
 
-- **WHEN** objective type is `portal` and portal timer reaches spawn state
-- **THEN** two portals are spawned with distinct route labels (`safer`, `riskier`)
-- **AND** route choice is readable through visual and localized UI cues
+- **WHEN** a floor starts and biome pressure config is enabled for that floor
+- **THEN** a pressure countdown starts
+- **AND** pressure state is represented in run status text
 
-#### Scenario: Entered portal sets pending route for next floor
+#### Scenario: Food resets core pressure countdown
 
-- **WHEN** player reaches one of the active portals
-- **THEN** selected portal route is stored as pending route choice
-- **AND** floor completion continues through the existing upgrade-transition flow
+- **WHEN** player consumes food while core pressure is active
+- **THEN** pressure countdown resets to configured interval
 
-#### Scenario: Pending route modulates next floor setup once
+#### Scenario: Timeout consumes coolant before degrading tail
 
-- **WHEN** next floor gameplay initializes
-- **THEN** pending route is consumed and applies configured setup modifiers (difficulty up/down)
-- **AND** route effect does not persist beyond that floor unless a new route is selected
+- **WHEN** core pressure countdown reaches zero and coolant charges are available
+- **THEN** one coolant charge is consumed
+- **AND** countdown resets without degrading snake length
+
+#### Scenario: Timeout degrades tail when no coolant is available
+
+- **WHEN** core pressure countdown reaches zero and coolant charges are not available
+- **THEN** snake length is reduced by configured pressure amount
+- **AND** countdown resets
 
 ### Requirement: Snake body render continuity
 

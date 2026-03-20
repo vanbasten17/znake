@@ -179,6 +179,15 @@ export const BALANCE = {
     id: 'void-depths',
     name: 'VOID DEPTHS',
     starCount: 36,
+    pressure: {
+      enabled: true,
+      startFloor: 2,
+      intervalBaseMs: 16000,
+      intervalPerFloorMs: 700,
+      intervalMinMs: 7000,
+      decaySegments: 1,
+      coolantPerCoreItem: 1,
+    },
     rift: {
       tickMs: 3200,
       scoreOnSurviveTick: 4,

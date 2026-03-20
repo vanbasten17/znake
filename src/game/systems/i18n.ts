@@ -77,7 +77,11 @@ const resources = {
         entry: {
           red_core: {
             name: 'Red Core',
-            description: 'Basic food. Grows snake by 1 and gives score.',
+            description: 'Basic food. Grows snake by 1, gives score, and refreshes core pressure.',
+          },
+          coolant_charge: {
+            name: 'Coolant Charge',
+            description: 'Resource shown as COOLANT xN. Absorbs one core-pressure timeout tick.',
           },
           portal: {
             name: 'Portal',
@@ -258,6 +262,8 @@ const resources = {
         portalChooseHint: 'PORTAL READY · CYAN = SAFER · AMBER = RISKIER',
         routeSafer: 'ROUTE: SAFER',
         routeRiskier: 'ROUTE: RISKIER',
+        corePressure: 'CORE PRESSURE {{seconds}}s',
+        corePressureWithCoolant: 'CORE PRESSURE {{seconds}}s · COOLANT x{{charges}}',
         objectivePortalPreview: 'SURVIVE UNTIL PORTAL',
         objectiveScorePreview: 'REACH {{target}} SCORE',
         objectiveKillsPreview: 'DEFEAT {{target}} ENEMIES',
@@ -346,7 +352,13 @@ const resources = {
         entry: {
           red_core: {
             name: 'Nucli vermell',
-            description: 'Menjar base. Fa créixer la serp +1 i dona punts.',
+            description:
+              'Menjar base. Fa créixer la serp +1, dona punts i refresca la pressió del nucli.',
+          },
+          coolant_charge: {
+            name: 'Càrrega de refrigerant',
+            description:
+              'Recurs que es mostra com COOLANT xN. Absorbeix un tick de timeout de pressió.',
           },
           portal: {
             name: 'Portal',
@@ -527,6 +539,8 @@ const resources = {
         portalChooseHint: 'PORTAL A PUNT · CIAN = MÉS SEGUR · AMBRE = MÉS ARRISCAT',
         routeSafer: 'RUTA: SEGURA',
         routeRiskier: 'RUTA: ARRISCADA',
+        corePressure: 'PRESSIÓ DEL NUCLI {{seconds}}s',
+        corePressureWithCoolant: 'PRESSIÓ DEL NUCLI {{seconds}}s · REFRIGERANT x{{charges}}',
         objectivePortalPreview: 'SOBREVIU FINS AL PORTAL',
         objectiveScorePreview: 'ARRIBA A {{target}} PUNTS',
         objectiveKillsPreview: 'DERROTA {{target}} ENEMICS',

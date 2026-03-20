@@ -16,7 +16,26 @@ const SHELL_MARKUP = `
 </div>
 `
 
+const LEGACY_OVERLAY_SELECTORS = [
+  '#controls',
+  '#hint-bar',
+  '#tap-pad',
+  '#touch-overlay',
+  '#quadrant-overlay',
+  '.touch-direction-overlay',
+  '.quadrant-overlay',
+]
+
+const removeLegacyOverlays = (): void => {
+  for (const selector of LEGACY_OVERLAY_SELECTORS) {
+    for (const node of document.querySelectorAll(selector)) {
+      node.remove()
+    }
+  }
+}
+
 export const mountShell = (): void => {
+  removeLegacyOverlays()
   if (document.getElementById('hud')) {
     return
   }

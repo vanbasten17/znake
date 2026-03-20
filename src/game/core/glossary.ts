@@ -40,6 +40,7 @@ export const GLOSSARY_CATEGORIES: GlossaryCategoryId[] = [
 
 export const GLOSSARY_ENTRIES: GlossaryEntry[] = [
   { id: 'red_core', category: 'items', marker: 'core' },
+  { id: 'coolant_charge', category: 'items', marker: 'battery' },
   { id: 'portal', category: 'items', marker: 'portal' },
   { id: 'rift_battery', category: 'items', marker: 'battery' },
   { id: 'portal_beacon', category: 'items', marker: 'beacon' },
