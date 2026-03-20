@@ -11,15 +11,15 @@ The PNGs + `marker_atlas.png` are also **export/reference outputs** (atlas + doc
 The marker export spec is defined in `src/game/render/markerExportSpec.ts`:
 
 - `MARKER_EXPORT_LOGICAL_FRAME = 20`
-- `MARKER_EXPORT_SCALE_DEFAULT = 2`
+- `MARKER_EXPORT_SCALE_DEFAULT = 16`
 
 So each `marker_<tone>.png` frame should be a **square**:
 
-- **`20 × 2 = 40 × 40 px`**
+- **`20 × 16 = 320 × 320 px`**
 
 There are `GLOSSARY_MARKER_TONES.length = 24` tones, so the expected atlas is:
 
-- **`marker_atlas.png` = `40 × 24 = 960 × 40 px`**
+- **`marker_atlas.png` = `320 × 24 = 7680 × 320 px`**
 
 The stitching script requires **all** `marker_<tone>.png` files (except `marker_atlas.png`) to have the **same dimensions**.
 
@@ -42,4 +42,3 @@ This script will:
 - Keep all `marker_<tone>.png` frames **the same dimensions** (the script refuses to build the atlas if they differ).
 - Do **not** edit `marker_atlas.png` manually; always rebuild it with the script.
 - **`pnpm generate:sprites`:** for each tone, if `marker_<tone>.png` **already exists**, the export re-rasterizes from that file (so hand edits are preserved). To **force** regeneration from code for a tone, delete its PNG (or temporarily move `assets/sprites/generated/`) and run `pnpm generate:sprites` again.
-

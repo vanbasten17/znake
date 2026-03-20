@@ -27,6 +27,9 @@ pnpm generate:sprites
 
 # Verify manifest matches spec and print checklist
 pnpm validate:markers
+
+# Convert authored SVG marker sources to PNGs (default: 320x320)
+pnpm sprites:svg2png
 ```
 
 Optional lower-res PNGs only (previews): `SPRITE_EXPORT_SCALE=4 pnpm generate:sprites` — **warning:** default in-game textures still use `MARKER_EXPORT_SCALE_DEFAULT` from `markerExportSpec.ts`; PNGs will not match pixel size until you use the default scale again.
@@ -81,6 +84,7 @@ Icon art lives in **`markerVectorArt.ts`** (vector icons on premium tokens), inv
 
 - [GAME_RENDER_SCALING_AND_PERFORMANCE.md](./GAME_RENDER_SCALING_AND_PERFORMANCE.md) — **CELL**, `cellPx`, marker export scale, `generate-sprites` scale cap, FPS-oriented notes (HUD, darkness, terrain cache, Phaser)
 - [MANUAL_MARKER_PNG_REPLACEMENT.md](./MANUAL_MARKER_PNG_REPLACEMENT.md) — how to rebuild `marker_atlas.png` after swapping `marker_<tone>.png` manually
+- [SVG_TO_PNG_MARKER_WORKFLOW.md](./SVG_TO_PNG_MARKER_WORKFLOW.md) — authoring SVG markers and converting to runtime-ready PNGs
 - [SPRITE_GENERATION_REFERENCE.md](./SPRITE_GENERATION_REFERENCE.md) — lore, prompts, asset layout
 - [`assets/sprites/generated/README.md`](../../assets/sprites/generated/README.md) — output files
 - Cursor: `.cursor/skills/znake-marker-pipeline/SKILL.md` — agent workflow
