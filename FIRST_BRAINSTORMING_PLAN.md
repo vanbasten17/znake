@@ -11,82 +11,18 @@ Ship the highest-impact gameplay improvements with the best difficulty-to-develo
 - Reuses current architecture (Phaser gameplay + DOM shell)
 - Can be validated incrementally with OpenSpec loops
 
-## Phase 1 (Best ROI, implement first)
+## Completed (Archived)
 
-### 1. Timed Portal + Squeeze Pressure
-- Why now: biggest gameplay tension gain with relatively contained systems work.
-- Scope:
-  - Floor countdown timer
-  - Portal spawn/open state
-  - Late countdown warning state
-  - Squeeze fallback if player delays too much
-- Notes:
-  - Integrates naturally with existing floor progression and HUD run status line.
-  - Start simple (single portal), tune timings after playtests.
+1. Timed Portal + Squeeze Pressure
+2. Accessibility Mode + Voice Commands (MVP)
+3. Floor Modifiers: Darkness + Ice (MVP)
+4. New Enemy Set A: Egg + Mirror Snake
+5. Dual Portal Destination Choice
+6. Core Biome (Passive Feeding Pressure)
+7. Room-Based Procedural Template
+8. Boss Floor v1 (Giant Snake)
 
-### 2. Accessibility Mode + Voice Commands (MVP)
-- Why now: improves inclusivity immediately and unlocks alternative control input with relatively contained UX/input work.
-- Scope:
-  - Accessibility mode toggle in menu/settings shell
-  - High-contrast + larger UI text preset
-  - Optional reduced visual effects and gentler motion profile
-  - Voice command input for core movement (`up`, `down`, `left`, `right`) with optional `pause`/`start`
-- Notes:
-  - Must remain fully optional, with keyboard/touch as first-class fallback.
-  - Start with browser-native speech recognition where available, then harden device support iteratively.
-
-### 3. Floor Modifiers: Darkness + Ice (MVP)
-- Why now: high variety with moderate implementation complexity.
-- Scope:
-  - Darkness: limited visibility radius around head
-  - Ice: deterministic extra slide behavior on marked tiles
-- Notes:
-  - Roll out one modifier at a time behind per-floor config flags.
-  - Prioritize readability and fairness over visual complexity.
-
-### 4. New Enemy Set A: Egg + Mirror Snake
-- Why now: adds pattern-learning depth without requiring full combat redesign.
-- Scope:
-  - Egg trap with proximity hatch
-  - Mirror snake with delayed movement echo
-- Notes:
-  - Use gradual spawn rules by floor to avoid early frustration.
-
-## Phase 2 (High value, medium effort)
-
-### 5. Dual Portal Destination Choice
-- Why: adds strategic routing and run identity.
-- Scope:
-  - Two portal options at transition
-  - Simple destination metadata (safer vs riskier branch)
-- Notes:
-  - Implement after single-portal system is stable.
-
-### 6. Core Biome (Passive Feeding Pressure)
-- Why: introduces a distinct run rhythm with low art dependency.
-- Scope:
-  - Tail decay timer when not eating
-  - Coolant-style counter item
-- Notes:
-  - Good candidate to validate biome identity pipeline.
-
-### 7. Room-Based Procedural Template
-- Why: meaningful exploration feel upgrade.
-- Scope:
-  - Connected-rooms generator as first structural template
-  - Enemy/food spawn rules per room/corridor zones
-- Notes:
-  - Keep current wall generation as fallback path.
-
-## Phase 3 (Powerful but heavier systems)
-
-### 8. Boss Floor v1 (Giant Snake)
-- Why: strong milestone moments every few floors.
-- Scope:
-  - Boss-only floor objective
-  - One boss archetype first
-- Risk:
-  - Requires careful balance and collision readability.
+## Pending (Next)
 
 ### 9. Tail as Health + Power-up Segments
 - Why: excellent long-term identity mechanic.
@@ -105,16 +41,10 @@ Ship the highest-impact gameplay improvements with the best difficulty-to-develo
 - Risk:
   - Requires robust enemy combat tuning and objective UX.
 
-## Suggested OpenSpec Order
+## Suggested OpenSpec Order (Pending Only)
 
-1. `znake-timed-portal-squeeze-v1`
-2. `znake-accessibility-voice-mvp-v1`
-3. `znake-floor-modifiers-darkness-v1`
-4. `znake-floor-modifiers-ice-v1`
-5. `znake-enemy-egg-mirror-v1`
-6. `znake-dual-portal-choice-v1`
-7. `znake-core-biome-pressure-v1`
-8. `znake-room-template-generator-v1`
+1. `znake-tail-health-power-segments-v1`
+2. `znake-elimination-run-venom-v1`
 
 ## Definition of Done per Step
 
