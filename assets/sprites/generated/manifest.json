@@ -4,7 +4,7 @@
   "exportScale": 2,
   "frameWidth": 40,
   "frameHeight": 40,
-  "source": "src/game/render/markerRenderer.ts (drawMarkerSpriteCanvas)",
+  "source": "stitched from assets/sprites/generated/marker_<tone>.png by tools/pack-marker-atlas-from-pngs.ts",
   "frames": [
     {
       "index": 0,
