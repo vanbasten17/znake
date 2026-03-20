@@ -1,5 +1,6 @@
 import { getAccessibilitySettings } from './accessibility'
 import { emitFeedback } from './feedback'
+import { t } from './i18n'
 
 type SpeechResultLike = {
   0?: { transcript?: string }
@@ -25,6 +26,17 @@ type SpeechRecognitionLike = {
 type SpeechCtor = new () => SpeechRecognitionLike
 type VoiceAvailability = 'supported' | 'unsupported'
 type VoiceCommand = 'up' | 'down' | 'left' | 'right' | 'pause' | 'start'
+export type VoiceRuntimeStatus = 'off' | 'listening' | 'unsupported' | 'denied'
+export type VoiceCommandOutcome = 'accepted' | 'rejected'
+export type VoiceUxSnapshot = {
+  availability: VoiceAvailability
+  enabled: boolean
+  status: VoiceRuntimeStatus
+  lastCommand: VoiceCommand | null
+  lastOutcome: VoiceCommandOutcome | null
+  updatedAt: number
+}
+type VoiceUxListener = (snapshot: VoiceUxSnapshot) => void
 
 declare global {
   interface Window {
@@ -75,11 +87,88 @@ const availability: VoiceAvailability = resolveCtor() ? 'supported' : 'unsupport
 let initialized = false
 let enabled = false
 let recognition: SpeechRecognitionLike | null = null
+let status: VoiceRuntimeStatus = availability === 'supported' ? 'off' : 'unsupported'
 let lastVoiceCommandAt = 0
 let lastProcessedTranscript = ''
 let lastProcessedTranscriptAt = 0
+let lastCommand: VoiceCommand | null = null
+let lastOutcome: VoiceCommandOutcome | null = null
+let voiceFeedbackTimeoutId: number | null = null
+const voiceUxListeners = new Set<VoiceUxListener>()
 const VOICE_COMMAND_COOLDOWN_MS = 90
 const SAME_TRANSCRIPT_REPEAT_MS = 320
+const VOICE_FEEDBACK_DURATION_MS = 850
+
+const getSnapshot = (): VoiceUxSnapshot => ({
+  availability,
+  enabled,
+  status,
+  lastCommand,
+  lastOutcome,
+  updatedAt: Date.now(),
+})
+
+const notifyVoiceUx = (): void => {
+  const snapshot = getSnapshot()
+  for (const listener of voiceUxListeners) {
+    listener(snapshot)
+  }
+}
+
+const setStatus = (next: VoiceRuntimeStatus): void => {
+  if (status === next) {
+    return
+  }
+  status = next
+  notifyVoiceUx()
+}
+
+const ensureVoiceFeedbackNode = (): HTMLDivElement | null => {
+  const host = document.getElementById('hud')
+  if (!(host instanceof HTMLElement)) {
+    return null
+  }
+  const existing = document.getElementById('voice-feedback')
+  if (existing instanceof HTMLDivElement) {
+    return existing
+  }
+  const node = document.createElement('div')
+  node.id = 'voice-feedback'
+  node.setAttribute('aria-live', 'polite')
+  node.setAttribute('aria-atomic', 'true')
+  host.append(node)
+  return node
+}
+
+const renderVoiceFeedback = (message: string, tone: VoiceCommandOutcome): void => {
+  const node = ensureVoiceFeedbackNode()
+  if (!node) {
+    return
+  }
+  node.textContent = message
+  node.dataset.state = tone
+  node.classList.add('active')
+  if (voiceFeedbackTimeoutId !== null) {
+    window.clearTimeout(voiceFeedbackTimeoutId)
+  }
+  voiceFeedbackTimeoutId = window.setTimeout(() => {
+    node.classList.remove('active')
+    node.removeAttribute('data-state')
+    node.textContent = ''
+    voiceFeedbackTimeoutId = null
+  }, VOICE_FEEDBACK_DURATION_MS)
+}
+
+const reportCommandOutcome = (outcome: VoiceCommandOutcome, command: VoiceCommand | null): void => {
+  lastOutcome = outcome
+  lastCommand = command
+  notifyVoiceUx()
+  const message =
+    outcome === 'accepted' && command
+      ? t('voice.accepted', { command: t(`voice.command.${command}`) })
+      : t('voice.rejected')
+  renderVoiceFeedback(message, outcome)
+}
 
 const normalize = (value: string): string =>
   value
@@ -157,6 +246,9 @@ const stopRecognition = (): void => {
     // no-op
   }
   recognition = null
+  if (enabled && availability === 'supported') {
+    setStatus('off')
+  }
 }
 
 const startRecognition = (): void => {
@@ -201,14 +293,17 @@ const startRecognition = (): void => {
         lastProcessedTranscriptAt = now
         lastVoiceCommandAt = now
         publishCommand(command)
+        reportCommandOutcome('accepted', command)
         return
       }
+      reportCommandOutcome('rejected', null)
     }
   }
 
   instance.onerror = (event): void => {
     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
       enabled = false
+      setStatus('denied')
       stopRecognition()
       return
     }
@@ -220,6 +315,9 @@ const startRecognition = (): void => {
 
   instance.onend = (): void => {
     recognition = null
+    if (enabled) {
+      setStatus('off')
+    }
     if (enabled && document.visibilityState === 'visible') {
       window.setTimeout(startRecognition, 250)
     }
@@ -228,8 +326,12 @@ const startRecognition = (): void => {
   recognition = instance
   try {
     recognition.start()
+    setStatus('listening')
   } catch {
     recognition = null
+    if (enabled) {
+      setStatus('off')
+    }
   }
 }
 
@@ -237,10 +339,20 @@ const syncFromSettings = (): void => {
   const settings = getAccessibilitySettings()
   enabled = settings.voiceEnabled && availability === 'supported'
   if (enabled) {
+    if (status === 'denied') {
+      setStatus('off')
+    }
     startRecognition()
+    notifyVoiceUx()
     return
   }
+  if (availability !== 'supported') {
+    setStatus('unsupported')
+  } else if (status !== 'denied') {
+    setStatus('off')
+  }
   stopRecognition()
+  notifyVoiceUx()
 }
 
 export const setupVoiceInput = (): void => {
@@ -249,6 +361,7 @@ export const setupVoiceInput = (): void => {
   }
   initialized = true
   syncFromSettings()
+  notifyVoiceUx()
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') {
       stopRecognition()
@@ -265,3 +378,13 @@ export const syncVoiceInput = (): void => {
 }
 
 export const getVoiceAvailability = (): VoiceAvailability => availability
+
+export const getVoiceUxSnapshot = (): VoiceUxSnapshot => getSnapshot()
+
+export const subscribeVoiceUx = (listener: VoiceUxListener): (() => void) => {
+  voiceUxListeners.add(listener)
+  listener(getSnapshot())
+  return () => {
+    voiceUxListeners.delete(listener)
+  }
+}

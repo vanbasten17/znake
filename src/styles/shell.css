@@ -20,7 +20,8 @@ body[data-ui-shell="menu"] #hud {
 }
 
 body[data-ui-shell="menu"] #hud-top,
-body[data-ui-shell="menu"] #run-status {
+body[data-ui-shell="menu"] #run-status,
+body[data-ui-shell="menu"] #voice-feedback {
   opacity: 0;
 }
 

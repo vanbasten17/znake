@@ -1,8 +1,5 @@
-# balance-config Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change znake-data-driven-balance-v1. Update Purpose after archive.
-## Requirements
 ### Requirement: Central balance source
 
 The system SHALL keep elite, item, and floor-template variety tuning in centralized balance tables.
@@ -16,4 +13,3 @@ The system SHALL keep elite, item, and floor-template variety tuning in centrali
 
 - **WHEN** gameplay resolves floor template selection
 - **THEN** template type and cadence/threshold knobs are read from centralized balance config
-

@@ -1,4 +1,4 @@
-import type { NonBossObjectiveKind, RunConfig, TalentId } from './types'
+import type { FloorTemplate, NonBossObjectiveKind, RunConfig, TalentId } from './types'
 
 export const BALANCE = {
   run: {
@@ -26,6 +26,19 @@ export const BALANCE = {
     enemyIntervalBaseMs: 550,
     enemyIntervalPerFloorMs: 30,
     enemyIntervalMinMs: 350,
+  },
+  floorTemplate: {
+    roomsV1: {
+      enabled: true,
+      startFloor: 4,
+      cadence: 2,
+      maxGenerateAttempts: 8,
+      minRooms: 3,
+      maxRooms: 5,
+      minRoomSize: 3,
+      maxRoomSize: 6,
+      minRoomGap: 1,
+    },
   },
   portal: {
     countdownBaseMs: 10000,
@@ -203,6 +216,8 @@ export const BALANCE = {
       health: 3,
       length: 7,
       scoreOnDefeat: 140,
+      supportShieldSpawnAtStart: true,
+      supportShieldRespawnMs: 8500,
     },
   },
   food: {
@@ -258,6 +273,7 @@ export type FloorSetup = {
   wallCount: number
   enemyCount: number
   snakeLengthGoal: number
+  floorTemplate: FloorTemplate
   enemyIntervalMs: number
   darknessActive: boolean
   darknessRadius: number
@@ -296,6 +312,7 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
   const darknessConfig = BALANCE.modifiers.darkness
   const iceConfig = BALANCE.modifiers.ice
   const sandConfig = BALANCE.modifiers.sand
+  const roomTemplateConfig = BALANCE.floorTemplate.roomsV1
   const bossInterval = Math.max(2, BALANCE.biome.boss.floorInterval)
   const cycleStep = (clampedFloor - 1) % bossInterval
   const preBossSteps = Math.max(1, bossInterval - 1)
@@ -318,11 +335,19 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
   const darknessT = darknessActive ? Math.min(1, Math.max(0, preBossProgress)) : 0
   const iceT = iceActive ? Math.min(1, Math.max(0, preBossProgress)) : 0
   const sandT = sandActive ? Math.min(1, Math.max(0, preBossProgress)) : 0
+  const floorTemplate: FloorTemplate =
+    roomTemplateConfig.enabled &&
+    !isBossFloor &&
+    clampedFloor >= roomTemplateConfig.startFloor &&
+    (clampedFloor - roomTemplateConfig.startFloor) % Math.max(1, roomTemplateConfig.cadence) === 0
+      ? 'rooms_v1'
+      : 'classic'
 
   return {
     wallCount,
     enemyCount,
     snakeLengthGoal,
+    floorTemplate,
     enemyIntervalMs,
     darknessActive,
     darknessRadius: Math.round(

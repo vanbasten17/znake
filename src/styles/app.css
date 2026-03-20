@@ -277,6 +277,31 @@ body.keyboard-controls #controls {
   min-height: 12px;
 }
 
+#voice-feedback {
+  align-self: center;
+  margin-top: 2px;
+  min-height: 12px;
+  font-family: var(--font-ui);
+  font-size: clamp(8px, 1.8vw, 10px);
+  letter-spacing: 0.8px;
+  color: #9dc8e6;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+
+#voice-feedback.active {
+  opacity: 1;
+}
+
+#voice-feedback[data-state="accepted"] {
+  color: #8ffff0;
+}
+
+#voice-feedback[data-state="rejected"] {
+  color: #ff95aa;
+}
+
 @media (pointer: coarse), (hover: none) {
   body.touch-controls #tap-pad {
     min-height: 180px;

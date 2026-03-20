@@ -27,7 +27,13 @@ import { getLanguage, t, toggleLanguage } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
 import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
-import { getVoiceAvailability, syncVoiceInput } from '../systems/voiceInput'
+import {
+  type VoiceRuntimeStatus,
+  getVoiceAvailability,
+  getVoiceUxSnapshot,
+  subscribeVoiceUx,
+  syncVoiceInput,
+} from '../systems/voiceInput'
 
 const MARKER_CLASS_BY_TONE: Record<GlossaryMarkerTone, string> = {
   core: styles.glossaryMarkerCore,
@@ -330,6 +336,7 @@ export class MenuScene extends Phaser.Scene {
   private talentRowRefreshers: Array<() => void> = []
   private goalRowRefreshers: Array<() => void> = []
   private accessibilityRefreshers: Array<() => void> = []
+  private unsubscribeVoiceUx: (() => void) | null = null
   private glossaryOpen = false
   private glossaryModalEl: HTMLDivElement | null = null
   private glossaryTitleEl: HTMLHeadingElement | null = null
@@ -350,10 +357,15 @@ export class MenuScene extends Phaser.Scene {
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
     this.accessibilityRefreshers = []
+    this.unsubscribeVoiceUx = subscribeVoiceUx(() => {
+      this.refreshMetaUi()
+    })
     this.glossaryOpen = false
     this.glossaryCategory = 'items'
     this.glossaryTabButtons = {}
-    gameState.runObjectiveOffset = rollRunObjectiveOffset()
+    if (!Number.isFinite(gameState.runObjectiveOffset)) {
+      gameState.runObjectiveOffset = rollRunObjectiveOffset()
+    }
     setSceneChrome('menu')
     this.mountOverlay()
 
@@ -446,7 +458,7 @@ export class MenuScene extends Phaser.Scene {
       labelKey: string,
       readValue: () => boolean,
       onToggle: () => void,
-      options?: { disabled?: boolean },
+      options?: { disabled?: boolean; statusText?: () => string },
     ): void => {
       const row = document.createElement('button')
       row.type = 'button'
@@ -470,7 +482,8 @@ export class MenuScene extends Phaser.Scene {
           row.classList.add(styles.accessibilityRowDisabled)
           return
         }
-        statusEl.textContent = readValue() ? t('menu.on') : t('menu.off')
+        statusEl.textContent =
+          options?.statusText?.() ?? (readValue() ? t('menu.on') : t('menu.off'))
         row.classList.remove(styles.accessibilityRowDisabled)
       }
       this.accessibilityRefreshers.push(refresh)
@@ -496,7 +509,16 @@ export class MenuScene extends Phaser.Scene {
         this.refreshMetaUi()
         emitFeedback('confirm')
       },
-      { disabled: !voiceSupported },
+      {
+        disabled: !voiceSupported,
+        statusText: () => {
+          const snapshot = getVoiceUxSnapshot()
+          if (!snapshot.enabled && snapshot.status !== 'denied') {
+            return t('menu.off')
+          }
+          return this.getVoiceStatusLabel(snapshot.status)
+        },
+      },
     )
 
     const talentTitle = document.createElement('p')
@@ -648,6 +670,10 @@ export class MenuScene extends Phaser.Scene {
     this.talentRowRefreshers = []
     this.goalRowRefreshers = []
     this.accessibilityRefreshers = []
+    if (this.unsubscribeVoiceUx) {
+      this.unsubscribeVoiceUx()
+      this.unsubscribeVoiceUx = null
+    }
     this.glossaryModalEl = null
     this.glossaryTitleEl = null
     this.glossarySubtitleEl = null
@@ -762,6 +788,19 @@ export class MenuScene extends Phaser.Scene {
       return t('game.objectiveKillsPreview', { target: objective.killsTarget })
     }
     return t('game.objectivePortalPreview')
+  }
+
+  private getVoiceStatusLabel(status: VoiceRuntimeStatus): string {
+    if (status === 'listening') {
+      return t('menu.voiceStatusListening')
+    }
+    if (status === 'denied') {
+      return t('menu.voiceStatusDenied')
+    }
+    if (status === 'unsupported') {
+      return t('menu.unavailable')
+    }
+    return t('menu.voiceStatusIdle')
   }
 
   private async switchLanguage(): Promise<void> {

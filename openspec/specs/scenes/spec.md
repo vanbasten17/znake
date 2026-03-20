@@ -39,6 +39,12 @@ The system SHALL support a reference-driven polished menu visual identity withou
 - **THEN** player returns to the same menu state
 - **AND** Start, talent unlock, goal claim, and language toggle remain behaviorally equivalent
 
+#### Scenario: Menu voice toggle shows runtime status
+
+- **WHEN** accessibility voice controls are visible in menu
+- **THEN** status copy reflects runtime availability/listening/denied state
+- **AND** status text is localized
+
 ### Requirement: Game scene
 
 The system SHALL render gameplay UI text in the active locale.

@@ -171,7 +171,7 @@ The system SHALL keep accessibility visual presets implemented and persistable w
 
 ### Requirement: Voice command to virtual input mapping
 
-The system SHALL support optional voice commands that map to existing virtual input actions.
+The system SHALL support optional voice commands that map to existing virtual input actions with explicit UX state and command feedback.
 
 #### Scenario: Directional voice commands enqueue movement
 
@@ -188,4 +188,16 @@ The system SHALL support optional voice commands that map to existing virtual in
 - **WHEN** browser speech recognition is unavailable
 - **THEN** voice mode is shown as unavailable
 - **AND** no runtime errors are thrown
+
+#### Scenario: Voice runtime status is explicit for UX
+
+- **WHEN** voice input transitions between unavailable, denied, disabled, and active listening states
+- **THEN** a stable status value is exposed for UI rendering
+- **AND** keyboard/touch/swipe behavior remains unchanged
+
+#### Scenario: Voice command acceptance/rejection emits short feedback
+
+- **WHEN** transcript is processed
+- **THEN** recognized commands produce short accepted feedback
+- **AND** unrecognized non-empty transcripts produce short rejected feedback
 

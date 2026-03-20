@@ -134,6 +134,7 @@ export type GoalDefinition = {
 export type NonBossObjectiveKind = 'portal' | 'score' | 'kills'
 export type FloorObjectiveKind = NonBossObjectiveKind | 'boss'
 export type FloorRouteChoice = 'safer' | 'riskier'
+export type FloorTemplate = 'classic' | 'rooms_v1'
 
 export type PlayerProfile = {
   profileVersion: number

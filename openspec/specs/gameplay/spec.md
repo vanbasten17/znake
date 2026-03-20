@@ -211,3 +211,65 @@ The system SHALL support deterministic debug scenario bootstrap for fast smoke t
 - **THEN** gameplay starts with normal progression bootstrap
 - **AND** no runtime error is thrown
 
+### Requirement: Room template floor generation
+
+The system SHALL support a connected room/corridor floor template as a selectable alternative to classic wall scatter generation.
+
+#### Scenario: Floor template is selected per floor setup
+
+- **WHEN** a new floor starts
+- **THEN** gameplay resolves a configured floor template (`classic` or `rooms_v1`)
+- **AND** generation pipeline uses the selected template
+
+#### Scenario: Room template guarantees connectivity
+
+- **WHEN** `rooms_v1` template is used
+- **THEN** room and corridor carving creates a connected playable area
+- **AND** generated topology is validated before run start
+
+#### Scenario: Invalid room generation falls back safely
+
+- **WHEN** room template generation fails validation after bounded retries
+- **THEN** system falls back to classic floor generation
+- **AND** run proceeds without crash or soft-lock
+
+#### Scenario: Spawn behavior respects room/corridor zones
+
+- **WHEN** room template is active
+- **THEN** food and enemy spawns use zone-aware placement heuristics
+- **AND** spawn safety constraints remain equivalent to existing rules
+
+### Requirement: Boss-floor encounter scaffold
+
+The system SHALL maintain a dedicated boss-floor encounter branch that can be extended incrementally without breaking baseline progression.
+
+#### Scenario: Boss floor uses explicit encounter objective
+
+- **WHEN** floor is marked as boss floor
+- **THEN** progression objective is boss defeat
+- **AND** non-boss objective checks are bypassed for that floor
+
+#### Scenario: Boss defeat transitions cleanly to upgrade selection
+
+- **WHEN** boss health reaches zero
+- **THEN** scene transitions to upgrade flow
+- **AND** no additional portal/score/kill objective gating blocks the transition
+
+#### Scenario: Boss floor provides recurring shield support opportunities
+
+- **WHEN** boss encounter is active and no powerup is present
+- **THEN** a shield-oriented support powerup is offered on a recurring timer
+- **AND** support cadence remains configurable in centralized balance knobs
+
+#### Scenario: Boss support does not grant direct shield charges
+
+- **WHEN** boss support logic triggers
+- **THEN** shield availability is provided through collectible powerup spawn only
+- **AND** shield count changes only on player pickup or damage consumption
+
+#### Scenario: Boss floors do not preload shields at start
+
+- **WHEN** a boss floor initializes
+- **THEN** player starts with zero active shields
+- **AND** shield access is obtained from collectible shield powerups during encounter
+
