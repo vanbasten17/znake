@@ -165,51 +165,22 @@ The system SHALL apply persistent talent effects and selected relic effects befo
 
 The system SHALL provide distinct visual signatures for core gameplay entities without changing gameplay mechanics.
 
-#### Scenario: Snake silhouette hierarchy remains clear in motion
+#### Scenario: Shield pickup marker remains instantly recognizable at small sizes
 
-- **WHEN** snake is rendered while moving
-- **THEN** head and body segments remain visually distinguishable at a glance
-- **AND** body continuity remains readable across turns and high-speed states
-
-#### Scenario: Pickups and hazards are visually separable
-
-- **WHEN** food, powerups, biome items, and hazards are present simultaneously
-- **THEN** each category has a distinct shape/contrast cue
-- **AND** players can visually differentiate collectibles from lethal elements without relying on memory
-
-#### Scenario: Obstacle readability remains stable during pressure phases
-
-- **WHEN** squeeze/pressure or portal states are active
-- **THEN** walls, squeeze boundaries, and portal cues remain visually legible
-- **AND** readability improvements do not alter collision rules
-
-#### Scenario: Readability layer remains compatible with future PNG sprite pipeline
-
-- **WHEN** project evolves from procedural canvas glyphs to authored PNG sprite assets
-- **THEN** gameplay entity semantics (food, portal, hazards, powerups, enemies, snake hierarchy) remain consistent
-- **AND** sprite-asset migration can replace current visual primitives without changing gameplay rules
+- **WHEN** shield marker is rendered in guide and gameplay
+- **THEN** icon silhouette and interior emblem remain legible on small mobile scales
+- **AND** visual polish does not alter gameplay behavior
 
 ### Requirement: Developer scenario bootstrap
 
 The system SHALL support deterministic debug scenario bootstrap for fast smoke testing.
 
-#### Scenario: Game scene applies scenario floor and score bootstrap
+#### Scenario: Reference board scenario renders static gameplay catalog
 
-- **WHEN** `GameScene` starts with a valid `devScenarioId`
-- **THEN** scene bootstrap applies preset floor and score overrides before runtime setup
-- **AND** base run config and regular gameplay systems still initialize normally
-
-#### Scenario: Scenario flags force targeted runtime conditions
-
-- **WHEN** a dev scenario includes optional flags (e.g. magnet, extra shields, darkness, short portal timer, near-head food)
-- **THEN** those conditions are applied at startup
-- **AND** the resulting state is immediately testable without replaying prior floors
-
-#### Scenario: Invalid scenario id degrades to normal run setup
-
-- **WHEN** `GameScene` receives an unknown `devScenarioId`
-- **THEN** gameplay starts with normal progression bootstrap
-- **AND** no runtime error is thrown
+- **WHEN** `GameScene` starts with `devScenarioId=reference_board`
+- **THEN** gameplay simulation stays paused/frozen for snake/enemy/objective loops
+- **AND** scene shows representative gameplay elements (snake, walls, hazards, pickups, enemies) on one board
+- **AND** mouse hover on a reference element reveals its label for development QA
 
 ### Requirement: Room template floor generation
 
