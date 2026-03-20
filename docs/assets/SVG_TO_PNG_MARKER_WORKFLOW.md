@@ -13,12 +13,12 @@ pnpm sprites:svg2png
 Options:
 
 ```bash
-pnpm sprites:svg2png -- --in assets/sprites/source --out assets/sprites/source/png --size 320
+pnpm sprites:svg2png -- --in assets/sprites/source --out assets/sprites/source/png --size 40
 ```
 
 - `--in`: source SVG folder (default: `assets/sprites/source`)
 - `--out`: output PNG folder (default: `assets/sprites/source/png`)
-- `--size`: square output size in px (default: `320`)
+- `--size`: square output size in px (default: `40`)
 
 For lightweight previews, you can export small files:
 

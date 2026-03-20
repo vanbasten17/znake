@@ -26,8 +26,8 @@ const parseArgs = (): CliOptions => {
   const inputDir = getArg('in') ?? 'assets/sprites/source'
   const outputDir = getArg('out') ?? 'assets/sprites/source/png'
   const sizeRaw = getArg('size')
-  const parsedSize = sizeRaw ? Number.parseInt(sizeRaw, 10) : 320
-  const size = Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : 320
+  const parsedSize = sizeRaw ? Number.parseInt(sizeRaw, 10) : 40
+  const size = Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : 40
 
   return { inputDir, outputDir, size }
 }

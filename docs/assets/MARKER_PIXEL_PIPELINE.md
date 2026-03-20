@@ -28,7 +28,7 @@ pnpm generate:sprites
 # Verify manifest matches spec and print checklist
 pnpm validate:markers
 
-# Convert authored SVG marker sources to PNGs (default: 320x320)
+# Convert authored SVG marker sources to PNGs (default: 40x40)
 pnpm sprites:svg2png
 ```
 

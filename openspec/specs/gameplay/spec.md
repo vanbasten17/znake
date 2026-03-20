@@ -165,11 +165,11 @@ The system SHALL apply persistent talent effects and selected relic effects befo
 
 The system SHALL provide distinct visual signatures for core gameplay entities without changing gameplay mechanics.
 
-#### Scenario: Shield pickup marker remains instantly recognizable at small sizes
+#### Scenario: Marker overlays remain readable without ring clutter
 
-- **WHEN** shield marker is rendered in guide and gameplay
-- **THEN** icon silhouette and interior emblem remain legible on small mobile scales
-- **AND** visual polish does not alter gameplay behavior
+- **WHEN** gameplay markers are rendered in active runs
+- **THEN** marker sprites and glow cues are visible without additional circular ring overlays
+- **AND** readability improvements do not alter gameplay behavior
 
 ### Requirement: Developer scenario bootstrap
 

@@ -2721,8 +2721,6 @@ export class GameScene extends Phaser.Scene {
       const cy = fy + CELL / 2
       g.fillStyle(COLORS.foodGlow, 0.22 * pulse)
       g.fillCircle(cx, cy, CELL * 0.95)
-      g.lineStyle(1, 0xff88aa, 0.8)
-      g.strokeCircle(cx, cy, CELL * 0.36)
       this.markerFood.setTexture(markerTextureKey('core'))
       this.markerFood.setPosition(Math.round(cx), Math.round(cy))
       this.markerFood.setDisplaySize(CELL, CELL)
@@ -2737,11 +2735,8 @@ export class GameScene extends Phaser.Scene {
         const py = portal.y * CELL
         const isRiskier = portal.route === 'riskier'
         const glow = isRiskier ? 0xffa24a : COLORS.portalGlow
-        const stroke = isRiskier ? 0xffd07a : COLORS.portal
         g.fillStyle(glow, 0.22 * pulse)
         g.fillCircle(px + CELL / 2, py + CELL / 2, CELL * 0.95)
-        g.lineStyle(2, stroke, 0.9)
-        g.strokeCircle(px + CELL / 2, py + CELL / 2, CELL * 0.35)
         const pcx = px + CELL / 2
         const pcy = py + CELL / 2
         const pImg = portalIndex === 0 ? this.markerPortal0 : this.markerPortal1
@@ -2761,15 +2756,6 @@ export class GameScene extends Phaser.Scene {
       const cy = ry + CELL / 2
       g.fillStyle(0x7a2fff, 0.24)
       g.fillCircle(cx, cy, CELL * 0.96)
-      g.lineStyle(1, 0xd089ff, 0.85)
-      g.strokeCircle(cx, cy, CELL * 0.44)
-      g.lineStyle(2, 0xffd2ff, 0.75)
-      g.beginPath()
-      g.moveTo(cx - cellPx(5), cy - cellPx(4))
-      g.lineTo(cx, cy - cellPx(1))
-      g.lineTo(cx - cellPx(2), cy + cellPx(2))
-      g.lineTo(cx + cellPx(4), cy + cellPx(5))
-      g.strokePath()
       const riftDisp = Math.round(CELL * 0.84)
       this.markerRift.setTexture(markerTextureKey('rift'))
       this.markerRift.setPosition(Math.round(cx), Math.round(cy))
@@ -2795,8 +2781,6 @@ export class GameScene extends Phaser.Scene {
       const s = CELL * 0.46 * pulse
       g.fillStyle(color, 0.2 * pulse)
       g.fillCircle(cx, cy, CELL * 0.82)
-      g.lineStyle(1, 0xffffff, 0.32)
-      g.strokeCircle(cx, cy, CELL * 0.36)
       g.fillStyle(color, 0.95)
       const markerTone: 'shield' | 'slow' | 'ghost' | 'score' | 'venom' = this.powerup.type
       const powerupDisp = Math.max(1, Math.round(s * 2))
@@ -2818,8 +2802,6 @@ export class GameScene extends Phaser.Scene {
       const s = CELL * 0.34 * pulse
       if (isBeacon) {
         g.fillCircle(ix + CELL / 2, iy + CELL / 2, s * 0.48)
-        g.lineStyle(2, 0xf8d845, 0.9)
-        g.strokeCircle(ix + CELL / 2, iy + CELL / 2, s * 0.62)
       } else if (isRiftBattery) {
         g.fillTriangle(
           ix + CELL / 2,
