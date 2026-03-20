@@ -1,29 +1,32 @@
 /**
  * Exports PNGs of the current procedural marker art (same pipeline as `markerHiRes` / glossary).
- * Uses `drawMarkerSpriteCanvas` from `src/game/render/markerRenderer.ts`.
+ * Uses `drawMarkerSpriteProcedural` from `src/game/render/markerRenderer.ts` (same as runtime fallback).
  *
  * Logical frame / inner size / default scale: `src/game/render/markerExportSpec.ts`.
  *
  * Run: `pnpm generate:sprites`
+ * **`marker_<tone>.png`:** if a PNG already exists for a tone (e.g. hand-edited), export re-rasterizes from that file instead of procedural art for that tone.
  * Optional: `SPRITE_EXPORT_SCALE=4 pnpm generate:sprites` (default from `MARKER_EXPORT_SCALE_DEFAULT` in spec).
  * Validate: `pnpm validate:markers`
  * Output: `assets/sprites/generated/`
  */
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createCanvas } from '@napi-rs/canvas'
+import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { GLOSSARY_MARKER_TONES, type GlossaryMarkerTone } from '../src/game/core/glossary'
 import {
   MARKER_EXPORT_INNER_SIZE,
   MARKER_EXPORT_LOGICAL_FRAME,
   MARKER_EXPORT_SCALE_DEFAULT,
 } from '../src/game/render/markerExportSpec'
-import { drawMarkerSpriteCanvas } from '../src/game/render/markerRenderer'
+import { drawMarkerSpriteProcedural } from '../src/game/render/markerRenderer'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
 const OUT_DIR = join(ROOT, 'assets', 'sprites', 'generated')
+
+const markerPngPath = (tone: GlossaryMarkerTone): string => join(OUT_DIR, `marker_${tone}.png`)
 
 const LOGICAL_FRAME = MARKER_EXPORT_LOGICAL_FRAME
 const MARKER_SIZE = MARKER_EXPORT_INNER_SIZE
@@ -43,7 +46,7 @@ const EXPORT_SCALE = Math.max(
 
 const ALL_TONES = GLOSSARY_MARKER_TONES
 
-const renderTone = (tone: GlossaryMarkerTone): Buffer => {
+const renderTone = async (tone: GlossaryMarkerTone): Promise<Buffer> => {
   const w = LOGICAL_FRAME * EXPORT_SCALE
   const h = LOGICAL_FRAME * EXPORT_SCALE
   const canvas = createCanvas(w, h)
@@ -55,11 +58,17 @@ const renderTone = (tone: GlossaryMarkerTone): Buffer => {
   ctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0)
   const cx = LOGICAL_FRAME / 2
   const cy = LOGICAL_FRAME / 2
-  drawMarkerSpriteCanvas(ctx, tone, cx, cy, MARKER_SIZE)
+  const existing = markerPngPath(tone)
+  if (existsSync(existing)) {
+    const img = await loadImage(existing)
+    ctx.drawImage(img, 0, 0, LOGICAL_FRAME, LOGICAL_FRAME)
+  } else {
+    drawMarkerSpriteProcedural(ctx, tone, cx, cy, MARKER_SIZE)
+  }
   return canvas.toBuffer('image/png')
 }
 
-const main = (): void => {
+const main = async (): Promise<void> => {
   mkdirSync(OUT_DIR, { recursive: true })
 
   const manifest = {
@@ -68,14 +77,15 @@ const main = (): void => {
     exportScale: EXPORT_SCALE,
     frameWidth: LOGICAL_FRAME * EXPORT_SCALE,
     frameHeight: LOGICAL_FRAME * EXPORT_SCALE,
-    source: 'src/game/render/markerRenderer.ts (drawMarkerSpriteCanvas)',
+    source:
+      'src/game/render/markerRenderer.ts (drawMarkerSpriteProcedural) + optional existing PNGs',
     frames: [] as { index: number; tone: GlossaryMarkerTone; file: string }[],
   }
 
   for (let i = 0; i < ALL_TONES.length; i += 1) {
     const tone = ALL_TONES[i]
     const fileName = `marker_${tone}.png`
-    const buf = renderTone(tone)
+    const buf = await renderTone(tone)
     writeFileSync(join(OUT_DIR, fileName), buf)
     manifest.frames.push({ index: i, tone, file: fileName })
   }
@@ -98,7 +108,13 @@ const main = (): void => {
     if (!cctx) continue
     cctx.imageSmoothingEnabled = false
     cctx.setTransform(EXPORT_SCALE, 0, 0, EXPORT_SCALE, 0, 0)
-    drawMarkerSpriteCanvas(cctx, tone, LOGICAL_FRAME / 2, LOGICAL_FRAME / 2, MARKER_SIZE)
+    const existingAtlas = markerPngPath(tone)
+    if (existsSync(existingAtlas)) {
+      const img = await loadImage(existingAtlas)
+      cctx.drawImage(img, 0, 0, LOGICAL_FRAME, LOGICAL_FRAME)
+    } else {
+      drawMarkerSpriteProcedural(cctx, tone, LOGICAL_FRAME / 2, LOGICAL_FRAME / 2, MARKER_SIZE)
+    }
     actx.drawImage(cell, i * cellW, 0)
   }
 
@@ -110,4 +126,7 @@ const main = (): void => {
   )
 }
 
-main()
+main().catch((err: unknown) => {
+  console.error(err)
+  process.exit(1)
+})

@@ -18,6 +18,8 @@ import {
 import { getFloorObjective, rollRunObjectiveOffset } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { GoalId } from '../core/types'
+import { drawMarkerSpriteCanvas } from '../render/markerBitmapDraw'
+import { ensureMarkerBitmapsLoaded } from '../render/markerBitmaps'
 import {
   GLOSSARY_MARKER_DISPLAY_PX,
   MARKER_EXPORT_FRAME_PX_DEFAULT,
@@ -25,7 +27,6 @@ import {
   MARKER_EXPORT_LOGICAL_FRAME,
   MARKER_EXPORT_SCALE_DEFAULT,
 } from '../render/markerExportSpec'
-import { drawMarkerSpriteCanvas } from '../render/markerRenderer'
 import { getAccessibilitySettings, updateAccessibilitySettings } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import { setSceneChrome } from '../systems/domHud'
@@ -116,7 +117,8 @@ export class MenuScene extends Phaser.Scene {
     super('Menu')
   }
 
-  public create(): void {
+  public async create(): Promise<void> {
+    await ensureMarkerBitmapsLoaded()
     resetVirtualInput()
     this.waiting = true
     this.talentRowRefreshers = []

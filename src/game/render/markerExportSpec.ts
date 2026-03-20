@@ -13,7 +13,7 @@
 /** Logical coordinate space (same as one game cell unit for layout). */
 export const MARKER_EXPORT_LOGICAL_FRAME = 20
 
-/** Icon radius / half-extent in logical units (`drawMarkerSpriteCanvas` size parameter). */
+/** Icon radius / half-extent in logical units (`drawMarkerSpriteProcedural` / `markerBitmapDraw` size parameter). */
 export const MARKER_EXPORT_INNER_SIZE = 18
 
 /**

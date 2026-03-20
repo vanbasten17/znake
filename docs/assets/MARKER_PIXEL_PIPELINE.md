@@ -10,7 +10,9 @@ This document is the **operational checklist** for procedural glossary markers: 
 |------|------|
 | `src/game/render/markerExportSpec.ts` | **Only place** for `MARKER_EXPORT_LOGICAL_FRAME`, `MARKER_EXPORT_INNER_SIZE`, `MARKER_EXPORT_SCALE_DEFAULT`, `GLOSSARY_MARKER_DISPLAY_PX` |
 | `src/game/render/markerVectorArt.ts` | **Premium art standard** (same language as the apple): glow + volumetric body + specular/shadow + vector icons — no 5×5 bitmap grid |
-| `src/game/render/markerRenderer.ts` | Entry: `core` = apple; all other tones delegate to `markerVectorArt` |
+| `src/game/render/markerRenderer.ts` | `drawMarkerSpriteProcedural` — `core` = apple; other tones → `markerVectorArt` (no PNG imports; safe for Node tooling) |
+| `src/game/render/markerBitmapDraw.ts` | Runtime: prefers `marker_<tone>.png` when loaded, else calls `drawMarkerSpriteProcedural` |
+| `src/game/render/markerBitmaps.ts` | Loads all `marker_*.png` URLs before hi-res textures + glossary |
 | `src/game/render/markerHiRes.ts` | Builds **in-game** canvas textures (same raster as export) + `FilterMode.NEAREST` |
 | `src/game/scenes/GameScene.ts` | **Hi-res marker `Image`s** for world entities (see below); `Graphics` only for glows/rings — not for the icon interior |
 | `src/game/scenes/MenuScene.ts` | Glossary: same transform as export; display size from spec |
@@ -31,7 +33,7 @@ Optional lower-res PNGs only (previews): `SPRITE_EXPORT_SCALE=4 pnpm generate:sp
 
 ## In-game (Phaser) — same resolution as `core` and as `pnpm generate:sprites`
 
-World pickups and objectives must use **canvas textures** registered by `registerMarkerHiResTextures(scene)` (`markerHiRes.ts`), which call `drawMarkerSpriteCanvas` at **`MARKER_EXPORT_*`** — identical pipeline to PNG export. Do **not** draw the marker *interior* with `Graphics` + `drawMarkerSpritePhaser` for these entities; that was the old low-res path.
+World pickups and objectives must use **canvas textures** registered by `registerMarkerHiResTextures(scene)` (`markerHiRes.ts`), which call `drawMarkerSpriteCanvas` (from `markerBitmapDraw.ts`) at **`MARKER_EXPORT_*`** — same as PNG export when `pnpm generate:sprites` has written those PNGs; runtime prefers each `marker_<tone>.png` when it loads. Do **not** draw the marker *interior* with `Graphics` + `drawMarkerSpritePhaser` for these entities; that was the old low-res path.
 
 | Step | Requirement |
 |------|-------------|
@@ -71,7 +73,7 @@ Glyphs and fills follow **`src/game/render/markerSemantics.ts`** (`MarkerSemanti
 | **terrain** | Gel / arena — dificulten moviment | Blau fred, ocre |
 | **enemy** | Enemics — amenaça | Taronja, magenta, porpra, blau hostil, or (boss) |
 
-Icon art lives in **`markerVectorArt.ts`** (vector icons on premium tokens), invoked via `markerRenderer.ts` → `drawMarkerSpriteCanvas`.
+Icon art lives in **`markerVectorArt.ts`** (vector icons on premium tokens), invoked via `markerRenderer.ts` (`drawMarkerSpriteProcedural`) and **`markerBitmapDraw.ts`** (`drawMarkerSpriteCanvas` at runtime).
 
 ## Related docs
 

@@ -1,7 +1,10 @@
 # Manual marker PNG replacement (and rebuilding the atlas)
 
-The runtime game rendering of pickup markers does **not** use `assets/sprites/generated/*.png` (it draws procedural canvas textures at startup via `markerHiRes.ts`).  
-However, the PNGs + `marker_atlas.png` are used as **export/reference outputs**.
+**Every `marker_<tone>.png`:** the game loads them at runtime via `src/game/render/markerBitmaps.ts` + `markerBitmapDraw.ts` (fallback: procedural `drawMarkerSpriteProcedural` in `markerRenderer.ts`). After you replace a file, **restart the dev server** or hard-refresh so Vite picks up the asset.
+
+If a PNG fails to load, that tone falls back to **procedural** art.
+
+The PNGs + `marker_atlas.png` are also **export/reference outputs** (atlas + docs).
 
 ## Expected PNG sizes (current spec)
 
@@ -38,4 +41,5 @@ This script will:
 
 - Keep all `marker_<tone>.png` frames **the same dimensions** (the script refuses to build the atlas if they differ).
 - Do **not** edit `marker_atlas.png` manually; always rebuild it with the script.
+- **`pnpm generate:sprites`:** for each tone, if `marker_<tone>.png` **already exists**, the export re-rasterizes from that file (so hand edits are preserved). To **force** regeneration from code for a tone, delete its PNG (or temporarily move `assets/sprites/generated/`) and run `pnpm generate:sprites` again.
 

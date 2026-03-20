@@ -164,6 +164,8 @@ export class GameScene extends Phaser.Scene {
   private referenceMarkers: ReferenceMarker[] = []
   private referenceHoverLabelByCell = new Map<string, string>()
   private referenceHoverLabel: string | null = null
+  /** False until async `create()` finishes — Phaser may call `update` before then. */
+  private gameCreateComplete = false
 
   private bgGraphics!: Phaser.GameObjects.Graphics
   private wallGraphics!: Phaser.GameObjects.Graphics
@@ -184,7 +186,8 @@ export class GameScene extends Phaser.Scene {
     super('Game')
   }
 
-  public create(data: GameSceneData): void {
+  public async create(data: GameSceneData): Promise<void> {
+    this.gameCreateComplete = false
     resetVirtualInput()
     const debugScenario = data.devScenarioId ? getDevScenario(data.devScenarioId) : null
     if (debugScenario) {
@@ -256,7 +259,7 @@ export class GameScene extends Phaser.Scene {
     this.gameGraphics = this.add.graphics()
     this.fxGraphics = this.add.graphics()
 
-    registerMarkerHiResTextures(this)
+    await registerMarkerHiResTextures(this)
     const markerDepth = 8
     const mk = (tone: Parameters<typeof markerTextureKey>[0]) =>
       this.add
@@ -371,9 +374,15 @@ export class GameScene extends Phaser.Scene {
     if (debugScenario?.referenceBoard) {
       this.setupReferenceBoardScenario()
     }
+
+    this.gameCreateComplete = true
   }
 
   public update(_time: number, delta: number): void {
+    if (!this.gameCreateComplete) {
+      return
+    }
+
     if (window.virtualInput.pause) {
       window.virtualInput.pause = false
       this.togglePause()

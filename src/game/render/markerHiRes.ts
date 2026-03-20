@@ -8,13 +8,14 @@
  */
 import Phaser from 'phaser'
 import { GLOSSARY_MARKER_TONES, type GlossaryMarkerTone } from '../core/glossary'
+import { drawMarkerSpriteCanvas } from './markerBitmapDraw'
+import { ensureMarkerBitmapsLoaded } from './markerBitmaps'
 import {
   MARKER_EXPORT_FRAME_PX_DEFAULT,
   MARKER_EXPORT_INNER_SIZE,
   MARKER_EXPORT_LOGICAL_FRAME,
   MARKER_EXPORT_SCALE_DEFAULT,
 } from './markerExportSpec'
-import { drawMarkerSpriteCanvas } from './markerRenderer'
 
 /** Aliases for `markerExportSpec` (used by MenuScene / tooling). */
 export const MARKER_TEX_LOGICAL = MARKER_EXPORT_LOGICAL_FRAME
@@ -24,7 +25,8 @@ export const MARKER_TEX_INNER_SIZE = MARKER_EXPORT_INNER_SIZE
 
 export const markerTextureKey = (tone: GlossaryMarkerTone): string => `marker_hi_${tone}`
 
-export const registerMarkerHiResTextures = (scene: Phaser.Scene): void => {
+export const registerMarkerHiResTextures = async (scene: Phaser.Scene): Promise<void> => {
+  await ensureMarkerBitmapsLoaded()
   for (const tone of GLOSSARY_MARKER_TONES) {
     const key = markerTextureKey(tone)
     if (scene.textures.exists(key)) {

@@ -80,10 +80,10 @@ const isTileTone = (tone: GlossaryMarkerTone): boolean =>
   tone === 'ice' || tone === 'sand' || tone === 'squeeze'
 
 /**
- * All markers use the same “premium” pipeline as `core`: volumetric body + vector icon.
+ * Procedural-only raster (no PNG). Runtime uses `markerBitmapDraw.drawMarkerSpriteCanvas` to prefer disk PNGs.
  * @see `markerVectorArt.ts`
  */
-export const drawMarkerSpriteCanvas = (
+export const drawMarkerSpriteProcedural = (
   ctx: CanvasRenderingContext2D,
   tone: GlossaryMarkerTone,
   cx: number,
