@@ -149,6 +149,17 @@ body.keyboard-controls #controls {
   display: none;
 }
 
+/* Legacy touch overlays from previous quadrant prototypes must stay disabled. */
+#tap-pad,
+#touch-overlay,
+#quadrant-overlay,
+.touch-direction-overlay,
+.quadrant-overlay {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 #tap-pad {
   position: relative;
   flex: 1 1 auto;

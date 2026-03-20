@@ -270,16 +270,30 @@ export const drawVectorIconCanvas = (
       break
     }
     case 'shield': {
+      // Outer shield (top arc + downward tip)
       ctx.beginPath()
-      ctx.moveTo(cx, cy - s * 0.95)
-      ctx.quadraticCurveTo(cx + s * 0.95, cy - s * 0.35, cx + s * 0.82, cy + s * 0.55)
-      ctx.lineTo(cx, cy + s * 0.95)
-      ctx.lineTo(cx - s * 0.82, cy + s * 0.55)
-      ctx.quadraticCurveTo(cx - s * 0.95, cy - s * 0.35, cx, cy - s * 0.95)
+      ctx.moveTo(cx - s * 0.78, cy - s * 0.45)
+      ctx.quadraticCurveTo(cx, cy - s * 0.98, cx + s * 0.78, cy - s * 0.45)
+      ctx.lineTo(cx + s * 0.64, cy + s * 0.34)
+      ctx.lineTo(cx, cy + s * 0.96)
+      ctx.lineTo(cx - s * 0.64, cy + s * 0.34)
       ctx.closePath()
       ctx.globalAlpha = 0.95
       ctx.fill()
       ctx.globalAlpha = 1
+      // Inner inset
+      ctx.lineWidth = Math.max(1, s * 0.16)
+      ctx.strokeStyle = isLightBase(PAINT.shield.base)
+        ? 'rgba(26, 21, 48, 0.5)'
+        : 'rgba(248, 252, 255, 0.58)'
+      ctx.beginPath()
+      ctx.moveTo(cx - s * 0.5, cy - s * 0.34)
+      ctx.quadraticCurveTo(cx, cy - s * 0.65, cx + s * 0.5, cy - s * 0.34)
+      ctx.lineTo(cx + s * 0.4, cy + s * 0.22)
+      ctx.lineTo(cx, cy + s * 0.62)
+      ctx.lineTo(cx - s * 0.4, cy + s * 0.22)
+      ctx.closePath()
+      ctx.stroke()
       break
     }
     case 'slow': {
@@ -553,12 +567,31 @@ export const drawVectorIconPhaser = (
       break
     case 'shield': {
       g.beginPath()
-      g.moveTo(cx, cy - s * 0.95)
-      g.lineTo(cx + s * 0.82, cy + s * 0.55)
-      g.lineTo(cx, cy + s * 0.95)
-      g.lineTo(cx - s * 0.82, cy + s * 0.55)
+      g.moveTo(cx - s * 0.78, cy - s * 0.45)
+      g.lineTo(cx - s * 0.38, cy - s * 0.82)
+      g.lineTo(cx + s * 0.38, cy - s * 0.82)
+      g.lineTo(cx + s * 0.78, cy - s * 0.45)
+      g.lineTo(cx + s * 0.64, cy + s * 0.34)
+      g.lineTo(cx, cy + s * 0.96)
+      g.lineTo(cx - s * 0.64, cy + s * 0.34)
       g.closePath()
       g.fillPath()
+      g.lineStyle(
+        Math.max(1, lw * 0.85),
+        isLightBase(PAINT.shield.base) ? 0x1a1530 : 0xf8fcff,
+        alpha * 0.58,
+      )
+      g.strokePath()
+      g.beginPath()
+      g.moveTo(cx - s * 0.5, cy - s * 0.34)
+      g.lineTo(cx - s * 0.26, cy - s * 0.57)
+      g.lineTo(cx + s * 0.26, cy - s * 0.57)
+      g.lineTo(cx + s * 0.5, cy - s * 0.34)
+      g.lineTo(cx + s * 0.4, cy + s * 0.22)
+      g.lineTo(cx, cy + s * 0.62)
+      g.lineTo(cx - s * 0.4, cy + s * 0.22)
+      g.closePath()
+      g.strokePath()
       break
     }
     case 'slow': {

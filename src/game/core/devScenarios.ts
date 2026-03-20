@@ -6,6 +6,7 @@ export type DevScenarioId =
   | 'egg_mirror_encounter'
   | 'magnet_food_lock'
   | 'portal_final_seconds'
+  | 'reference_board'
 
 export type DevScenario = {
   id: DevScenarioId
@@ -20,6 +21,7 @@ export type DevScenario = {
   forceEggMirror?: boolean
   portalCountdownMs?: number
   placeFoodNearHead?: boolean
+  referenceBoard?: boolean
 }
 
 export const DEV_SCENARIOS: DevScenario[] = [
@@ -72,6 +74,13 @@ export const DEV_SCENARIOS: DevScenario[] = [
     floor: 2,
     score: 70,
     portalCountdownMs: 2200,
+  },
+  {
+    id: 'reference_board',
+    label: 'Reference Board (Static + Hover)',
+    floor: 2,
+    score: 0,
+    referenceBoard: true,
   },
 ]
 

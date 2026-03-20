@@ -3,6 +3,7 @@ import { BALANCE, createBaseRunConfig, getFloorSetup } from '../core/balance'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
 import { getDevScenario } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
+import type { GlossaryMarkerTone } from '../core/glossary'
 import { applyRelicEffect, applyTalentEffects } from '../core/meta'
 import { getFloorObjective } from '../core/objectives'
 import { gameState, playerProfile } from '../core/state'
@@ -23,6 +24,7 @@ import type {
   WorldItemType,
 } from '../core/types'
 import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerHiRes'
+import { drawMarkerSpritePhaser } from '../render/markerRenderer'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -64,6 +66,13 @@ type VenomProjectile = {
   dir: Vec2
   stepTimerMs: number
   stepsRemaining: number
+}
+
+type ReferenceMarker = {
+  x: number
+  y: number
+  tone: GlossaryMarkerTone
+  label: string
 }
 
 const directionMap: Record<string, Vec2> = {
@@ -151,6 +160,10 @@ export class GameScene extends Phaser.Scene {
   private runStartMs = 0
   private isDying = false
   private pauseText?: Phaser.GameObjects.Text
+  private referenceBoardMode = false
+  private referenceMarkers: ReferenceMarker[] = []
+  private referenceHoverLabelByCell = new Map<string, string>()
+  private referenceHoverLabel: string | null = null
 
   private bgGraphics!: Phaser.GameObjects.Graphics
   private wallGraphics!: Phaser.GameObjects.Graphics
@@ -354,6 +367,10 @@ export class GameScene extends Phaser.Scene {
     this.redrawTerrainGraphics()
     updateHud(this.score)
     setHintText(`${getMoveHintText()} · ${t('hint.itemLegend')}`)
+
+    if (debugScenario?.referenceBoard) {
+      this.setupReferenceBoardScenario()
+    }
   }
 
   public update(_time: number, delta: number): void {
@@ -388,6 +405,16 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.paused) {
+      return
+    }
+
+    if (this.referenceBoardMode) {
+      this.updateReferenceBoardHover()
+      const status = this.referenceHoverLabel
+        ? `DEV REFERENCE · ${this.referenceHoverLabel}`
+        : 'DEV REFERENCE · Hover any marker/cell'
+      setRunStatusText(status)
+      this.drawFrame()
       return
     }
 
@@ -519,6 +546,10 @@ export class GameScene extends Phaser.Scene {
     this.sandTileCount = 0
     this.sandMovePenaltyMs = 0
     this.isDying = false
+    this.referenceBoardMode = false
+    this.referenceMarkers = []
+    this.referenceHoverLabelByCell.clear()
+    this.referenceHoverLabel = null
   }
 
   private pushDirection(next: Vec2): void {
@@ -754,6 +785,235 @@ export class GameScene extends Phaser.Scene {
       p.life -= dt / p.maxLife
       return p.life > 0
     })
+  }
+
+  private cellKey(x: number, y: number): string {
+    return `${x},${y}`
+  }
+
+  private markReferenceLabel(x: number, y: number, label: string): void {
+    this.referenceHoverLabelByCell.set(this.cellKey(x, y), label)
+  }
+
+  private setupReferenceBoardScenario(): void {
+    this.referenceBoardMode = true
+
+    this.currentDir = { x: 1, y: 0 }
+    this.moveQueue = []
+    this.moveTimer = 0
+    this.enemyMoveTimer = 0
+    this.venomCooldownMs = 0
+    this.venomProjectiles = []
+    this.portalCountdownMs = 0
+    this.corePressureActive = false
+    this.corePressureRemainingMs = 0
+    this.squeezeInset = 0
+    this.darknessActive = false
+    this.darknessRadius = 0
+    this.darknessEdgeFalloff = 0
+    this.darknessAlphaOuter = 0
+    this.darknessAlphaEdge = 0
+    this.shields = 1
+    this.ghostCharges = 1
+    this.venomCharges = 1
+
+    this.referenceMarkers = []
+    this.referenceHoverLabelByCell.clear()
+    this.referenceHoverLabel = null
+
+    this.walls = new Set<string>([
+      this.cellKey(1, 7),
+      this.cellKey(2, 7),
+      this.cellKey(3, 7),
+      this.cellKey(16, 7),
+      this.cellKey(17, 7),
+      this.cellKey(18, 7),
+      this.cellKey(9, 12),
+      this.cellKey(10, 12),
+    ])
+    this.iceTiles = new Set<string>([
+      this.cellKey(1, 10),
+      this.cellKey(2, 10),
+      this.cellKey(3, 10),
+      this.cellKey(4, 10),
+    ])
+    this.sandTiles = new Set<string>([
+      this.cellKey(15, 10),
+      this.cellKey(16, 10),
+      this.cellKey(17, 10),
+      this.cellKey(18, 10),
+    ])
+    this.iceActive = true
+    this.sandActive = true
+
+    this.snake = [
+      { x: 8, y: 14 },
+      { x: 7, y: 14 },
+      { x: 6, y: 14 },
+      { x: 5, y: 14 },
+    ]
+    this.playerHeadHistory = this.snake[0] ? [{ ...this.snake[0] }] : []
+    for (let i = 0; i < this.snake.length; i += 1) {
+      this.markReferenceLabel(
+        this.snake[i].x,
+        this.snake[i].y,
+        i === 0 ? 'Snake Head' : 'Snake Body',
+      )
+    }
+
+    this.food = { x: 1, y: 1, pulse: 0 }
+    this.powerup = null
+    this.biomeItem = null
+    this.portals = [{ x: 18, y: 1, pulse: 0, route: 'safer' }]
+    this.riftCell = { x: 18, y: 4 }
+
+    this.enemies = [
+      {
+        body: [{ x: 1, y: 13 }],
+        dir: { x: 1, y: 0 },
+        alive: true,
+        kind: 'normal',
+        health: 1,
+        dashCooldown: 0,
+        hatchTurnsRemaining: 0,
+        mirrorDelaySteps: 0,
+      },
+      {
+        body: [{ x: 3, y: 13 }],
+        dir: { x: 1, y: 0 },
+        alive: true,
+        kind: 'stalker',
+        health: 1,
+        dashCooldown: 0,
+        hatchTurnsRemaining: 0,
+        mirrorDelaySteps: 0,
+      },
+      {
+        body: [{ x: 5, y: 13 }],
+        dir: { x: 1, y: 0 },
+        alive: true,
+        kind: 'ambusher',
+        health: 1,
+        dashCooldown: 0,
+        hatchTurnsRemaining: 0,
+        mirrorDelaySteps: 0,
+      },
+      {
+        body: [{ x: 15, y: 13 }],
+        dir: { x: 1, y: 0 },
+        alive: true,
+        kind: 'egg',
+        health: 1,
+        dashCooldown: 0,
+        hatchTurnsRemaining: 0,
+        mirrorDelaySteps: 0,
+      },
+      {
+        body: [{ x: 17, y: 13 }],
+        dir: { x: 1, y: 0 },
+        alive: true,
+        kind: 'mirror',
+        health: 1,
+        dashCooldown: 0,
+        hatchTurnsRemaining: 0,
+        mirrorDelaySteps: 0,
+      },
+      {
+        body: [
+          { x: 9, y: 1 },
+          { x: 9, y: 2 },
+          { x: 9, y: 3 },
+          { x: 9, y: 4 },
+        ],
+        dir: { x: 0, y: 1 },
+        alive: true,
+        kind: 'boss',
+        health: 3,
+        dashCooldown: 0,
+        hatchTurnsRemaining: 0,
+        mirrorDelaySteps: 0,
+      },
+    ]
+    this.markReferenceLabel(1, 13, 'Enemy · Normal')
+    this.markReferenceLabel(3, 13, 'Enemy · Stalker')
+    this.markReferenceLabel(5, 13, 'Enemy · Ambusher')
+    this.markReferenceLabel(15, 13, 'Enemy · Egg')
+    this.markReferenceLabel(17, 13, 'Enemy · Mirror')
+    this.markReferenceLabel(9, 1, 'Enemy · Boss')
+
+    const markerSpecs: Array<{ tone: GlossaryMarkerTone; label: string }> = [
+      { tone: 'core', label: t('glossary.entry.red_core.name') },
+      { tone: 'biomeCore', label: t('glossary.entry.coolant_charge.name') },
+      { tone: 'portal', label: t('glossary.entry.portal.name') },
+      { tone: 'battery', label: t('glossary.entry.rift_battery.name') },
+      { tone: 'beacon', label: t('glossary.entry.portal_beacon.name') },
+      { tone: 'shield', label: t('glossary.entry.power_shield.name') },
+      { tone: 'slow', label: t('glossary.entry.power_slow.name') },
+      { tone: 'ghost', label: t('glossary.entry.power_ghost.name') },
+      { tone: 'score', label: t('glossary.entry.power_score.name') },
+      { tone: 'venom', label: t('glossary.entry.power_venom.name') },
+      { tone: 'darkness', label: t('glossary.entry.hazard_darkness.name') },
+      { tone: 'squeeze', label: t('glossary.entry.hazard_squeeze.name') },
+      { tone: 'ice', label: t('glossary.entry.hazard_ice.name') },
+      { tone: 'sand', label: t('glossary.entry.hazard_sand.name') },
+      { tone: 'rift', label: t('glossary.entry.hazard_rift.name') },
+      { tone: 'enemyNormal', label: t('glossary.entry.enemy_normal.name') },
+      { tone: 'enemyStalker', label: t('glossary.entry.enemy_stalker.name') },
+      { tone: 'enemyAmbusher', label: t('glossary.entry.enemy_ambusher.name') },
+      { tone: 'enemyEgg', label: t('glossary.entry.enemy_egg.name') },
+      { tone: 'enemyMirror', label: t('glossary.entry.enemy_mirror.name') },
+      { tone: 'enemyBoss', label: t('glossary.entry.enemy_boss.name') },
+      { tone: 'talentSpeed', label: t('glossary.entry.talent_speed_1.name') },
+      { tone: 'talentSurvival', label: t('glossary.entry.talent_survival_1.name') },
+      { tone: 'talentHunt', label: t('glossary.entry.talent_hunt_1.name') },
+    ]
+
+    const startX = 2
+    const startY = 2
+    const cols = 6
+    for (let i = 0; i < markerSpecs.length; i += 1) {
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      const x = startX + col * 3
+      const y = startY + row * 2
+      const marker = markerSpecs[i]
+      this.referenceMarkers.push({ x, y, tone: marker.tone, label: marker.label })
+      this.markReferenceLabel(x, y, marker.label)
+    }
+
+    for (const wall of this.walls) {
+      const [x, y] = wall.split(',').map(Number)
+      this.markReferenceLabel(x, y, 'Wall')
+    }
+    for (const ice of this.iceTiles) {
+      const [x, y] = ice.split(',').map(Number)
+      this.markReferenceLabel(x, y, 'Ice Tile')
+    }
+    for (const sand of this.sandTiles) {
+      const [x, y] = sand.split(',').map(Number)
+      this.markReferenceLabel(x, y, 'Sand Tile')
+    }
+    this.markReferenceLabel(18, 1, 'Portal')
+    this.markReferenceLabel(18, 4, 'Void Rift')
+
+    this.drawWalls()
+    this.redrawTerrainGraphics()
+    setHintText('DEV · Static reference board')
+  }
+
+  private updateReferenceBoardHover(): void {
+    const pointer = this.input.activePointer
+    if (!pointer) {
+      this.referenceHoverLabel = null
+      return
+    }
+    const x = Math.floor(pointer.worldX / CELL)
+    const y = Math.floor(pointer.worldY / CELL)
+    if (x < 0 || x >= BASE_COLS || y < 0 || y >= BASE_ROWS) {
+      this.referenceHoverLabel = null
+      return
+    }
+    this.referenceHoverLabel = this.referenceHoverLabelByCell.get(this.cellKey(x, y)) ?? null
   }
 
   private getVenomStatusText(): string {
@@ -2549,6 +2809,19 @@ export class GameScene extends Phaser.Scene {
       this.markerBiome.setDisplaySize(biomeDisp, biomeDisp)
       this.markerBiome.setAlpha(0.9)
       this.markerBiome.setVisible(true)
+    }
+    if (this.referenceBoardMode && this.referenceMarkers.length > 0) {
+      const markerSize = Math.round(CELL * 0.9)
+      for (const marker of this.referenceMarkers) {
+        drawMarkerSpritePhaser(
+          g,
+          marker.tone,
+          marker.x * CELL + CELL / 2,
+          marker.y * CELL + CELL / 2,
+          markerSize,
+          0.98,
+        )
+      }
     }
 
     for (const enemy of this.enemies) {
