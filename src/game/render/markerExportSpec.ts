@@ -18,9 +18,10 @@ export const MARKER_EXPORT_INNER_SIZE = 18
 
 /**
  * Integer upscale from logical space to bitmap pixels (nearest-neighbor).
- * Default 16 → 320×320 px (`20 × 16`). Tradeoff vs `CELL`: higher scale = sharper markers, more VRAM/bandwidth.
+ * Default 2 → 40×40 px (`20 × 2`). Tradeoff vs `CELL`: this matches the glossary display size (40px)
+ * and makes the marker textures effectively 1:1 when `CELL=40`.
  */
-export const MARKER_EXPORT_SCALE_DEFAULT = 16
+export const MARKER_EXPORT_SCALE_DEFAULT = 2
 
 /** Pixel dimensions of one exported frame at the default scale. */
 export const MARKER_EXPORT_FRAME_PX_DEFAULT =

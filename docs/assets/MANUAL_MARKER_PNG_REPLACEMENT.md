@@ -8,15 +8,15 @@ However, the PNGs + `marker_atlas.png` are used as **export/reference outputs**.
 The marker export spec is defined in `src/game/render/markerExportSpec.ts`:
 
 - `MARKER_EXPORT_LOGICAL_FRAME = 20`
-- `MARKER_EXPORT_SCALE_DEFAULT = 16`
+- `MARKER_EXPORT_SCALE_DEFAULT = 2`
 
 So each `marker_<tone>.png` frame should be a **square**:
 
-- **`20 × 16 = 320 × 320 px`**
+- **`20 × 2 = 40 × 40 px`**
 
 There are `GLOSSARY_MARKER_TONES.length = 24` tones, so the expected atlas is:
 
-- **`marker_atlas.png` = `320 × 24 = 7680 × 320 px`**
+- **`marker_atlas.png` = `40 × 24 = 960 × 40 px`**
 
 The stitching script requires **all** `marker_<tone>.png` files (except `marker_atlas.png`) to have the **same dimensions**.
 

@@ -27,7 +27,7 @@ La **jugabilitat** segueix en **coordenades de graella** (`BASE_COLS` × `BASE_R
 | Concepte | Fitxer | Notes |
 |----------|--------|--------|
 | Espai lògic de dibuix (una “cel·la” d’art) | `markerExportSpec.ts` → `MARKER_EXPORT_LOGICAL_FRAME` (20) | No té per què coincidir amb `CELL`; és l’espai vectorial abans del scale. |
-| Escala entera cap a bitmap | `MARKER_EXPORT_SCALE_DEFAULT` | Ex.: 16 → frame **320×320** px. Més escala = **més detall** abans del `setDisplaySize(CELL)`; també més **VRAM** (× tots els tons). |
+| Escala entera cap a bitmap | `MARKER_EXPORT_SCALE_DEFAULT` | Ex.: 2 → frame **40×40** px. Més escala = **més detall** abans del `setDisplaySize(CELL)`; també més **VRAM** (× tots els tons). |
 | Textures in-game | `markerHiRes.ts` | Mateixa resolució que `pnpm generate:sprites`; `FilterMode.NEAREST`. |
 | Poma (`core`) | `markerRenderer.ts` | Traç fi de contorn sobre el cos vermell per llegir millor la silueta quan es redueix amb NEAREST. |
 

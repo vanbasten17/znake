@@ -18,7 +18,7 @@
 
 ```bash
 pnpm generate:sprites
-# Optional: lower-res PNGs (default scale is 16 → 320×320 px per frame)
+# Optional: lower-res PNGs (default scale is 2 → 40×40 px per frame)
 SPRITE_EXPORT_SCALE=4 pnpm generate:sprites
 ```
 

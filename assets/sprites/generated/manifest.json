@@ -1,9 +1,9 @@
 {
   "logicalFrame": 20,
   "logicalMarkerSize": 18,
-  "exportScale": 16,
-  "frameWidth": 320,
-  "frameHeight": 320,
+  "exportScale": 2,
+  "frameWidth": 40,
+  "frameHeight": 40,
   "source": "src/game/render/markerRenderer.ts (drawMarkerSpriteCanvas)",
   "frames": [
     {
