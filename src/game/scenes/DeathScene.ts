@@ -261,6 +261,7 @@ export class DeathScene extends Phaser.Scene {
     gameState.runObjectiveOffset = rollRunObjectiveOffset()
     gameState.persistentUpgrades = []
     gameState.selectedRelicId = null
+    gameState.pendingFloorRoute = null
     playerProfile.lifetimeStats.runsPlayed += 1
     saveProfile(playerProfile)
     trackRetentionEvent('run_start', {

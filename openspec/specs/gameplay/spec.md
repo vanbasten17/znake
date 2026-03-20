@@ -110,52 +110,23 @@ The system SHALL provide explicit feedback for lethal collision outcomes.
 
 The system SHALL support temporary hazard-pressure modulation through item interaction.
 
-#### Scenario: Rift battery suppresses hazard window
+#### Scenario: Portal objective presents dual destination routes
 
-- **WHEN** player collects a rift battery item
-- **THEN** rift pressure is reduced or paused for configured duration
+- **WHEN** objective type is `portal` and portal timer reaches spawn state
+- **THEN** two portals are spawned with distinct route labels (`safer`, `riskier`)
+- **AND** route choice is readable through visual and localized UI cues
 
-#### Scenario: Non-boss floors use timed portal objective
+#### Scenario: Entered portal sets pending route for next floor
 
-- **WHEN** a non-boss floor starts
-- **THEN** a countdown runs for the active floor objective
-- **AND** the active objective type is selected from a deterministic non-boss rotation pattern
+- **WHEN** player reaches one of the active portals
+- **THEN** selected portal route is stored as pending route choice
+- **AND** floor completion continues through the existing upgrade-transition flow
 
-#### Scenario: Rotation start varies per run
+#### Scenario: Pending route modulates next floor setup once
 
-- **WHEN** a new run starts or restarts
-- **THEN** the non-boss objective cycle start is randomized for that run
-- **AND** objective order remains stable until the run ends
-
-#### Scenario: Rotation objective can require score threshold
-
-- **WHEN** the active non-boss objective type is `score`
-- **THEN** floor completion requires reaching configured score target before timeout pressure defeats the player
-
-#### Scenario: Rotation objective can require kill threshold
-
-- **WHEN** the active non-boss objective type is `kills`
-- **THEN** floor completion requires defeating a configured number of enemies
-- **AND** enemy availability remains sufficient to make the objective completable
-
-#### Scenario: Squeeze pressure activates after portal grace
-
-- **WHEN** objective countdown and grace window expire without floor completion
-- **THEN** map boundaries progressively shrink inward at configured intervals
-- **AND** crossing squeeze boundaries is treated as lethal wall collision
-
-#### Scenario: Boss floors keep defeat-to-advance objective
-
-- **WHEN** current floor is a boss floor
-- **THEN** progression remains tied to boss elimination
-- **AND** timed portal objective is not required for that floor
-
-#### Scenario: Sand modifier slows movement deterministically
-
-- **WHEN** floor modifier `sand` is active and snake head is on a sand cell
-- **THEN** effective move interval increases by configured sand penalty
-- **AND** slowdown does not change direction rules or collision semantics
-- **AND** modifier state is represented in run status text
+- **WHEN** next floor gameplay initializes
+- **THEN** pending route is consumed and applies configured setup modifiers (difficulty up/down)
+- **AND** route effect does not persist beyond that floor unless a new route is selected
 
 ### Requirement: Snake body render continuity
 

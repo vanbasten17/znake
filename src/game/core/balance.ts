@@ -34,6 +34,19 @@ export const BALANCE = {
     graceMs: 7000,
     squeezeStepMs: 3600,
     squeezeMaxInset: 8,
+    routeChoice: {
+      safer: {
+        enemyDelta: -1,
+        wallDelta: -1,
+        enemyIntervalMultiplier: 1.12,
+      },
+      riskier: {
+        enemyDelta: 1,
+        wallDelta: 1,
+        enemyIntervalMultiplier: 0.9,
+        scoreBonus: 18,
+      },
+    },
   },
   modifiers: {
     darkness: {

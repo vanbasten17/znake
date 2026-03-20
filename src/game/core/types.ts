@@ -82,6 +82,7 @@ export type GameState = {
   runObjectiveOffset: number
   persistentUpgrades: Upgrade[]
   selectedRelicId: RelicId | null
+  pendingFloorRoute: FloorRouteChoice | null
 }
 
 export type VirtualInput = {
@@ -132,6 +133,7 @@ export type GoalDefinition = {
 
 export type NonBossObjectiveKind = 'portal' | 'score' | 'kills'
 export type FloorObjectiveKind = NonBossObjectiveKind | 'boss'
+export type FloorRouteChoice = 'safer' | 'riskier'
 
 export type PlayerProfile = {
   profileVersion: number

@@ -12,6 +12,7 @@ export const gameState: GameState = {
   runObjectiveOffset: rollRunObjectiveOffset(),
   persistentUpgrades: [],
   selectedRelicId: null,
+  pendingFloorRoute: null,
 }
 
 export let playerProfile: PlayerProfile = loadProfile()

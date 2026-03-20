@@ -11,6 +11,7 @@ import type {
   Enemy,
   EnemyKind,
   FloorObjectiveKind,
+  FloorRouteChoice,
   Food,
   Particle,
   Powerup,
@@ -42,7 +43,7 @@ type GameSceneData = {
 }
 
 type DeathReason = 'wall' | 'self' | 'enemy' | 'rift'
-type PortalCell = Vec2 & { pulse: number }
+type PortalCell = Vec2 & { pulse: number; route: FloorRouteChoice }
 
 const directionMap: Record<string, Vec2> = {
   ArrowUp: { x: 0, y: -1 },
@@ -79,7 +80,7 @@ export class GameScene extends Phaser.Scene {
   private objectiveScoreTarget = 0
   private objectiveKillsStart = 0
   private objectiveKillsTarget = 0
-  private portal: PortalCell | null = null
+  private portals: PortalCell[] = []
   private portalCountdownMs = 0
   private portalGraceMs = 0
   private portalGraceSecondCue = -1
@@ -99,6 +100,7 @@ export class GameScene extends Phaser.Scene {
   private riftCell: Vec2 | null = null
   private stars: Array<{ x: number; y: number; size: number; alpha: number }> = []
   private isBossFloor = false
+  private appliedFloorRoute: FloorRouteChoice | null = null
   private darknessActive = false
   private darknessRadius = 0
   private darknessEdgeFalloff = 0
@@ -166,6 +168,7 @@ export class GameScene extends Phaser.Scene {
     this.sandActive = floorSetup.sandActive
     this.sandTileCount = floorSetup.sandTileCount
     this.sandMovePenaltyMs = floorSetup.sandMovePenaltyMs
+    this.applyPendingFloorRoute()
     if (debugScenario?.forceIce) {
       this.iceActive = true
       this.iceTileCount = Math.max(this.iceTileCount, 8)
@@ -320,8 +323,8 @@ export class GameScene extends Phaser.Scene {
     if (this.biomeItem) {
       this.biomeItem.pulse += dt * 4.5
     }
-    if (this.portal) {
-      this.portal.pulse += dt * 4.2
+    for (const portal of this.portals) {
+      portal.pulse += dt * 4.2
     }
     const localizedBiome = t(`biome.${BALANCE.biome.id.replaceAll('-', '_')}`, {
       defaultValue: BALANCE.biome.name,
@@ -342,6 +345,11 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.sandActive) {
       activeModifiers.push(t('game.modifierSand'))
+    }
+    if (this.appliedFloorRoute) {
+      activeModifiers.push(
+        this.appliedFloorRoute === 'safer' ? t('game.routeSafer') : t('game.routeRiskier'),
+      )
     }
     const modifierInfo = activeModifiers.length > 0 ? ` · ${activeModifiers.join(' · ')}` : ''
     const hudStatus = hazardInfo
@@ -371,7 +379,7 @@ export class GameScene extends Phaser.Scene {
     this.objectiveScoreTarget = 0
     this.objectiveKillsStart = 0
     this.objectiveKillsTarget = 0
-    this.portal = null
+    this.portals = []
     this.portalCountdownMs = 0
     this.portalGraceMs = 0
     this.portalGraceSecondCue = -1
@@ -385,6 +393,7 @@ export class GameScene extends Phaser.Scene {
     this.biomeItem = null
     this.stars = []
     this.isBossFloor = false
+    this.appliedFloorRoute = null
     this.darknessActive = false
     this.darknessRadius = 0
     this.darknessEdgeFalloff = 0
@@ -593,7 +602,7 @@ export class GameScene extends Phaser.Scene {
         ) ||
         (this.powerup && this.powerup.x === candidate.x && this.powerup.y === candidate.y) ||
         (this.biomeItem && this.biomeItem.x === candidate.x && this.biomeItem.y === candidate.y) ||
-        (this.portal && this.portal.x === candidate.x && this.portal.y === candidate.y) ||
+        this.portals.some((portal) => portal.x === candidate.x && portal.y === candidate.y) ||
         (this.riftCell && this.riftCell.x === candidate.x && this.riftCell.y === candidate.y)
       if (!blocked) {
         this.food.x = candidate.x
@@ -637,13 +646,13 @@ export class GameScene extends Phaser.Scene {
       return t('game.bossAdvance')
     }
     if (this.objectiveType === 'portal') {
-      if (!this.portal) {
+      if (this.portals.length === 0) {
         return t('game.portalIn', { seconds: Math.ceil(this.portalCountdownMs / 1000) })
       }
       if (this.portalGraceMs > 0) {
-        return `${t('game.portalFind')} · ${t('game.squeezeIn', { seconds: Math.ceil(this.portalGraceMs / 1000) })}`
+        return `${t('game.portalChoose')} · ${t('game.squeezeIn', { seconds: Math.ceil(this.portalGraceMs / 1000) })}`
       }
-      return `${t('game.portalFind')} · ${t('game.squeezeActive')}`
+      return `${t('game.portalChoose')} · ${t('game.squeezeActive')}`
     }
     if (this.objectiveType === 'score') {
       return t('game.objectiveScoreStatus', {
@@ -657,6 +666,25 @@ export class GameScene extends Phaser.Scene {
       target: this.objectiveKillsTarget,
       pressure: this.getPressureStatusText(),
     })
+  }
+
+  private applyPendingFloorRoute(): void {
+    const route = gameState.pendingFloorRoute
+    if (!route) {
+      this.appliedFloorRoute = null
+      return
+    }
+    this.appliedFloorRoute = route
+    gameState.pendingFloorRoute = null
+    if (route === 'safer') {
+      this.enemyCount = Math.max(1, this.enemyCount + BALANCE.portal.routeChoice.safer.enemyDelta)
+      this.wallCount = Math.max(1, this.wallCount + BALANCE.portal.routeChoice.safer.wallDelta)
+      this.enemyInterval *= BALANCE.portal.routeChoice.safer.enemyIntervalMultiplier
+      return
+    }
+    this.enemyCount = Math.max(1, this.enemyCount + BALANCE.portal.routeChoice.riskier.enemyDelta)
+    this.wallCount = Math.max(1, this.wallCount + BALANCE.portal.routeChoice.riskier.wallDelta)
+    this.enemyInterval *= BALANCE.portal.routeChoice.riskier.enemyIntervalMultiplier
   }
 
   private spawnSnake(): SnakeSegment[] {
@@ -817,7 +845,7 @@ export class GameScene extends Phaser.Scene {
     if (this.snake.some((segment) => segment.x === x && segment.y === y)) {
       return false
     }
-    if (this.portal && this.portal.x === x && this.portal.y === y) {
+    if (this.portals.some((portal) => portal.x === x && portal.y === y)) {
       return false
     }
     return !this.enemies.some((enemy) =>
@@ -827,7 +855,7 @@ export class GameScene extends Phaser.Scene {
 
   private setupPortalFlow(): void {
     if (this.isBossFloor) {
-      this.portal = null
+      this.portals = []
       this.portalCountdownMs = 0
       this.portalGraceMs = 0
       this.portalGraceSecondCue = -1
@@ -841,20 +869,22 @@ export class GameScene extends Phaser.Scene {
     this.portalCountdownMs = Math.max(BALANCE.portal.countdownMinMs, countdown)
     this.portalGraceMs = BALANCE.portal.graceMs
     this.portalGraceSecondCue = -1
-    this.portal = null
+    this.portals = []
     this.squeezeStepTimerMs = 0
     this.squeezeInset = 0
   }
 
-  private spawnPortal(): void {
-    if (this.portal || this.isBossFloor || this.objectiveType !== 'portal') {
+  private spawnPortals(): void {
+    if (this.portals.length > 0 || this.isBossFloor || this.objectiveType !== 'portal') {
       return
     }
-    const portalCell = this.pickOpenCell()
-    this.portal = { ...portalCell, pulse: 0 }
+    const saferCell = this.pickOpenCell()
+    this.portals = [{ ...saferCell, pulse: 0, route: 'safer' }]
+    const riskierCell = this.pickOpenCell()
+    this.portals.push({ ...riskierCell, pulse: 0, route: 'riskier' })
     emitFeedback('portal')
     this.portalGraceSecondCue = Math.ceil(this.portalGraceMs / 1000) + 1
-    setHintText(t('game.portalFind'))
+    setHintText(t('game.portalChooseHint'))
   }
 
   private updatePortalFlow(delta: number): void {
@@ -865,7 +895,7 @@ export class GameScene extends Phaser.Scene {
     if (countdownWasRunning) {
       this.portalCountdownMs = Math.max(0, this.portalCountdownMs - delta)
       if (this.portalCountdownMs <= 0 && this.objectiveType === 'portal') {
-        this.spawnPortal()
+        this.spawnPortals()
       }
       if (this.portalCountdownMs <= 0 && this.portalGraceSecondCue < 0) {
         this.portalGraceSecondCue = Math.ceil(this.portalGraceMs / 1000) + 1
@@ -894,9 +924,12 @@ export class GameScene extends Phaser.Scene {
       return
     }
     this.squeezeInset += 1
-    if (this.portal && this.isWall(this.portal.x, this.portal.y)) {
-      const portalCell = this.pickOpenCell()
-      this.portal = { ...portalCell, pulse: 0 }
+    for (const portal of this.portals) {
+      if (this.isWall(portal.x, portal.y)) {
+        const portalCell = this.pickOpenCell()
+        portal.x = portalCell.x
+        portal.y = portalCell.y
+      }
     }
     const head = this.snake[0]
     if (head && this.isWall(head.x, head.y)) {
@@ -1009,7 +1042,7 @@ export class GameScene extends Phaser.Scene {
     const floorItemConfig = this.getItemSpawnConfig()
     const portalBeaconRoll =
       this.objectiveType === 'portal' &&
-      !this.portal &&
+      this.portals.length === 0 &&
       Math.random() < floorItemConfig.portalBeaconOnFoodChance
     const riftBatteryRoll = Math.random() < floorItemConfig.riftBatteryOnFoodChance
     const coreRoll = Math.random() < BALANCE.biome.coreItem.spawnChanceOnFood
@@ -1436,10 +1469,23 @@ export class GameScene extends Phaser.Scene {
     if (
       !this.isBossFloor &&
       this.objectiveType === 'portal' &&
-      this.portal &&
-      nx === this.portal.x &&
-      ny === this.portal.y
+      this.portals.some((portal) => portal.x === nx && portal.y === ny)
     ) {
+      const selectedPortal = this.portals.find((portal) => portal.x === nx && portal.y === ny)
+      if (selectedPortal) {
+        gameState.pendingFloorRoute = selectedPortal.route
+        trackRetentionEvent('portal_route_selected', {
+          route: selectedPortal.route,
+          floor: gameState.floor,
+          score: this.score,
+        })
+        if (selectedPortal.route === 'riskier') {
+          this.score += Math.floor(
+            BALANCE.portal.routeChoice.riskier.scoreBonus * this.cfg.scoreMult,
+          )
+          updateHud(this.score)
+        }
+      }
       emitFeedback('confirm')
       transitionToScene(this, 'Upgrade', {
         chrome: 'run',
@@ -1497,9 +1543,13 @@ export class GameScene extends Phaser.Scene {
           score: this.score,
         })
         this.spawnParticles(nx, ny, COLORS.beacon, 12)
-        if (this.objectiveType === 'portal' && !this.portal && this.portalCountdownMs <= 0) {
-          this.spawnPortal()
-        } else if (this.objectiveType === 'portal' && !this.portal) {
+        if (
+          this.objectiveType === 'portal' &&
+          this.portals.length === 0 &&
+          this.portalCountdownMs <= 0
+        ) {
+          this.spawnPortals()
+        } else if (this.objectiveType === 'portal' && this.portals.length === 0) {
           setHintText(t('game.portalAccelerated'))
         }
       } else {
@@ -1795,32 +1845,41 @@ export class GameScene extends Phaser.Scene {
       g.fillTriangle(cx, cy - s / 1.15, cx + s / 1.15, cy, cx, cy + s / 1.15)
       this.drawPixelGlyph(g, cx, cy, ['00100', '01110', '11111', '01110', '00100'], 0xffe4ea, 0.95)
     }
-    if (this.portal && !this.isBossFloor) {
-      const pulse = Math.sin(this.portal.pulse) * 0.35 + 0.75
-      const px = this.portal.x * CELL
-      const py = this.portal.y * CELL
-      g.fillStyle(COLORS.portalGlow, 0.22 * pulse)
-      g.fillCircle(px + CELL / 2, py + CELL / 2, CELL * 0.95)
-      g.lineStyle(2, COLORS.portal, 0.9)
-      g.strokeCircle(px + CELL / 2, py + CELL / 2, CELL * 0.35)
-      g.fillStyle(COLORS.portal, 0.95)
-      const s = CELL * 0.35 * pulse
-      g.fillTriangle(
-        px + CELL / 2,
-        py + CELL / 2 - s / 1.5,
-        px + CELL / 2 - s / 1.2,
-        py + CELL / 2 + s / 1.5,
-        px + CELL / 2 + s / 1.2,
-        py + CELL / 2 + s / 1.5,
-      )
-      this.drawPixelGlyph(
-        g,
-        px + CELL / 2,
-        py + CELL / 2,
-        ['01110', '10001', '10101', '10001', '01110'],
-        0xd8fff6,
-        0.95,
-      )
+    if (this.portals.length > 0 && !this.isBossFloor) {
+      for (const portal of this.portals) {
+        const pulse = Math.sin(portal.pulse) * 0.35 + 0.75
+        const px = portal.x * CELL
+        const py = portal.y * CELL
+        const isRiskier = portal.route === 'riskier'
+        const glow = isRiskier ? 0xffa24a : COLORS.portalGlow
+        const stroke = isRiskier ? 0xffd07a : COLORS.portal
+        const fill = isRiskier ? 0xffb44f : COLORS.portal
+        const glyphColor = isRiskier ? 0xfff0cc : 0xd8fff6
+        g.fillStyle(glow, 0.22 * pulse)
+        g.fillCircle(px + CELL / 2, py + CELL / 2, CELL * 0.95)
+        g.lineStyle(2, stroke, 0.9)
+        g.strokeCircle(px + CELL / 2, py + CELL / 2, CELL * 0.35)
+        g.fillStyle(fill, 0.95)
+        const s = CELL * 0.35 * pulse
+        g.fillTriangle(
+          px + CELL / 2,
+          py + CELL / 2 - s / 1.5,
+          px + CELL / 2 - s / 1.2,
+          py + CELL / 2 + s / 1.5,
+          px + CELL / 2 + s / 1.2,
+          py + CELL / 2 + s / 1.5,
+        )
+        this.drawPixelGlyph(
+          g,
+          px + CELL / 2,
+          py + CELL / 2,
+          portal.route === 'riskier'
+            ? ['11111', '10001', '11111', '10101', '11111']
+            : ['01110', '10001', '10101', '10001', '01110'],
+          glyphColor,
+          0.95,
+        )
+      }
     }
     if (this.riftCell) {
       const rx = this.riftCell.x * CELL

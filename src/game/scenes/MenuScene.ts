@@ -815,6 +815,7 @@ export class MenuScene extends Phaser.Scene {
     gameState.floor = 1
     gameState.persistentUpgrades = []
     gameState.selectedRelicId = null
+    gameState.pendingFloorRoute = null
     playerProfile.lifetimeStats.runsPlayed += 1
     saveProfile(playerProfile)
     trackRetentionEvent('run_start', {
