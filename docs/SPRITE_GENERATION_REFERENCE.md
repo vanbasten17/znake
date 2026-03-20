@@ -2,6 +2,8 @@
 
 > A structured reference for generating pixel-art sprites for Znake. Each entry captures the idea of the element so it can be fed into an AI model (or human artist) for sprite creation. Includes lore context for consistent theming.
 
+**Marker pipeline (crisp pixels, export, Phaser, glossary):** see **[MARKER_PIXEL_PIPELINE.md](./MARKER_PIXEL_PIPELINE.md)** — single source of truth `src/game/render/markerExportSpec.ts`, commands `pnpm generate:sprites` and `pnpm validate:markers`, Cursor skill `znake-marker-pipeline`.
+
 **Current state:** Znake uses procedural canvas glyphs. The spec states the project will evolve to authored PNG sprite assets; this document prepares that migration.
 
 **Grid:** 20×20 px per cell. Sprites should fit within ~16–18 px usable area to preserve readability.
@@ -9,6 +11,18 @@
 **Target runtime:** Phaser. Sprites will be loaded as sprite sheets and used via `this.add.sprite()` and animations. See [Phaser: Load Sprite Sheet](https://phaser.io/examples/v3.85.0/loader/sprite-sheet/view/load-sprite-sheet).
 
 **Asset location:** All sprite sheets go into the root `/assets` folder (e.g. `assets/sprites/`).
+
+**Export current procedural markers as PNG:** The shared marker renderer (`src/game/render/markerRenderer.ts`) can be rasterized to 20×20 PNGs for previews, AI prompts, or migration planning:
+
+```bash
+pnpm generate:sprites
+# Optional: lower-res PNGs (default scale is 8 → 160×160 px per frame)
+SPRITE_EXPORT_SCALE=4 pnpm generate:sprites
+```
+
+Output: `assets/sprites/generated/` — one file per `GlossaryMarkerTone` (`marker_<tone>.png`), plus `marker_atlas.png` (horizontal strip) and `manifest.json` (frame order). PNGs are **integer-upscaled** from the logical 20×20 draw so pixels stay crisp (see `exportScale` in `manifest.json`). See `assets/sprites/generated/README.md`.
+
+**Marker readability:** In-game and glossary icons use the shared renderer (`src/game/render/markerRenderer.ts`). **`core`** is food: a **red apple** (glossari `red_core` → marker `core`). **`biomeCore`** is the cyan biome pickup (diamond glyph). Other tones use a **5×5 glyph** on a colored token: e.g. portal = arch, battery = cell + terminals, beacon = ping frame, shield = heater shield, slow = hourglass, ghost = blob, score = star burst, venom = asymmetric drop, rift = fracture X, sand = staggered grit (not an X), talents = speed streaks / plus / target ring, enemies = face / lightning / chevron / egg / seam / crown.
 
 ---
 
@@ -96,11 +110,11 @@ The game takes place in the **Void Depths** — a dark, cosmic expanse where a n
 | **Id** | `red_core` |
 | **Role** | Basic food. Grow +1, score, resets core pressure |
 | **Lore** | Energy node / biomass. The snake feeds on void-sustaining cores |
-| **Current visual** | Diamond/cross shape (four triangles), pink/red glow, inner diamond glyph |
+| **Current visual** | **Apple** silhouette: red body, brown stem, small green leaf, white highlight; glossary marker tone **`core`** |
 | **Color** | Primary: `#ff4466` (food). Glow: `#ff2244`. Outline: `#ff88aa` |
-| **Shape** | Diamond or cross. Pulse animation |
-| **Distinct** | Must read as "collectible good" — NOT hazard |
-| **Sprite prompt** | Pixel art red energy core, diamond shape, pink-red glow, collectible food item, 16×16 px, arcade style |
+| **Shape** | Rounded apple (ellipse) — reads as fruit at a glance |
+| **Distinct** | Must read as "collectible good" — NOT hazard; distinct from cyan **`biomeCore`** marker on biome pickups |
+| **Sprite prompt** | Pixel art red apple, small stem and leaf, top-down, pink-red glow, collectible food, 16×16 px, arcade style |
 
 ---
 

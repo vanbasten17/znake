@@ -1,0 +1,130 @@
+{
+  "logicalFrame": 20,
+  "logicalMarkerSize": 18,
+  "exportScale": 8,
+  "frameWidth": 160,
+  "frameHeight": 160,
+  "source": "src/game/render/markerRenderer.ts (drawMarkerSpriteCanvas)",
+  "frames": [
+    {
+      "index": 0,
+      "tone": "core",
+      "file": "marker_core.png"
+    },
+    {
+      "index": 1,
+      "tone": "biomeCore",
+      "file": "marker_biomeCore.png"
+    },
+    {
+      "index": 2,
+      "tone": "portal",
+      "file": "marker_portal.png"
+    },
+    {
+      "index": 3,
+      "tone": "battery",
+      "file": "marker_battery.png"
+    },
+    {
+      "index": 4,
+      "tone": "beacon",
+      "file": "marker_beacon.png"
+    },
+    {
+      "index": 5,
+      "tone": "shield",
+      "file": "marker_shield.png"
+    },
+    {
+      "index": 6,
+      "tone": "slow",
+      "file": "marker_slow.png"
+    },
+    {
+      "index": 7,
+      "tone": "ghost",
+      "file": "marker_ghost.png"
+    },
+    {
+      "index": 8,
+      "tone": "score",
+      "file": "marker_score.png"
+    },
+    {
+      "index": 9,
+      "tone": "venom",
+      "file": "marker_venom.png"
+    },
+    {
+      "index": 10,
+      "tone": "darkness",
+      "file": "marker_darkness.png"
+    },
+    {
+      "index": 11,
+      "tone": "squeeze",
+      "file": "marker_squeeze.png"
+    },
+    {
+      "index": 12,
+      "tone": "ice",
+      "file": "marker_ice.png"
+    },
+    {
+      "index": 13,
+      "tone": "sand",
+      "file": "marker_sand.png"
+    },
+    {
+      "index": 14,
+      "tone": "rift",
+      "file": "marker_rift.png"
+    },
+    {
+      "index": 15,
+      "tone": "enemyNormal",
+      "file": "marker_enemyNormal.png"
+    },
+    {
+      "index": 16,
+      "tone": "enemyStalker",
+      "file": "marker_enemyStalker.png"
+    },
+    {
+      "index": 17,
+      "tone": "enemyAmbusher",
+      "file": "marker_enemyAmbusher.png"
+    },
+    {
+      "index": 18,
+      "tone": "enemyEgg",
+      "file": "marker_enemyEgg.png"
+    },
+    {
+      "index": 19,
+      "tone": "enemyMirror",
+      "file": "marker_enemyMirror.png"
+    },
+    {
+      "index": 20,
+      "tone": "enemyBoss",
+      "file": "marker_enemyBoss.png"
+    },
+    {
+      "index": 21,
+      "tone": "talentSpeed",
+      "file": "marker_talentSpeed.png"
+    },
+    {
+      "index": 22,
+      "tone": "talentSurvival",
+      "file": "marker_talentSurvival.png"
+    },
+    {
+      "index": 23,
+      "tone": "talentHunt",
+      "file": "marker_talentHunt.png"
+    }
+  ]
+}

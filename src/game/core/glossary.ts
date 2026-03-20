@@ -2,6 +2,7 @@ export type GlossaryCategoryId = 'items' | 'powerups' | 'hazards' | 'enemies' | 
 
 export type GlossaryMarkerTone =
   | 'core'
+  | 'biomeCore'
   | 'portal'
   | 'battery'
   | 'beacon'
@@ -24,6 +25,34 @@ export type GlossaryMarkerTone =
   | 'talentSpeed'
   | 'talentSurvival'
   | 'talentHunt'
+
+/** All marker tones (order used by sprite export / atlas). */
+export const GLOSSARY_MARKER_TONES: GlossaryMarkerTone[] = [
+  'core',
+  'biomeCore',
+  'portal',
+  'battery',
+  'beacon',
+  'shield',
+  'slow',
+  'ghost',
+  'score',
+  'venom',
+  'darkness',
+  'squeeze',
+  'ice',
+  'sand',
+  'rift',
+  'enemyNormal',
+  'enemyStalker',
+  'enemyAmbusher',
+  'enemyEgg',
+  'enemyMirror',
+  'enemyBoss',
+  'talentSpeed',
+  'talentSurvival',
+  'talentHunt',
+]
 
 export type GlossaryEntry = {
   id: string

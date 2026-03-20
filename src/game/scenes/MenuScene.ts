@@ -18,6 +18,13 @@ import {
 import { getFloorObjective, rollRunObjectiveOffset } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { GoalId } from '../core/types'
+import {
+  GLOSSARY_MARKER_DISPLAY_PX,
+  MARKER_EXPORT_FRAME_PX_DEFAULT,
+  MARKER_EXPORT_INNER_SIZE,
+  MARKER_EXPORT_LOGICAL_FRAME,
+  MARKER_EXPORT_SCALE_DEFAULT,
+} from '../render/markerExportSpec'
 import { drawMarkerSpriteCanvas } from '../render/markerRenderer'
 import { getAccessibilitySettings, updateAccessibilitySettings } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
@@ -37,6 +44,7 @@ import {
 
 const MARKER_CLASS_BY_TONE: Record<GlossaryMarkerTone, string> = {
   core: styles.glossaryMarkerCore,
+  biomeCore: styles.glossaryMarkerBiomeCore,
   portal: styles.glossaryMarkerPortal,
   battery: styles.glossaryMarkerBattery,
   beacon: styles.glossaryMarkerBeacon,
@@ -63,13 +71,22 @@ const MARKER_CLASS_BY_TONE: Record<GlossaryMarkerTone, string> = {
 
 const createGlossaryMarkerCanvas = (tone: GlossaryMarkerTone): HTMLCanvasElement => {
   const canvas = document.createElement('canvas')
-  canvas.width = 24
-  canvas.height = 24
+  canvas.width = MARKER_EXPORT_FRAME_PX_DEFAULT
+  canvas.height = MARKER_EXPORT_FRAME_PX_DEFAULT
+  canvas.style.width = `${GLOSSARY_MARKER_DISPLAY_PX}px`
+  canvas.style.height = `${GLOSSARY_MARKER_DISPLAY_PX}px`
   canvas.className = styles.glossaryMarkerCanvas
   const ctx = canvas.getContext('2d')
   if (!ctx) return canvas
   ctx.imageSmoothingEnabled = false
-  drawMarkerSpriteCanvas(ctx, tone, 12, 12, 18)
+  ctx.setTransform(MARKER_EXPORT_SCALE_DEFAULT, 0, 0, MARKER_EXPORT_SCALE_DEFAULT, 0, 0)
+  drawMarkerSpriteCanvas(
+    ctx,
+    tone,
+    MARKER_EXPORT_LOGICAL_FRAME / 2,
+    MARKER_EXPORT_LOGICAL_FRAME / 2,
+    MARKER_EXPORT_INNER_SIZE,
+  )
 
   return canvas
 }

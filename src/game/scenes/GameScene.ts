@@ -22,7 +22,7 @@ import type {
   Vec2,
   WorldItemType,
 } from '../core/types'
-import { drawMarkerSpritePhaser } from '../render/markerRenderer'
+import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerHiRes'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -157,6 +157,14 @@ export class GameScene extends Phaser.Scene {
   private gameGraphics!: Phaser.GameObjects.Graphics
   private fxGraphics!: Phaser.GameObjects.Graphics
 
+  /** Hi-res marker sprites (8× logical, same as `pnpm generate:sprites`), drawn above glow. */
+  private markerFood!: Phaser.GameObjects.Image
+  private markerPortal0!: Phaser.GameObjects.Image
+  private markerPortal1!: Phaser.GameObjects.Image
+  private markerRift!: Phaser.GameObjects.Image
+  private markerPowerup!: Phaser.GameObjects.Image
+  private markerBiome!: Phaser.GameObjects.Image
+
   public constructor() {
     super('Game')
   }
@@ -231,6 +239,21 @@ export class GameScene extends Phaser.Scene {
     this.wallGraphics = this.add.graphics()
     this.gameGraphics = this.add.graphics()
     this.fxGraphics = this.add.graphics()
+
+    registerMarkerHiResTextures(this)
+    const markerDepth = 8
+    const mk = (tone: Parameters<typeof markerTextureKey>[0]) =>
+      this.add
+        .image(0, 0, markerTextureKey(tone))
+        .setOrigin(0.5, 0.5)
+        .setVisible(false)
+        .setDepth(markerDepth)
+    this.markerFood = mk('core')
+    this.markerPortal0 = mk('portal')
+    this.markerPortal1 = mk('portal')
+    this.markerRift = mk('rift')
+    this.markerPowerup = mk('shield')
+    this.markerBiome = mk('biomeCore')
 
     this.generateFloorLayout()
     this.iceTiles = this.generateIceTiles()
@@ -2293,6 +2316,13 @@ export class GameScene extends Phaser.Scene {
     const g = this.gameGraphics
     g.clear()
 
+    this.markerFood.setVisible(false)
+    this.markerPortal0.setVisible(false)
+    this.markerPortal1.setVisible(false)
+    this.markerRift.setVisible(false)
+    this.markerPowerup.setVisible(false)
+    this.markerBiome.setVisible(false)
+
     if (!isReducedEffectsEnabled() && this.flashTimer > 0) {
       this.fxGraphics.clear()
       this.fxGraphics.fillStyle(this.flashColor, this.flashTimer * 0.3)
@@ -2351,9 +2381,14 @@ export class GameScene extends Phaser.Scene {
       g.fillCircle(cx, cy, CELL * 0.95)
       g.lineStyle(1, 0xff88aa, 0.8)
       g.strokeCircle(cx, cy, CELL * 0.36)
-      drawMarkerSpritePhaser(g, 'core', cx, cy, CELL * 0.88, 0.95)
+      this.markerFood.setTexture(markerTextureKey('core'))
+      this.markerFood.setPosition(Math.round(cx), Math.round(cy))
+      this.markerFood.setDisplaySize(CELL, CELL)
+      this.markerFood.setAlpha(0.95)
+      this.markerFood.setVisible(true)
     }
     if (this.portals.length > 0 && !this.isBossFloor) {
+      let portalIndex = 0
       for (const portal of this.portals) {
         const pulse = Math.sin(portal.pulse) * 0.35 + 0.75
         const px = portal.x * CELL
@@ -2361,21 +2396,20 @@ export class GameScene extends Phaser.Scene {
         const isRiskier = portal.route === 'riskier'
         const glow = isRiskier ? 0xffa24a : COLORS.portalGlow
         const stroke = isRiskier ? 0xffd07a : COLORS.portal
-        const fill = isRiskier ? 0xffb44f : COLORS.portal
-        const glyphColor = isRiskier ? 0xfff0cc : 0xd8fff6
         g.fillStyle(glow, 0.22 * pulse)
         g.fillCircle(px + CELL / 2, py + CELL / 2, CELL * 0.95)
         g.lineStyle(2, stroke, 0.9)
         g.strokeCircle(px + CELL / 2, py + CELL / 2, CELL * 0.35)
-        g.fillStyle(fill, 0.95)
-        drawMarkerSpritePhaser(
-          g,
-          portal.route === 'riskier' ? 'beacon' : 'portal',
-          px + CELL / 2,
-          py + CELL / 2,
-          CELL * 0.88,
-          0.95,
-        )
+        const pcx = px + CELL / 2
+        const pcy = py + CELL / 2
+        const pImg = portalIndex === 0 ? this.markerPortal0 : this.markerPortal1
+        const tone = portal.route === 'riskier' ? 'beacon' : 'portal'
+        pImg.setTexture(markerTextureKey(tone))
+        pImg.setPosition(Math.round(pcx), Math.round(pcy))
+        pImg.setDisplaySize(CELL, CELL)
+        pImg.setAlpha(0.95)
+        pImg.setVisible(true)
+        portalIndex += 1
       }
     }
     if (this.riftCell) {
@@ -2394,7 +2428,12 @@ export class GameScene extends Phaser.Scene {
       g.lineTo(cx - 2, cy + 2)
       g.lineTo(cx + 4, cy + 5)
       g.strokePath()
-      drawMarkerSpritePhaser(g, 'rift', cx, cy, CELL * 0.84, 0.9)
+      const riftDisp = Math.round(CELL * 0.84)
+      this.markerRift.setTexture(markerTextureKey('rift'))
+      this.markerRift.setPosition(Math.round(cx), Math.round(cy))
+      this.markerRift.setDisplaySize(riftDisp, riftDisp)
+      this.markerRift.setAlpha(0.9)
+      this.markerRift.setVisible(true)
     }
 
     if (this.powerup) {
@@ -2418,7 +2457,12 @@ export class GameScene extends Phaser.Scene {
       g.strokeCircle(cx, cy, CELL * 0.36)
       g.fillStyle(color, 0.95)
       const markerTone: 'shield' | 'slow' | 'ghost' | 'score' | 'venom' = this.powerup.type
-      drawMarkerSpritePhaser(g, markerTone, cx, cy, s * 2, 0.95)
+      const powerupDisp = Math.max(1, Math.round(s * 2))
+      this.markerPowerup.setTexture(markerTextureKey(markerTone))
+      this.markerPowerup.setPosition(Math.round(cx), Math.round(cy))
+      this.markerPowerup.setDisplaySize(powerupDisp, powerupDisp)
+      this.markerPowerup.setAlpha(0.95)
+      this.markerPowerup.setVisible(true)
     }
     if (this.biomeItem) {
       const pulse = Math.sin(this.biomeItem.pulse) * 0.3 + 0.7
@@ -2446,14 +2490,15 @@ export class GameScene extends Phaser.Scene {
       } else {
         g.fillRect(ix + CELL / 2 - s / 2, iy + CELL / 2 - s / 2, s, s)
       }
-      drawMarkerSpritePhaser(
-        g,
-        isBeacon ? 'beacon' : isRiftBattery ? 'battery' : 'core',
-        ix + CELL / 2,
-        iy + CELL / 2,
-        CELL * 0.84,
-        0.9,
-      )
+      const biomeTone = isBeacon ? 'beacon' : isRiftBattery ? 'battery' : 'biomeCore'
+      const biomeDisp = Math.round(CELL * 0.84)
+      const bcx = ix + CELL / 2
+      const bcy = iy + CELL / 2
+      this.markerBiome.setTexture(markerTextureKey(biomeTone))
+      this.markerBiome.setPosition(Math.round(bcx), Math.round(bcy))
+      this.markerBiome.setDisplaySize(biomeDisp, biomeDisp)
+      this.markerBiome.setAlpha(0.9)
+      this.markerBiome.setVisible(true)
     }
 
     for (const enemy of this.enemies) {

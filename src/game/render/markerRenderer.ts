@@ -4,17 +4,115 @@ import type { GlossaryMarkerTone } from '../core/glossary'
 
 const toHex = (value: number): string => `#${value.toString(16).padStart(6, '0')}`
 
+/**
+ * 5×5 pixel glyphs (each row is 5 chars; '1' = lit). Tuned for instant read at glossary size.
+ * Shapes map to lore / SPRITE_GENERATION_REFERENCE.md where possible.
+ */
 const GLYPH_BY_TONE: Partial<Record<GlossaryMarkerTone, string[]>> = {
-  core: ['00100', '01110', '11111', '01110', '00100'],
-  portal: ['01110', '10001', '10101', '10001', '01110'],
-  battery: ['00100', '01110', '11111', '01110', '00100'],
-  beacon: ['00100', '01110', '11111', '01110', '00100'],
-  shield: ['00100', '01110', '11111', '01110', '00100'],
-  slow: ['01110', '10011', '10101', '11001', '01110'],
-  ghost: ['01110', '10101', '11111', '10101', '10101'],
-  score: ['11111', '10001', '10101', '10001', '11111'],
-  venom: ['00100', '01110', '11111', '01110', '00100'],
+  // Biome pickup (cyan token) — compact diamond (`core` = apple, no glyph)
+  biomeCore: ['00100', '01110', '11111', '01110', '00100'],
+  // Gateway — arch / doorway
+  portal: ['01110', '01010', '01010', '01010', '00100'],
+  // Power cell — body + terminals
+  battery: ['00100', '01110', '01010', '01010', '00110'],
+  // Locator — concentric ping frame
+  beacon: ['11111', '10001', '10101', '10001', '11111'],
+  // Defense — heater shield (wide top, point bottom)
+  shield: ['01110', '01010', '01010', '01010', '00100'],
+  // Time — hourglass
+  slow: ['11111', '01110', '00100', '01110', '11111'],
+  // Phase — ghost blob + wavy bottom
+  ghost: ['01110', '10001', '10101', '10001', '10110'],
+  // Reward — star burst (distinct from food diamond)
+  score: ['00100', '11111', '01010', '11111', '00100'],
+  // Offense — asymmetric toxic droplet
+  venom: ['00010', '00100', '01110', '11111', '01110'],
+  // Obscuring — crescent / moon wedge
+  darkness: ['01111', '11110', '11110', '11110', '11111'],
+  // Closing arena — parallel rails
+  squeeze: ['10101', '10101', '10101', '10101', '10101'],
+  // Slip — snowflake (6 spokes)
+  ice: ['00100', '11111', '00100', '11111', '00100'],
+  // Drag — staggered grit (not an X fracture)
+  sand: ['10010', '01001', '00100', '01001', '10010'],
+  // Lethal tear — sharp fracture X
   rift: ['10001', '01010', '00100', '01010', '10001'],
+  // Hunter — face with eyes
+  enemyNormal: ['01110', '10001', '10101', '10001', '01110'],
+  // Elite speed — lightning zig
+  enemyStalker: ['11100', '01010', '01110', '01010', '11100'],
+  // Dash threat — forward chevron
+  enemyAmbusher: ['00010', '00110', '11111', '00110', '00010'],
+  // Dormant — egg fill
+  enemyEgg: ['00100', '01110', '11111', '11111', '01110'],
+  // Echo — vertical mirror seam
+  enemyMirror: ['10001', '10001', '10001', '10001', '10001'],
+  // Apex — crown
+  enemyBoss: ['10101', '11111', '01110', '01010', '00100'],
+  // Talent: speed — motion streaks
+  talentSpeed: ['11111', '10001', '10001', '10001', '11111'],
+  // Talent: survival — bold plus (healing / sustain)
+  talentSurvival: ['00100', '00100', '11111', '00100', '00100'],
+  // Talent: hunt — hollow target ring (not thin rift X)
+  talentHunt: ['01110', '10001', '10001', '10001', '01110'],
+}
+
+/**
+ * Scales 5×5 glyph cells with marker size so icons stay readable (not 5×5 px total on large draws).
+ */
+const glyphPixelSizeForMarker = (size: number): number => {
+  const radius = Math.max(3, size * 0.31)
+  const diameter = (radius + 1) * 2
+  const raw = Math.floor((diameter * 0.88) / 5)
+  return Math.max(1, Math.min(16, raw))
+}
+
+/** Red apple silhouette for food (`core` tone); biome pickups use `biomeCore` + diamond glyph. */
+const drawAppleMarkerCanvas = (
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+): void => {
+  const r = Math.max(3, size * 0.31)
+  ctx.fillStyle = toHex(COLORS.foodGlow)
+  ctx.beginPath()
+  ctx.arc(cx, cy, r + 1.2, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = toHex(COLORS.food)
+  ctx.beginPath()
+  ctx.ellipse(cx, cy + r * 0.06, r * 0.88, r * 1.06, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = '#3d2817'
+  ctx.fillRect(cx - Math.max(0.5, r * 0.14), cy - r * 1.32, Math.max(1, r * 0.28), r * 0.42)
+  ctx.fillStyle = '#2d9a3e'
+  ctx.beginPath()
+  ctx.ellipse(cx + r * 0.52, cy - r * 1.18, r * 0.4, r * 0.2, 0.55, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.42)'
+  ctx.beginPath()
+  ctx.ellipse(cx - r * 0.38, cy - r * 0.22, r * 0.24, r * 0.11, -0.35, 0, Math.PI * 2)
+  ctx.fill()
+}
+
+const drawAppleMarkerPhaser = (
+  g: Phaser.GameObjects.Graphics,
+  cx: number,
+  cy: number,
+  size: number,
+  alpha: number,
+): void => {
+  const r = Math.max(3, size * 0.31)
+  g.fillStyle(COLORS.foodGlow, alpha)
+  g.fillCircle(cx, cy, r + 1.2)
+  g.fillStyle(COLORS.food, alpha)
+  g.fillEllipse(cx, cy + r * 0.06, r * 0.88 * 2, r * 1.06 * 2)
+  g.fillStyle(0x3d2817, alpha)
+  g.fillRect(cx - Math.max(0.5, r * 0.14), cy - r * 1.32, Math.max(1, r * 0.28), r * 0.42)
+  g.fillStyle(0x2d9a3e, alpha)
+  g.fillEllipse(cx + r * 0.52, cy - r * 1.18, r * 0.4 * 2, r * 0.2 * 2)
+  g.fillStyle(0xffffff, alpha * 0.42)
+  g.fillEllipse(cx - r * 0.38, cy - r * 0.22, r * 0.24 * 2, r * 0.11 * 2)
 }
 
 const drawGlyphCanvas = (
@@ -82,11 +180,14 @@ export const drawMarkerSpriteCanvas = (
   const radius = Math.max(3, size * 0.31)
   switch (tone) {
     case 'core':
-      ctx.fillStyle = toHex(COLORS.foodGlow)
+      drawAppleMarkerCanvas(ctx, cx, cy, size)
+      break
+    case 'biomeCore':
+      ctx.fillStyle = toHex(COLORS.portalGlow)
       ctx.beginPath()
       ctx.arc(cx, cy, radius + 1, 0, Math.PI * 2)
       ctx.fill()
-      ctx.strokeStyle = '#ff88aa'
+      ctx.strokeStyle = toHex(COLORS.portal)
       ctx.lineWidth = 1
       ctx.beginPath()
       ctx.arc(cx, cy, radius * 0.52, 0, Math.PI * 2)
@@ -218,7 +319,10 @@ export const drawMarkerSpriteCanvas = (
       ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2)
       break
   }
-  drawGlyphCanvas(ctx, cx, cy, GLYPH_BY_TONE[tone], '#f6fbff', 1)
+  const glyphRows = GLYPH_BY_TONE[tone]
+  if (glyphRows) {
+    drawGlyphCanvas(ctx, cx, cy, glyphRows, '#f6fbff', glyphPixelSizeForMarker(size))
+  }
 }
 
 export const drawMarkerSpritePhaser = (
@@ -232,8 +336,13 @@ export const drawMarkerSpritePhaser = (
   const radius = Math.max(3, size * 0.31)
   switch (tone) {
     case 'core':
-      g.fillStyle(COLORS.food, alpha)
+      drawAppleMarkerPhaser(g, cx, cy, size, alpha)
+      break
+    case 'biomeCore':
+      g.fillStyle(COLORS.portalGlow, alpha)
       g.fillCircle(cx, cy, radius + 1)
+      g.lineStyle(1, COLORS.portal, alpha * 0.95)
+      g.strokeCircle(cx, cy, radius * 0.52)
       break
     case 'portal':
       g.fillStyle(COLORS.portal, alpha)
@@ -332,5 +441,8 @@ export const drawMarkerSpritePhaser = (
       g.fillRect(cx - radius, cy - radius, radius * 2, radius * 2)
       break
   }
-  drawGlyphPhaser(g, cx, cy, GLYPH_BY_TONE[tone], 0xf6fbff, alpha, 2)
+  const glyphRowsPhaser = GLYPH_BY_TONE[tone]
+  if (glyphRowsPhaser) {
+    drawGlyphPhaser(g, cx, cy, glyphRowsPhaser, 0xf6fbff, alpha, glyphPixelSizeForMarker(size))
+  }
 }

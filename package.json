@@ -10,7 +10,9 @@
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "format": "biome format --write .",
-    "stitch:map": "node --import tsx tools/stitch-phaser-mapper/cli.ts"
+    "stitch:map": "node --import tsx tools/stitch-phaser-mapper/cli.ts",
+    "generate:sprites": "node --import tsx tools/generate-sprites.ts",
+    "validate:markers": "node --import tsx tools/marker-pipeline-check.ts"
   },
   "dependencies": {
     "i18next": "^25.8.18",
@@ -19,6 +21,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@napi-rs/canvas": "^0.1.97",
     "tsx": "^4.21.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.3"
