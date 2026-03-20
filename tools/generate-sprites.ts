@@ -5,7 +5,7 @@
  * Logical frame / inner size / default scale: `src/game/render/markerExportSpec.ts`.
  *
  * Run: `pnpm generate:sprites`
- * Optional: `SPRITE_EXPORT_SCALE=4 pnpm generate:sprites` (default from spec → 160×160 px frames at scale 8)
+ * Optional: `SPRITE_EXPORT_SCALE=4 pnpm generate:sprites` (default from `MARKER_EXPORT_SCALE_DEFAULT` in spec).
  * Validate: `pnpm validate:markers`
  * Output: `assets/sprites/generated/`
  */
@@ -28,11 +28,14 @@ const OUT_DIR = join(ROOT, 'assets', 'sprites', 'generated')
 const LOGICAL_FRAME = MARKER_EXPORT_LOGICAL_FRAME
 const MARKER_SIZE = MARKER_EXPORT_INNER_SIZE
 
+/** Max scale (safety cap for PNG/atlas size). Must be ≥ `MARKER_EXPORT_SCALE_DEFAULT` in spec. */
+const EXPORT_SCALE_MAX = 48
+
 /** Integer upscale for crisp pixels (nearest-neighbor). */
 const EXPORT_SCALE = Math.max(
   1,
   Math.min(
-    16,
+    EXPORT_SCALE_MAX,
     Number.parseInt(process.env.SPRITE_EXPORT_SCALE ?? String(MARKER_EXPORT_SCALE_DEFAULT), 10) ||
       MARKER_EXPORT_SCALE_DEFAULT,
   ),

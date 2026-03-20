@@ -4,6 +4,8 @@
 
 **Marker pipeline (crisp pixels, export, Phaser, glossary):** see **[MARKER_PIXEL_PIPELINE.md](./MARKER_PIXEL_PIPELINE.md)** — single source of truth `src/game/render/markerExportSpec.ts`, commands `pnpm generate:sprites` and `pnpm validate:markers`, Cursor skill `znake-marker-pipeline`.
 
+**Game resolution, `CELL`, FPS tradeoffs, render optimizations:** see **[GAME_RENDER_SCALING_AND_PERFORMANCE.md](./GAME_RENDER_SCALING_AND_PERFORMANCE.md)**.
+
 **Current state:** Znake uses procedural canvas glyphs. The spec states the project will evolve to authored PNG sprite assets; this document prepares that migration.
 
 **Grid:** 20×20 px per cell. Sprites should fit within ~16–18 px usable area to preserve readability.
@@ -16,7 +18,7 @@
 
 ```bash
 pnpm generate:sprites
-# Optional: lower-res PNGs (default scale is 8 → 160×160 px per frame)
+# Optional: lower-res PNGs (default scale is 16 → 320×320 px per frame)
 SPRITE_EXPORT_SCALE=4 pnpm generate:sprites
 ```
 

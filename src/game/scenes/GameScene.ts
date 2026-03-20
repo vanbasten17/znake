@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { BALANCE, createBaseRunConfig, getFloorSetup } from '../core/balance'
-import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH } from '../core/constants'
+import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
 import { getDevScenario } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
 import { applyRelicEffect, applyTalentEffects } from '../core/meta'
@@ -154,6 +154,8 @@ export class GameScene extends Phaser.Scene {
 
   private bgGraphics!: Phaser.GameObjects.Graphics
   private wallGraphics!: Phaser.GameObjects.Graphics
+  /** Sand + ice — redrawn only when tiles change (not every frame). */
+  private terrainGraphics!: Phaser.GameObjects.Graphics
   private gameGraphics!: Phaser.GameObjects.Graphics
   private fxGraphics!: Phaser.GameObjects.Graphics
 
@@ -237,6 +239,7 @@ export class GameScene extends Phaser.Scene {
 
     this.bgGraphics = this.add.graphics()
     this.wallGraphics = this.add.graphics()
+    this.terrainGraphics = this.add.graphics()
     this.gameGraphics = this.add.graphics()
     this.fxGraphics = this.add.graphics()
 
@@ -348,6 +351,7 @@ export class GameScene extends Phaser.Scene {
 
     this.drawBackground()
     this.drawWalls()
+    this.redrawTerrainGraphics()
     updateHud(this.score)
     setHintText(`${getMoveHintText()} · ${t('hint.itemLegend')}`)
   }
@@ -2301,14 +2305,99 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(COLORS.wall)
       g.fillRect(x * CELL, y * CELL, CELL, CELL)
       g.fillStyle(0x11183b, 0.85)
-      g.fillRect(x * CELL + 3, y * CELL + 3, CELL - 6, CELL - 6)
+      g.fillRect(x * CELL + cellPx(3), y * CELL + cellPx(3), CELL - cellPx(6), CELL - cellPx(6))
       g.fillStyle(0x4b63da, 0.5)
-      g.fillRect(x * CELL + 2, y * CELL + 2, 2, 2)
-      g.fillRect(x * CELL + CELL - 4, y * CELL + 2, 2, 2)
-      g.fillRect(x * CELL + 2, y * CELL + CELL - 4, 2, 2)
-      g.fillRect(x * CELL + CELL - 4, y * CELL + CELL - 4, 2, 2)
+      g.fillRect(x * CELL + cellPx(2), y * CELL + cellPx(2), cellPx(2), cellPx(2))
+      g.fillRect(x * CELL + CELL - cellPx(4), y * CELL + cellPx(2), cellPx(2), cellPx(2))
+      g.fillRect(x * CELL + cellPx(2), y * CELL + CELL - cellPx(4), cellPx(2), cellPx(2))
+      g.fillRect(x * CELL + CELL - cellPx(4), y * CELL + CELL - cellPx(4), cellPx(2), cellPx(2))
       g.lineStyle(1, COLORS.wallBright, 0.65)
       g.strokeRect(x * CELL, y * CELL, CELL, CELL)
+    }
+  }
+
+  /** Sand / ice — static for the floor unless `iceTiles` / `sandTiles` mutate at runtime. */
+  private redrawTerrainGraphics(): void {
+    const g = this.terrainGraphics
+    g.clear()
+    if (this.sandActive && this.sandTiles.size > 0) {
+      for (const key of this.sandTiles) {
+        const [xRaw, yRaw] = key.split(',')
+        const x = Number(xRaw)
+        const y = Number(yRaw)
+        const sx = x * CELL
+        const sy = y * CELL
+        g.fillStyle(COLORS.sandGlow, 0.11)
+        g.fillRect(sx + cellPx(1), sy + cellPx(1), CELL - cellPx(2), CELL - cellPx(2))
+        g.lineStyle(1, COLORS.sand, 0.52)
+        g.strokeRect(sx + cellPx(1.5), sy + cellPx(1.5), CELL - cellPx(3), CELL - cellPx(3))
+        g.fillStyle(0xffefc7, 0.35)
+        g.fillRect(sx + cellPx(5), sy + cellPx(6), cellPx(2), cellPx(2))
+        g.fillRect(sx + cellPx(11), sy + cellPx(9), cellPx(2), cellPx(2))
+        g.fillRect(sx + cellPx(8), sy + cellPx(13), cellPx(2), cellPx(2))
+      }
+    }
+    if (this.iceActive && this.iceTiles.size > 0) {
+      for (const key of this.iceTiles) {
+        const [xRaw, yRaw] = key.split(',')
+        const x = Number(xRaw)
+        const y = Number(yRaw)
+        const ix = x * CELL
+        const iy = y * CELL
+        g.fillStyle(COLORS.iceGlow, 0.14)
+        g.fillRect(ix + cellPx(1), iy + cellPx(1), CELL - cellPx(2), CELL - cellPx(2))
+        g.lineStyle(1, COLORS.ice, 0.58)
+        g.strokeRect(ix + cellPx(1.5), iy + cellPx(1.5), CELL - cellPx(3), CELL - cellPx(3))
+        g.lineStyle(1, 0xcdf6ff, 0.42)
+        g.beginPath()
+        g.moveTo(ix + cellPx(4), iy + cellPx(6))
+        g.lineTo(ix + CELL - cellPx(5), iy + CELL - cellPx(7))
+        g.moveTo(ix + CELL - cellPx(6), iy + cellPx(5))
+        g.lineTo(ix + cellPx(6), iy + CELL - cellPx(6))
+        g.strokePath()
+      }
+    }
+  }
+
+  /**
+   * Darkness overlay: batch horizontal runs per row (same alpha) instead of one fillRect per cell.
+   * Was ~O(cols×rows) draw calls; now typically a few segments per row.
+   */
+  private drawDarknessOverlay(g: Phaser.GameObjects.Graphics, head: SnakeSegment): void {
+    const hx = head.x
+    const hy = head.y
+    const R = this.darknessRadius
+    const edgeLimit = R + this.darknessEdgeFalloff
+    const outerAlpha = this.darknessAlphaOuter
+    const edgeAlpha = this.darknessAlphaEdge
+
+    for (let y = 0; y < BASE_ROWS; y += 1) {
+      const dy = Math.abs(y - hy)
+      const y0 = y * CELL
+      let x = 0
+      while (x < BASE_COLS) {
+        const dist = Math.abs(x - hx) + dy
+        if (dist <= R) {
+          x += 1
+          continue
+        }
+        const alpha = dist <= edgeLimit ? edgeAlpha : outerAlpha
+        const x0 = x
+        x += 1
+        while (x < BASE_COLS) {
+          const d2 = Math.abs(x - hx) + dy
+          if (d2 <= R) {
+            break
+          }
+          const a2 = d2 <= edgeLimit ? edgeAlpha : outerAlpha
+          if (a2 !== alpha) {
+            break
+          }
+          x += 1
+        }
+        g.fillStyle(COLORS.bg, alpha)
+        g.fillRect(x0 * CELL, y0, (x - x0) * CELL, CELL)
+      }
     }
   }
 
@@ -2330,45 +2419,6 @@ export class GameScene extends Phaser.Scene {
       this.flashTimer -= 0.016
     } else {
       this.fxGraphics.clear()
-    }
-
-    if (this.sandActive && this.sandTiles.size > 0) {
-      for (const key of this.sandTiles) {
-        const [xRaw, yRaw] = key.split(',')
-        const x = Number(xRaw)
-        const y = Number(yRaw)
-        const sx = x * CELL
-        const sy = y * CELL
-        g.fillStyle(COLORS.sandGlow, 0.11)
-        g.fillRect(sx + 1, sy + 1, CELL - 2, CELL - 2)
-        g.lineStyle(1, COLORS.sand, 0.52)
-        g.strokeRect(sx + 1.5, sy + 1.5, CELL - 3, CELL - 3)
-        g.fillStyle(0xffefc7, 0.35)
-        g.fillRect(sx + 5, sy + 6, 2, 2)
-        g.fillRect(sx + 11, sy + 9, 2, 2)
-        g.fillRect(sx + 8, sy + 13, 2, 2)
-      }
-    }
-
-    if (this.iceActive && this.iceTiles.size > 0) {
-      for (const key of this.iceTiles) {
-        const [xRaw, yRaw] = key.split(',')
-        const x = Number(xRaw)
-        const y = Number(yRaw)
-        const ix = x * CELL
-        const iy = y * CELL
-        g.fillStyle(COLORS.iceGlow, 0.14)
-        g.fillRect(ix + 1, iy + 1, CELL - 2, CELL - 2)
-        g.lineStyle(1, COLORS.ice, 0.58)
-        g.strokeRect(ix + 1.5, iy + 1.5, CELL - 3, CELL - 3)
-        g.lineStyle(1, 0xcdf6ff, 0.42)
-        g.beginPath()
-        g.moveTo(ix + 4, iy + 6)
-        g.lineTo(ix + CELL - 5, iy + CELL - 7)
-        g.moveTo(ix + CELL - 6, iy + 5)
-        g.lineTo(ix + 6, iy + CELL - 6)
-        g.strokePath()
-      }
     }
 
     if (this.food) {
@@ -2423,10 +2473,10 @@ export class GameScene extends Phaser.Scene {
       g.strokeCircle(cx, cy, CELL * 0.44)
       g.lineStyle(2, 0xffd2ff, 0.75)
       g.beginPath()
-      g.moveTo(cx - 5, cy - 4)
-      g.lineTo(cx, cy - 1)
-      g.lineTo(cx - 2, cy + 2)
-      g.lineTo(cx + 4, cy + 5)
+      g.moveTo(cx - cellPx(5), cy - cellPx(4))
+      g.lineTo(cx, cy - cellPx(1))
+      g.lineTo(cx - cellPx(2), cy + cellPx(2))
+      g.lineTo(cx + cellPx(4), cy + cellPx(5))
       g.strokePath()
       const riftDisp = Math.round(CELL * 0.84)
       this.markerRift.setTexture(markerTextureKey('rift'))
@@ -2553,18 +2603,32 @@ export class GameScene extends Phaser.Scene {
             g.strokeCircle(cx, cy, CELL * 0.38)
             g.lineStyle(1, 0x6e5120, 0.8)
             g.beginPath()
-            g.moveTo(cx - 3, cy - 1)
-            g.lineTo(cx - 1, cy + 1)
-            g.lineTo(cx + 1, cy - 1)
-            g.lineTo(cx + 3, cy + 1)
+            g.moveTo(cx - cellPx(3), cy - cellPx(1))
+            g.lineTo(cx - cellPx(1), cy + cellPx(1))
+            g.lineTo(cx + cellPx(1), cy - cellPx(1))
+            g.lineTo(cx + cellPx(3), cy + cellPx(1))
             g.strokePath()
           } else {
-            g.fillRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)
+            g.fillRect(
+              segment.x * CELL + cellPx(1),
+              segment.y * CELL + cellPx(1),
+              CELL - cellPx(2),
+              CELL - cellPx(2),
+            )
             g.lineStyle(1, 0xffffff, 0.55)
-            g.strokeRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)
+            g.strokeRect(
+              segment.x * CELL + cellPx(1),
+              segment.y * CELL + cellPx(1),
+              CELL - cellPx(2),
+              CELL - cellPx(2),
+            )
             g.fillStyle(0x000000)
-            g.fillCircle(segment.x * CELL + 5, segment.y * CELL + 5, 2)
-            g.fillCircle(segment.x * CELL + CELL - 5, segment.y * CELL + 5, 2)
+            g.fillCircle(segment.x * CELL + cellPx(5), segment.y * CELL + cellPx(5), cellPx(2))
+            g.fillCircle(
+              segment.x * CELL + CELL - cellPx(5),
+              segment.y * CELL + cellPx(5),
+              cellPx(2),
+            )
           }
           if (enemy.kind === 'boss') {
             if (this.bossPhase === 'rage') {
@@ -2573,14 +2637,19 @@ export class GameScene extends Phaser.Scene {
             }
             for (let hp = 0; hp < enemy.health; hp += 1) {
               g.fillStyle(0xffcc55, 0.9)
-              g.fillRect(segment.x * CELL + 3 + hp * 5, segment.y * CELL - 3, 4, 2)
+              g.fillRect(
+                segment.x * CELL + cellPx(3) + hp * cellPx(5),
+                segment.y * CELL - cellPx(3),
+                cellPx(4),
+                cellPx(2),
+              )
             }
           }
         } else {
-          const pad = Math.min(5, Math.max(1, i * 0.2))
+          const pad = Math.min(cellPx(5), Math.max(cellPx(1), i * cellPx(0.2)))
           g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, CELL - pad * 2)
           g.fillStyle(0xffffff, 0.12)
-          g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, 1)
+          g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, cellPx(1))
         }
       }
     }
@@ -2588,30 +2657,52 @@ export class GameScene extends Phaser.Scene {
     for (const [i, segment] of this.snake.entries()) {
       if (i === 0) {
         g.fillStyle(COLORS.snakeHead)
-        g.fillRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)
+        g.fillRect(
+          segment.x * CELL + cellPx(1),
+          segment.y * CELL + cellPx(1),
+          CELL - cellPx(2),
+          CELL - cellPx(2),
+        )
         g.lineStyle(1, 0xffffff, 0.45)
-        g.strokeRect(segment.x * CELL + 1, segment.y * CELL + 1, CELL - 2, CELL - 2)
+        g.strokeRect(
+          segment.x * CELL + cellPx(1),
+          segment.y * CELL + cellPx(1),
+          CELL - cellPx(2),
+          CELL - cellPx(2),
+        )
         g.fillStyle(COLORS.snakeHead, 0.15)
-        g.fillRect(segment.x * CELL - 2, segment.y * CELL - 2, CELL + 4, CELL + 4)
-        const eyeOffsetX = this.currentDir.x === 1 ? 5 : this.currentDir.x === -1 ? -5 : 0
-        const eyeOffsetY = this.currentDir.y === 1 ? 5 : this.currentDir.y === -1 ? -5 : 0
+        g.fillRect(
+          segment.x * CELL - cellPx(2),
+          segment.y * CELL - cellPx(2),
+          CELL + cellPx(4),
+          CELL + cellPx(4),
+        )
+        const eyeOffsetX =
+          this.currentDir.x === 1 ? cellPx(5) : this.currentDir.x === -1 ? -cellPx(5) : 0
+        const eyeOffsetY =
+          this.currentDir.y === 1 ? cellPx(5) : this.currentDir.y === -1 ? -cellPx(5) : 0
         const eyeBaseX = segment.x * CELL + CELL / 2 + eyeOffsetX * 0.35
         const eyeBaseY = segment.y * CELL + CELL / 2 + eyeOffsetY * 0.35
         g.fillStyle(0x03130e, 0.9)
-        g.fillCircle(eyeBaseX - 3, eyeBaseY - 2, 1.6)
-        g.fillCircle(eyeBaseX + 3, eyeBaseY - 2, 1.6)
+        g.fillCircle(eyeBaseX - cellPx(3), eyeBaseY - cellPx(2), cellPx(1.6))
+        g.fillCircle(eyeBaseX + cellPx(3), eyeBaseY - cellPx(2), cellPx(1.6))
         if (this.shields > 0) {
           g.lineStyle(2, COLORS.shield, 0.8)
-          g.strokeRect(segment.x * CELL - 2, segment.y * CELL - 2, CELL + 4, CELL + 4)
+          g.strokeRect(
+            segment.x * CELL - cellPx(2),
+            segment.y * CELL - cellPx(2),
+            CELL + cellPx(4),
+            CELL + cellPx(4),
+          )
         }
         continue
       }
       const alpha = Math.max(0.3, 1 - i * 0.025)
-      const pad = Math.min(4, 1 + i * 0.12)
+      const pad = Math.min(cellPx(4), cellPx(1) + i * cellPx(0.12))
       g.fillStyle(COLORS.snake, alpha)
       g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, CELL - pad * 2)
       g.fillStyle(0xffffff, 0.08)
-      g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, 1)
+      g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, cellPx(1))
     }
 
     for (const particle of this.particles) {
@@ -2622,9 +2713,9 @@ export class GameScene extends Phaser.Scene {
       const px = projectile.x * CELL + CELL / 2
       const py = projectile.y * CELL + CELL / 2
       g.fillStyle(COLORS.venom, 0.9)
-      g.fillCircle(px, py, 4)
+      g.fillCircle(px, py, cellPx(4))
       g.lineStyle(1, 0xd8ffe4, 0.8)
-      g.strokeCircle(px, py, 5)
+      g.strokeCircle(px, py, cellPx(5))
     }
 
     if (this.squeezeInset > 0) {
@@ -2643,34 +2734,23 @@ export class GameScene extends Phaser.Scene {
     if (this.darknessActive) {
       const head = this.snake[0]
       if (head) {
-        for (let y = 0; y < BASE_ROWS; y += 1) {
-          for (let x = 0; x < BASE_COLS; x += 1) {
-            const dist = Math.abs(x - head.x) + Math.abs(y - head.y)
-            if (dist <= this.darknessRadius) {
-              continue
-            }
-            const edgeLimit = this.darknessRadius + this.darknessEdgeFalloff
-            const alpha = dist <= edgeLimit ? this.darknessAlphaEdge : this.darknessAlphaOuter
-            g.fillStyle(COLORS.bg, alpha)
-            g.fillRect(x * CELL, y * CELL, CELL, CELL)
-          }
-        }
+        this.drawDarknessOverlay(g, head)
       }
     }
 
     for (let i = 0; i < this.shields; i += 1) {
       g.fillStyle(COLORS.shield, 0.8)
-      g.fillCircle(12 + i * 17, HEIGHT - 12, 6)
+      g.fillCircle(cellPx(12) + i * cellPx(17), HEIGHT - cellPx(12), cellPx(6))
       g.lineStyle(1, 0xffffff, 0.4)
-      g.strokeCircle(12 + i * 17, HEIGHT - 12, 6)
+      g.strokeCircle(cellPx(12) + i * cellPx(17), HEIGHT - cellPx(12), cellPx(6))
     }
     for (let i = 0; i < this.ghostCharges; i += 1) {
       g.fillStyle(0xaaaaff, 0.6)
-      g.fillCircle(12 + i * 17, HEIGHT - 28, 4)
+      g.fillCircle(cellPx(12) + i * cellPx(17), HEIGHT - cellPx(28), cellPx(4))
     }
     for (let i = 0; i < this.venomCharges; i += 1) {
       g.fillStyle(COLORS.venom, 0.85)
-      g.fillCircle(12 + i * 17, HEIGHT - 44, 4)
+      g.fillCircle(cellPx(12) + i * cellPx(17), HEIGHT - cellPx(44), cellPx(4))
     }
   }
 }

@@ -2,6 +2,8 @@
 
 This document is the **operational checklist** for procedural glossary markers: same sharp pixels as `pnpm generate:sprites`, in Phaser, and in the DOM glossary.
 
+**Resolució del joc + canvas + millores de rendiment (CELL, `cellPx`, HUD, foscor, gel/arena, Phaser):** see **[GAME_RENDER_SCALING_AND_PERFORMANCE.md](./GAME_RENDER_SCALING_AND_PERFORMANCE.md)** (consolidated reference in Catalan).
+
 ## Single source of truth
 
 | File | Role |
@@ -52,6 +54,12 @@ World pickups and objectives must use **canvas textures** registered by `registe
 5. **Glossary DOM** — Backing store = full export resolution; **CSS display** = integer px that fits the frame (`GLOSSARY_MARKER_DISPLAY_PX`); never draw the glyph at a fractional “marker size” in CSS pixels.
 6. **Game scale** — Browser scales the Phaser canvas (FIT); crisp canvas + NEAREST keeps sprites sharp; sub-pixel sprite positions still hurt—use `roundPixels` / integer coords.
 
+**Grid cell size:** `CELL` in `src/game/core/constants.ts` sets how many screen pixels each logical cell occupies (`WIDTH` / `HEIGHT` = `BASE_COLS` / `BASE_ROWS` × `CELL`). Gameplay stays in cell coordinates; marker textures still rasterize at `MARKER_EXPORT_*` and scale with `setDisplaySize(CELL, …)`. Decorative `Graphics` offsets that were tuned for a 20px cell use `cellPx(n)` so proportions stay consistent when `CELL` changes.
+
+**Finer markers:** If in-game icons look too blocky, raise `MARKER_EXPORT_SCALE_DEFAULT` in `markerExportSpec.ts` (then `pnpm generate:sprites` + `pnpm validate:markers`). That increases the bitmap resolution of the same logical art; `markerHiRes.ts` picks it up automatically.
+
+**FPS / VRAM:** High `CELL` = larger internal canvas (more pixels per frame). High `MARKER_EXPORT_SCALE_DEFAULT` = each `marker_hi_*` texture is bigger (×24 tones). If FPS drops, reduce `CELL` first, then export scale — both trade sharpness for throughput.
+
 ## Semantic colors & roles
 
 Glyphs and fills follow **`src/game/render/markerSemantics.ts`** (`MarkerSemanticRole`):
@@ -67,6 +75,7 @@ Icon art lives in **`markerVectorArt.ts`** (vector icons on premium tokens), inv
 
 ## Related docs
 
+- [GAME_RENDER_SCALING_AND_PERFORMANCE.md](./GAME_RENDER_SCALING_AND_PERFORMANCE.md) — **CELL**, `cellPx`, marker export scale, `generate-sprites` scale cap, FPS-oriented notes (HUD, darkness, terrain cache, Phaser)
 - [SPRITE_GENERATION_REFERENCE.md](./SPRITE_GENERATION_REFERENCE.md) — lore, prompts, asset layout
 - [`assets/sprites/generated/README.md`](../../assets/sprites/generated/README.md) — output files
 - Cursor: `.cursor/skills/znake-marker-pipeline/SKILL.md` — agent workflow

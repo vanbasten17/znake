@@ -17,6 +17,9 @@ export const createGame = (): Phaser.Game =>
     render: {
       antialias: false,
       pixelArt: true,
+      /** Fewer sub-pixel samples on Images/Graphics; helps a bit on fill-heavy frames. */
+      roundPixels: true,
+      powerPreference: 'high-performance',
     },
     fps: {
       target: 60,

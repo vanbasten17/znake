@@ -43,10 +43,13 @@ const setShellClasses = (mode: UiShellMode): void => {
   document.body.classList.toggle('scene-run', mode === 'run')
 }
 
+let lastRunStatusText = ''
+
 export const setUiShell = (mode: UiShellMode): void => {
   document.body.dataset.uiShell = mode
   setShellClasses(mode)
   if (mode !== 'run') {
+    lastRunStatusText = ''
     resolveHudNodes().runStatus.textContent = ''
   }
 }
@@ -75,6 +78,10 @@ export const setHintText = (value: string): void => {
 }
 
 export const setRunStatusText = (value: string): void => {
+  if (value === lastRunStatusText) {
+    return
+  }
+  lastRunStatusText = value
   resolveHudNodes().runStatus.textContent = value
 }
 

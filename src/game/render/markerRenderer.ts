@@ -35,6 +35,13 @@ const drawAppleMarkerCanvas = (
   ctx.beginPath()
   ctx.ellipse(cx, cy + r * 0.06, r * 0.88, r * 1.06, 0, 0, Math.PI * 2)
   ctx.fill()
+  /* Thin rim: reads cleaner at high export scale + NEAREST (less “chunky” silhouette). */
+  ctx.strokeStyle = 'rgba(72, 22, 32, 0.5)'
+  ctx.lineWidth = Math.max(0.6, r * 0.05)
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.ellipse(cx, cy + r * 0.06, r * 0.88, r * 1.06, 0, 0, Math.PI * 2)
+  ctx.stroke()
   ctx.fillStyle = '#3d2817'
   ctx.fillRect(cx - Math.max(0.5, r * 0.14), cy - r * 1.32, Math.max(1, r * 0.28), r * 0.42)
   ctx.fillStyle = '#2d9a3e'
@@ -59,6 +66,8 @@ const drawAppleMarkerPhaser = (
   g.fillCircle(cx, cy, r + 1.2)
   g.fillStyle(COLORS.food, alpha)
   g.fillEllipse(cx, cy + r * 0.06, r * 0.88 * 2, r * 1.06 * 2)
+  g.lineStyle(Math.max(0.6, r * 0.05), 0x481620, alpha * 0.5)
+  g.strokeEllipse(cx, cy + r * 0.06, r * 0.88 * 2, r * 1.06 * 2)
   g.fillStyle(0x3d2817, alpha)
   g.fillRect(cx - Math.max(0.5, r * 0.14), cy - r * 1.32, Math.max(1, r * 0.28), r * 0.42)
   g.fillStyle(0x2d9a3e, alpha)
