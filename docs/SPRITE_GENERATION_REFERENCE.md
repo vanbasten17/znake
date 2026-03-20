@@ -106,17 +106,17 @@ The game takes place in the **Void Depths** — a dark, cosmic expanse where a n
 
 ## 3. World Items (Biome collectibles)
 
-### Red Core (biome item)
+### Coolant Charge (biome item)
 | Field | Value |
 |-------|-------|
-| **Id** | `core_item` |
-| **Role** | Biome bonus: score + growth + coolant |
-| **Lore** | Concentrated void energy; rarer than basic food |
-| **Current visual** | Cyan/teal square, grid-like inner glyph |
-| **Color** | Glow: `#7ef2ff`. Fill: `#2affff`. Glyph: `#f4f8ff` |
-| **Shape** | Square with grid pattern |
-| **Distinct** | Different from basic food — more "tech" than "organic" |
-| **Sprite prompt** | Pixel art energy core, cyan-teal, grid pattern, tech/energy feel, 16×16 px |
+| **Id** | `coolant_charge` |
+| **Role** | Biome bonus: coolant resource for core-pressure survival |
+| **Lore** | Void coolant concentrates around the snake’s core loop |
+| **Current visual** | Teal/cyan square base with an inner red core-circle glow + diamond glyph |
+| **Color** | Outer glow: `#7ef2ff`. Outer fill: `#2affff`. Inner core glow: `#ff2244`. Glyph: `#f4f8ff` |
+| **Shape** | Square base + inner core-circle with 5×5 diamond glyph |
+| **Distinct** | Must read as "coolant/biome" at a glance (teal exterior), while the inner core glyph stays recognizable |
+| **Sprite prompt** | Pixel art coolant charge: teal/cyan square token with a smaller inner red core-circle, and a bright 5×5 diamond glyph, 16×16 px, arcade roguelite style |
 
 ### Rift Battery
 | Field | Value |
@@ -151,36 +151,36 @@ The game takes place in the **Void Depths** — a dark, cosmic expanse where a n
 |-------|-------|
 | **Id** | `power_shield` |
 | **Role** | Absorbs one lethal hit |
-| **Lore** | Protective barrier; essential for boss floors |
-| **Current visual** | Shield silhouette (rectangle + triangle), cyan (#00aaff) |
-| **Color** | Primary: `#00aaff` (shield). Accent: `#44c5ff` |
-| **Shape** | Classic shield: top rectangle, bottom triangle |
-| **Distinct** | Shield iconography — universal readability |
-| **Sprite prompt** | Pixel art shield icon, cyan blue, defensive symbol, 16×16 px |
+| **Lore** | Protective barrier rendered as a recognizable cyan "token" |
+| **Current visual** | Cyan circle token with a central shield/diamond glyph (scene glow + ring wraps the token) |
+| **Color** | Primary: `#00aaff` (shield). Glyph: `#f4f8ff` (bright white) |
+| **Shape** | Circle token + 5×5 central diamond glyph |
+| **Distinct** | Defensive feel comes from the cyan token and the central shield glyph (not a full shield silhouette) |
+| **Sprite prompt** | Pixel art shield token: cyan circle with a crisp bright white 5×5 diamond/shield glyph in the center, 16×16 px, neon on dark void |
 
 ### Time Slow
 | Field | Value |
 |-------|-------|
 | **Id** | `power_slow` |
 | **Role** | Slows enemies |
-| **Lore** | Time distortion field |
-| **Current visual** | Pink circle, clock-hand lines (hour/minute) |
-| **Color** | Primary: `#ff88cc` (slow). Inner: `#ffc5e8` |
-| **Shape** | Circle with clock hands |
-| **Distinct** | Time/clock = slow |
-| **Sprite prompt** | Pixel art clock/slow icon, pink, hour and minute hands, 16×16 px |
+| **Lore** | Time distortion presented as a neon pink circle token |
+| **Current visual** | Pink circle token with a central "slow" glyph pattern |
+| **Color** | Primary: `#ff88cc` (slow). Glyph: `#f4f8ff` |
+| **Shape** | Circle token + 5x5 central "slow" glyph |
+| **Distinct** | Readable slow effect via the pink token + unique glyph motif |
+| **Sprite prompt** | Pixel art slow token: neon pink circle with a bright white 5×5 glyph motif centered, 16×16 px, top-down neon arcade style |
 
 ### Ghost charge
 | Field | Value |
 |-------|-------|
 | **Id** | `power_ghost` |
 | **Role** | One wall pass (wrap to opposite edge) |
-| **Lore** | Phase shift; snake becomes momentarily intangible to walls |
-| **Current visual** | Pale blue circle, crescent + rectangle (ghost-like) |
-| **Color** | Primary: `#aaaaff`. Fill: `#c7c3ff` |
-| **Shape** | Ghost silhouette: rounded top, wavy bottom |
-| **Distinct** | Ethereal, "pass-through" feel |
-| **Sprite prompt** | Pixel art ghost icon, pale blue, ethereal, wall-pass symbol, 16×16 px |
+| **Lore** | Phase shift presented as a pale purple/cyan ghost token |
+| **Current visual** | Pale blue/purple circle token with a central "ghost" glyph pattern |
+| **Color** | Primary: `#aaaaff` (ghost). Glyph: `#f4f8ff` |
+| **Shape** | Circle token + 5x5 central "ghost" glyph |
+| **Distinct** | Pass-through feel comes from the ghost glyph + pale purple token (not a full silhouette) |
+| **Sprite prompt** | Pixel art ghost token: pale blue/purple circle with a bright white 5×5 ghost glyph centered, 16×16 px, neon arcade style |
 
 ### Score Burst
 | Field | Value |
@@ -188,11 +188,11 @@ The game takes place in the **Void Depths** — a dark, cosmic expanse where a n
 | **Id** | `power_score` |
 | **Role** | Instant bonus score |
 | **Lore** | Score multiplier burst |
-| **Current visual** | Gold/yellow square, star/diamond glyph center |
-| **Color** | Primary: `#ffdd00` (powerup). Accent: `#ffb400` |
-| **Shape** | Square with star or diamond |
-| **Distinct** | Gold = reward/score |
-| **Sprite prompt** | Pixel art score/star icon, gold yellow, reward symbol, 16×16 px |
+| **Current visual** | Gold circle token with a central "score" glyph (square/diagonal badge motif) |
+| **Color** | Primary: `#ffdd00` (powerup). Glyph: `#f4f8ff` |
+| **Shape** | Circle token + 5x5 central "score" glyph |
+| **Distinct** | Gold token reads instantly as "reward/score" |
+| **Sprite prompt** | Pixel art score token: gold/yellow circle with a bright white 5x5 "score badge" glyph centered, 16×16 px, neon arcade style |
 
 ### Venom (elimination mode)
 | Field | Value |
@@ -200,11 +200,11 @@ The game takes place in the **Void Depths** — a dark, cosmic expanse where a n
 | **Id** | `power_venom` |
 | **Role** | Ranged attack for elimination objectives |
 | **Lore** | Toxic projectile; snake gains offensive capability |
-| **Current visual** | *Gap: currently shares score (gold square) visuals — needs distinct sprite* |
-| **Color** | Intended: `#59ff87` (venom) — toxic green |
-| **Shape** | Suggest: droplet, fang, or venom sac |
-| **Distinct** | Must differ from score (gold) — green, offensive |
-| **Sprite prompt** | Pixel art venom/toxin icon, toxic green (#59ff87), droplet or fang shape, offensive powerup, 16×16 px |
+| **Current visual** | Toxic green circle token with a central "venom" glyph (diamond/cross motif) |
+| **Color** | Primary: `#59ff87` (venom). Glyph: `#f4f8ff` |
+| **Shape** | Circle token + 5x5 central "venom" glyph |
+| **Distinct** | Differentiated from score via toxic green token color and venom glyph |
+| **Sprite prompt** | Pixel art venom token: toxic green circle with a bright white 5×5 venom glyph centered (diamond/cross motif), 16×16 px, neon arcade style |
 
 ---
 
@@ -213,23 +213,23 @@ The game takes place in the **Void Depths** — a dark, cosmic expanse where a n
 ### Portal (safer route)
 | Field | Value |
 |-------|-------|
-| **Id** | `portal_safer` |
+| **Id** | `portal` |
 | **Role** | Advance to next floor; fewer enemies, fewer walls |
 | **Lore** | Gateway to the next void layer |
-| **Current visual** | Cyan circle, triangular glyph inside (chevron/door) |
+| **Current visual** | Cyan/gold-tinged circle token with a central portal glyph motif |
 | **Color** | Glow: `#2ab8ff`. Stroke: `#68ffe8`. Fill: `#68ffe8` |
-| **Shape** | Circle with triangle/chevron |
+| **Shape** | Circle token + 5×5 central portal glyph |
 | **Distinct** | Cyan portal vs purple rift (hazard) |
 
 ### Portal (riskier route)
 | Field | Value |
 |-------|-------|
-| **Id** | `portal_riskier` |
+| **Id** | `portal_beacon` |
 | **Role** | Harder floor, bonus score |
 | **Lore** | Dangerous gateway; rewards the bold |
-| **Current visual** | Orange/gold variant of portal |
-| **Color** | Glow: `#ffa24a`. Stroke: `#ffd07a` |
-| **Shape** | Same as safer, different palette |
+| **Current visual** | Warm/orange beacon-ring token with a central gold beacon glyph motif |
+| **Color** | Outer glow: `#ffa24a`. Outer stroke: `#ffd07a`. Inner beacon: `#fff07a` |
+| **Shape** | Ringed circle token + 5×5 central beacon glyph |
 | **Distinct** | Warm tones = risk |
 
 ---
@@ -395,8 +395,8 @@ The game takes place in the **Void Depths** — a dark, cosmic expanse where a n
 
 | Element | Issue | Recommendation |
 |---------|-------|----------------|
-| **Venom powerup** | Shares gold/score visual; no distinct sprite | Add venom-specific sprite (toxic green, droplet/fang) |
-| **Red Core vs Core Item** | Both "core" naming; food is red, biome core is cyan | Keep distinct shapes: food = diamond/organic, core = grid/tech |
+| **Venom powerup** | Venom token is now distinct (toxic green + unique venom glyph) | Keep glyph motif + toxic green palette consistent across authored sprites |
+| **Red Core vs Coolant Charge** | Same recognizable inner core glyph, but different outer token color/shape | Keep inner core glyph consistent; differentiate with teal outer square vs red core token |
 | **Portal glyphs** | Procedural; could be custom sprite per route | Consider authored portal frame + interior |
 | **Enemy differentiation** | Color-only; body shape identical | Optional: subtle shape variation per enemy kind |
 | **Egg crack** | Static; could animate pre-hatch | Sprite sheet with crack progression |
