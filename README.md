@@ -31,6 +31,8 @@ pnpm validate:markers   # verify manifest vs markerExportSpec + crisp-pixel chec
 
 **Glossary / marker art pipeline:** `docs/assets/MARKER_PIXEL_PIPELINE.md` — dimensions live in `src/game/render/markerExportSpec.ts`. Cursor: skill **`znake-marker-pipeline`**, command **`/znake-markers`**.
 
+**World & lore (synthesized from current game):** [docs/WORLD_AND_LORE.md](docs/WORLD_AND_LORE.md)
+
 **Asset & sprite docs (index):** [docs/assets/README.md](docs/assets/README.md)
 
 ## Project Structure
