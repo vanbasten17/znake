@@ -5,9 +5,7 @@ Runtime and export behavior for glossary marker raster art (`marker_<tone>.png`)
 ## Purpose
 
 Define how optional bitmap files override procedural marker art in browser and Node export tooling.
-
 ## Requirements
-
 ### Requirement: Per-tone PNG files and naming
 
 The system SHALL treat `assets/sprites/generated/marker_<tone>.png` as the optional bitmap source for each `GlossaryMarkerTone` value, where `<tone>` matches the tone identifier (e.g. `core`, `biomeCore`, `enemyMirror`).
@@ -21,19 +19,19 @@ The system SHALL treat `assets/sprites/generated/marker_<tone>.png` as the optio
 
 ### Requirement: Runtime bitmap preference with procedural fallback
 
-The browser runtime SHALL load all configured marker PNG URLs, then prefer a loaded bitmap for each tone when rasterizing markers for the glossary and for Phaser hi-res marker textures; if a tone’s image is missing or fails to load, the system SHALL render that tone using procedural art (`drawMarkerSpriteProcedural`).
+The browser runtime SHALL load configured marker PNG URLs and prefer loaded bitmaps per tone when rasterizing markers for glossary and Phaser hi-res textures; if a tone image is missing or fails to load, that tone SHALL render procedurally.
 
-#### Scenario: Successful PNG load
+#### Scenario: Optional Neon batch preview override for development
 
-- **WHEN** `marker_<tone>.png` loads successfully before marker textures are registered
-- **THEN** `drawMarkerSpriteCanvas` draws that bitmap scaled to the logical marker frame for that tone
+- **WHEN** URL query param `neonPreview=1` is present
+- **THEN** runtime resolves tone-matched marker PNGs from `assets/sprites/source/marker_neon_proposals/png/` as first-choice overrides
+- **AND** tones without a proposal PNG continue using base generated markers or procedural fallback
 
-#### Scenario: Failed or missing PNG
+#### Scenario: Default runtime keeps production marker set
 
-- **WHEN** a marker PNG fails to load or has no URL
-- **THEN** that tone uses procedural drawing only for that tone
-
----
+- **WHEN** `neonPreview=1` is not present
+- **THEN** runtime uses generated marker PNGs under `assets/sprites/generated/`
+- **AND** gameplay visuals remain unchanged from production defaults
 
 ### Requirement: Procedural-only module for Node tooling
 
@@ -70,3 +68,4 @@ Rasterized markers for runtime and export SHALL match the active `markerExportSp
 
 - **WHEN** developers change export frame dimensions
 - **THEN** they update `markerExportSpec.ts` and regenerate or replace PNGs to match those dimensions
+

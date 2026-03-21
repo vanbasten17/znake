@@ -1,0 +1,5 @@
+<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  <defs><filter id="g"><feGaussianBlur stdDeviation="0.9"/></filter></defs>
+  <circle cx="20" cy="20" r="17" fill="#11162e" opacity="0.33" filter="url(#g)"/>
+  <path d="M27 4 A16 16 0 1 0 27 36 A11.8 11.8 0 1 1 27 4 Z" fill="#5f7bb8" stroke="#98b4ef" stroke-width="1.7"/>
+</svg>

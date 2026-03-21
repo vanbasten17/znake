@@ -10,6 +10,15 @@ const urlModules = import.meta.glob('../../../assets/sprites/generated/marker_*.
   import: 'default',
 }) as Record<string, string>
 
+const neonPreviewModules = import.meta.glob(
+  '../../../assets/sprites/source/marker_neon_proposals/png/marker_*_neon.png',
+  {
+    eager: true,
+    query: '?url',
+    import: 'default',
+  },
+) as Record<string, string>
+
 const urlByTone = (): Partial<Record<GlossaryMarkerTone, string>> => {
   const out: Partial<Record<GlossaryMarkerTone, string>> = {}
   for (const [path, url] of Object.entries(urlModules)) {
@@ -23,7 +32,29 @@ const urlByTone = (): Partial<Record<GlossaryMarkerTone, string>> => {
   return out
 }
 
-const TONE_URLS = urlByTone()
+const neonUrlByTone = (): Partial<Record<GlossaryMarkerTone, string>> => {
+  const out: Partial<Record<GlossaryMarkerTone, string>> = {}
+  for (const [path, url] of Object.entries(neonPreviewModules)) {
+    const match = /marker_(\w+)_neon\.png$/.exec(path)
+    if (!match) continue
+    const tone = match[1] as GlossaryMarkerTone
+    if (GLOSSARY_MARKER_TONES.includes(tone)) {
+      out[tone] = url
+    }
+  }
+  return out
+}
+
+const isNeonPreviewEnabled = (): boolean => {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('neonPreview') === '1'
+}
+
+const baseUrls = urlByTone()
+const neonUrls = neonUrlByTone()
+const TONE_URLS: Partial<Record<GlossaryMarkerTone, string>> = isNeonPreviewEnabled()
+  ? { ...baseUrls, ...neonUrls }
+  : baseUrls
 
 const cache = new Map<GlossaryMarkerTone, HTMLImageElement | null>()
 let loadPromise: Promise<void> | null = null

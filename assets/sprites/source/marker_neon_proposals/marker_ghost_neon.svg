@@ -1,0 +1,8 @@
+<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  <defs><filter id="g"><feGaussianBlur stdDeviation="0.9"/></filter></defs>
+  <circle cx="20" cy="20" r="17" fill="#1e1f3f" opacity="0.33" filter="url(#g)"/>
+  <path d="M8 24 V16.5 Q8 6 20 6 Q32 6 32 16.5 V24 Q27 28 24 24 Q20 28 16 24 Q13 28 8 24 Z"
+    fill="#cbcfff" stroke="#99a4ff" stroke-width="1.7"/>
+  <circle cx="16.2" cy="16.2" r="1.7" fill="#1b1e3f"/>
+  <circle cx="23.8" cy="16.2" r="1.7" fill="#1b1e3f"/>
+</svg>
