@@ -11,7 +11,7 @@ const toHex = (value: number): string => `#${value.toString(16).padStart(6, '0')
 const D2R = (deg: number) => (deg * Math.PI) / 180
 
 /** Rounded-rect path (canvas) — same “chip” feel as the apple token. */
-const roundRectPath = (
+export const roundRectPath = (
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,

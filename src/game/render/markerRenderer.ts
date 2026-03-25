@@ -11,6 +11,7 @@ import {
   drawVectorIconPhaser,
   iconInkHex,
   iconInkPhaser,
+  roundRectPath,
 } from './markerVectorArt'
 
 export { MARKER_SEMANTIC_ROLE, type MarkerSemanticRole } from './markerSemantics'
@@ -18,7 +19,8 @@ export { MARKER_SEMANTIC_ROLE, type MarkerSemanticRole } from './markerSemantics
 const toHex = (value: number): string => `#${value.toString(16).padStart(6, '0')}`
 
 /**
- * Red apple — reference quality (`core`). Glow + ellipsoid + stem + leaf + highlight.
+ * Premium Squared Neon apple — reference quality (`core`). 
+ * Follows "Circuit-Core" aesthetic: rounded square "chip" base + geometric stem + neon glow.
  */
 const drawAppleMarkerCanvas = (
   ctx: CanvasRenderingContext2D,
@@ -26,27 +28,49 @@ const drawAppleMarkerCanvas = (
   cy: number,
   size: number,
 ): void => {
-  const r = Math.max(3, size * 0.31)
-  // 1. Inked Outline
+  // Solid Unified Red look: Single consistent fill (no nested rim contrast)
+  const r = Math.round(size * 0.44 * 2) / 2 
+  const rr = Math.round(r * 0.48 * 2) / 2   
+  const w = Math.round(r * 1.85 * 2) / 2
+  const h = Math.round(r * 1.85 * 2) / 2
+  
+  const cx_adj = cx
+  const cy_adj = cy + Math.round(r * 0.15 * 2) / 2 
+  const x = Math.round((cx_adj - w / 2) * 2) / 2
+  const y = Math.round((cy_adj - h / 2) * 2) / 2
+
+  // 1. Thick Inked Outline (Body Boundary)
   ctx.strokeStyle = '#000000'
-  ctx.lineWidth = r * 0.2
-  ctx.beginPath()
-  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.lineWidth = Math.round(w * 0.14 * 2) / 2
+  roundRectPath(ctx, x, y, w, h, rr)
   ctx.stroke()
 
-  // 2. Solid Body
+  // 2. Solid Body (Unified Core Color)
   ctx.fillStyle = toHex(COLORS.food)
-  ctx.beginPath()
-  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  roundRectPath(ctx, x, y, w, h, rr)
   ctx.fill()
 
-  // 3. Simple Stem/Leaf
-  ctx.fillStyle = '#3d2817'
-  ctx.fillRect(cx - r * 0.1, cy - r * 1.25, r * 0.2, r * 0.4)
-  ctx.fillStyle = '#2d9a3e'
-  ctx.beginPath()
-  ctx.ellipse(cx + r * 0.4, cy - r * 1.1, r * 0.35, r * 0.18, 0.45, 0, Math.PI * 2)
-  ctx.fill()
+  // 3. Neon Highlight (Optional, very thin to avoid "box" effect)
+  ctx.strokeStyle = toHex(COLORS.foodGlow)
+  ctx.lineWidth = Math.round(w * 0.04 * 2) / 2
+  roundRectPath(ctx, x, y, w, h, rr)
+  ctx.stroke()
+
+  // 4. Geometric Stem & Leaf
+  ctx.fillStyle = '#f8fcff'
+  ctx.fillRect(
+    Math.round((cx - r * 0.1) * 2) / 2,
+    Math.round((cy_adj - r * 1.35) * 2) / 2,
+    Math.round(r * 0.2 * 2) / 2,
+    Math.round(r * 0.45 * 2) / 2,
+  )
+  ctx.fillStyle = toHex(COLORS.venom)
+  ctx.fillRect(
+    Math.round((cx + r * 0.15) * 2) / 2,
+    Math.round((cy_adj - r * 1.25) * 2) / 2,
+    Math.round(r * 0.45 * 2) / 2,
+    Math.round(r * 0.3 * 2) / 2,
+  )
 }
 
 const drawAppleMarkerPhaser = (
@@ -56,20 +80,44 @@ const drawAppleMarkerPhaser = (
   size: number,
   alpha: number,
 ): void => {
-  const r = Math.max(3, size * 0.31)
-  // 1. Inked Outline
-  g.lineStyle(r * 0.22, 0x000000, alpha * 0.9)
-  g.strokeCircle(cx, cy, r)
+  // Solid Unified Red look
+  const r = Math.round(size * 0.44 * 2) / 2 
+  const rr = Math.round(r * 0.48 * 2) / 2   
+  const w = Math.round(r * 1.85 * 2) / 2
+  const h = Math.round(r * 1.85 * 2) / 2
+  
+  const cx_adj = cx
+  const cy_adj = cy + Math.round(r * 0.15 * 2) / 2
+  const x = Math.round((cx_adj - w / 2) * 2) / 2
+  const y = Math.round((cy_adj - h / 2) * 2) / 2
 
-  // 2. Solid Body
+  // 1. Thick Inked Outline (Body Boundary)
+  g.lineStyle(Math.round(w * 0.14 * 2) / 2, 0x000000, alpha * 0.9)
+  g.strokeRoundedRect(x, y, w, h, rr)
+
+  // 2. Solid Body (Unified Core Color)
   g.fillStyle(COLORS.food, alpha)
-  g.fillCircle(cx, cy, r)
+  g.fillRoundedRect(x, y, w, h, rr)
 
-  // 3. Stem/Leaf
-  g.fillStyle(0x3d2817, alpha)
-  g.fillRect(cx - r * 0.1, cy - r * 1.25, r * 0.2, r * 0.4)
-  g.fillStyle(0x2d9a3e, alpha)
-  g.fillEllipse(cx + r * 0.4, cy - r * 1.1, r * 0.35 * 2, r * 0.18 * 2)
+  // 3. Neon Highlight (Subtle)
+  g.lineStyle(Math.round(w * 0.04 * 2) / 2, COLORS.foodGlow, alpha)
+  g.strokeRoundedRect(x, y, w, h, rr)
+
+  // 4. Geometric Stem & Leaf
+  g.fillStyle(0xf8fcff, alpha * 0.9)
+  g.fillRect(
+    Math.round((cx - r * 0.1) * 2) / 2,
+    Math.round((cy_adj - r * 1.35) * 2) / 2,
+    Math.round(r * 0.2 * 2) / 2,
+    Math.round(r * 0.45 * 2) / 2,
+  )
+  g.fillStyle(COLORS.venom, alpha * 0.9)
+  g.fillRect(
+    Math.round((cx + r * 0.15) * 2) / 2,
+    Math.round((cy_adj - r * 1.25) * 2) / 2,
+    Math.round(r * 0.45 * 2) / 2,
+    Math.round(r * 0.3 * 2) / 2,
+  )
 }
 
 const isTileTone = (tone: GlossaryMarkerTone): boolean =>
