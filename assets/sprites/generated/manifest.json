@@ -1,9 +1,9 @@
 {
   "logicalFrame": 20,
   "logicalMarkerSize": 18,
-  "exportScale": 2,
-  "frameWidth": 40,
-  "frameHeight": 40,
+  "exportScale": 4,
+  "frameWidth": 80,
+  "frameHeight": 80,
   "source": "stitched from assets/sprites/generated/marker_<tone>.png by tools/pack-marker-atlas-from-pngs.ts",
   "frames": [
     {
