@@ -1,0 +1,8 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer Ring (Cyan) -->
+  <circle cx="10" cy="10" r="8" stroke="#00FFFF" stroke-width="2" stroke-dasharray="4 2"/>
+  <!-- Inner Portal Core -->
+  <circle cx="10" cy="10" r="5" fill="#00FFFF" fill-opacity="0.3" stroke="#00FFFF" stroke-width="1.5"/>
+  <!-- Center Dot -->
+  <circle cx="10" cy="10" r="2" fill="#00FFFF"/>
+</svg>

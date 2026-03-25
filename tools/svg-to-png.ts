@@ -6,6 +6,7 @@ type CliOptions = {
   inputDir: string
   outputDir: string
   size: number
+  dryRun: boolean
 }
 
 const parseArgs = (): CliOptions => {
@@ -23,13 +24,16 @@ const parseArgs = (): CliOptions => {
     return null
   }
 
+  const dryRun = args.includes('--dry-run')
+  const defaultOut = dryRun ? 'assets/sprites/previews' : 'assets/sprites/generated'
+
   const inputDir = getArg('in') ?? 'assets/sprites/source'
-  const outputDir = getArg('out') ?? 'assets/sprites/source/png'
+  const outputDir = getArg('out') ?? defaultOut
   const sizeRaw = getArg('size')
   const parsedSize = sizeRaw ? Number.parseInt(sizeRaw, 10) : 40
   const size = Number.isFinite(parsedSize) && parsedSize > 0 ? parsedSize : 40
 
-  return { inputDir, outputDir, size }
+  return { inputDir, outputDir, size, dryRun }
 }
 
 const run = async (): Promise<void> => {

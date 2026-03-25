@@ -14,7 +14,9 @@
     "generate:sprites": "node --import tsx tools/generate-sprites.ts",
     "validate:markers": "node --import tsx tools/marker-pipeline-check.ts",
     "validate:visual-language": "node --import tsx tools/visual-language-check.ts",
-    "sprites:svg2png": "node --import tsx tools/svg-to-png.ts"
+    "sprites:svg2png": "node --import tsx tools/svg-to-png.ts",
+    "sprites:dry-run": "pnpm sprites:svg2png --dry-run",
+    "sprites:update": "pnpm sprites:svg2png && node --import tsx tools/pack-marker-atlas-from-pngs.ts && pnpm validate:markers"
   },
   "dependencies": {
     "i18next": "^25.8.18",

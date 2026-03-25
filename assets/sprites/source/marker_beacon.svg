@@ -1,0 +1,8 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Base (Gray) -->
+  <rect x="5" y="16" width="10" height="2" fill="#708090" stroke="black" stroke-width="1"/>
+  <!-- Beacon Body (Gold) -->
+  <path d="M7 16L9 4H11L13 16H7Z" fill="#FFD700" stroke="black" stroke-width="1.5"/>
+  <!-- Top Light (White/Gold Glow) -->
+  <circle cx="10" cy="4" r="2" fill="white" stroke="#FFD700" stroke-width="1"/>
+</svg>
