@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { HEIGHT, WIDTH } from './core/constants'
+import { ArcadeEffectsPipeline } from './render/shaders'
 import { DeathScene } from './scenes/DeathScene'
 import { GameScene } from './scenes/GameScene'
 import { MenuScene } from './scenes/MenuScene'
@@ -13,6 +14,7 @@ export const createGame = (): Phaser.Game =>
     height: HEIGHT,
     backgroundColor: '#020208',
     parent: 'phaser-container',
+    pipeline: [ArcadeEffectsPipeline as any],
     scene: [MenuScene, RelicDraftScene, GameScene, UpgradeScene, DeathScene],
     render: {
       antialias: false,

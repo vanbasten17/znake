@@ -24,7 +24,8 @@ import type {
   WorldItemType,
 } from '../core/types'
 import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerHiRes'
-import { PAINT_BY_TONE } from '../render/markerVectorArt'
+import { ArcadeEffectsPipeline } from '../render/shaders'
+import { PAINT_BY_TONE, drawPremiumSegmentPhaser } from '../render/markerVectorArt'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -176,6 +177,7 @@ export class GameScene extends Phaser.Scene {
   private terrainGraphics!: Phaser.GameObjects.Graphics
   private gameGraphics!: Phaser.GameObjects.Graphics
   private fxGraphics!: Phaser.GameObjects.Graphics
+  private arcadeEffects?: ArcadeEffectsPipeline
 
   /** Hi-res marker sprites (8× logical, same as `pnpm generate:sprites`), drawn above glow. */
   private markerFood!: Phaser.GameObjects.Image
@@ -261,6 +263,12 @@ export class GameScene extends Phaser.Scene {
     this.terrainGraphics = this.add.graphics()
     this.gameGraphics = this.add.graphics()
     this.fxGraphics = this.add.graphics()
+    if (!isReducedEffectsEnabled()) {
+      this.cameras.main.setPostPipeline(ArcadeEffectsPipeline)
+      this.arcadeEffects = this.cameras.main.getPostPipeline(
+        ArcadeEffectsPipeline,
+      ) as ArcadeEffectsPipeline
+    }
 
     await registerMarkerHiResTextures(this)
     const markerDepth = 8
@@ -426,11 +434,13 @@ export class GameScene extends Phaser.Scene {
         ? `DEV REFERENCE · ${this.referenceHoverLabel}`
         : 'DEV REFERENCE · Hover any marker/cell'
       setRunStatusText(status)
+      this.drawBackground()
       this.drawFrame()
       return
     }
 
     const dt = delta / 1000
+    this.drawBackground()
     this.updateCameraShake(dt)
     this.updateEnemyMovement(delta)
     this.ensureObjectiveEnemyAvailability()
@@ -735,6 +745,9 @@ export class GameScene extends Phaser.Scene {
     if (this.moveQueue.length > 0) {
       const queued = this.moveQueue.shift()
       if (queued) {
+        if (head && (queued.x !== this.currentDir.x || queued.y !== this.currentDir.y)) {
+          this.spawnParticles(head.x, head.y, 0x00ffff, 4)
+        }
         this.currentDir = queued
       }
     }
@@ -2241,12 +2254,12 @@ export class GameScene extends Phaser.Scene {
       this.particles.push({
         x: cx * CELL + CELL / 2,
         y: cy * CELL + CELL / 2,
-        vx: (Math.random() - 0.5) * 5,
-        vy: (Math.random() - 0.5) * 5,
+        vx: (Math.random() - 0.5) * 14,
+        vy: (Math.random() - 0.5) * 14,
         life: 1,
-        maxLife: 0.5 + Math.random() * 0.4,
+        maxLife: 0.6 + Math.random() * 0.6,
         color,
-        size: 2 + Math.random() * 3,
+        size: 1.2 + Math.random() * 2.5,
       })
     }
   }
@@ -2564,15 +2577,40 @@ export class GameScene extends Phaser.Scene {
     g.clear()
     g.fillStyle(COLORS.bg)
     g.fillRect(0, 0, WIDTH, HEIGHT)
-    g.fillStyle(0x0f0320, 0.5)
-    g.fillCircle(WIDTH * 0.22, HEIGHT * 0.3, 96)
-    g.fillStyle(0x130035, 0.35)
-    g.fillCircle(WIDTH * 0.78, HEIGHT * 0.72, 120)
-    for (const star of this.stars) {
-      g.fillStyle(0x99ccff, star.alpha)
-      g.fillRect(star.x, star.y, star.size, star.size)
+
+    const t = this.time.now * 0.001
+
+    // 1. Soft "Nebula" Glows
+    const nebulae = [
+      { x: WIDTH * 0.22, y: HEIGHT * 0.3, r: 110, c: 0x1a0a35, a: 0.4 },
+      { x: WIDTH * 0.78, y: HEIGHT * 0.72, r: 140, c: 0x0a1a45, a: 0.3 },
+    ]
+    for (const n of nebulae) {
+      const pulse = 1.0 + Math.sin(t * 0.8) * 0.1
+      g.fillStyle(n.c, n.a * pulse)
+      // Use large circles as simple gradients for now
+      for (let ir = 1; ir <= 3; ir += 1) {
+        g.fillCircle(n.x, n.y, n.r * pulse * (1.1 - ir * 0.2))
+      }
     }
-    g.lineStyle(1, COLORS.grid, 0.25)
+
+    // 2. Parallax Grid (Deep Layer)
+    const head = this.snake[0] || { x: 0, y: 0 }
+    const ox = head.x * 0.4
+    const oy = head.y * 0.4
+    g.lineStyle(1, 0x1a1a45, 0.12)
+    for (let x = -2; x <= BASE_COLS + 2; x += 1) {
+      g.moveTo((x + (ox % 1)) * CELL, 0)
+      g.lineTo((x + (ox % 1)) * CELL, HEIGHT)
+    }
+    for (let y = -2; y <= BASE_ROWS + 2; y += 1) {
+      g.moveTo(0, (y + (oy % 1)) * CELL)
+      g.lineTo(WIDTH, (y + (oy % 1)) * CELL)
+    }
+    g.strokePath()
+
+    // 3. Main Action Grid
+    g.lineStyle(1, COLORS.grid, 0.28)
     for (let x = 0; x <= BASE_COLS; x += 1) {
       g.moveTo(x * CELL, 0)
       g.lineTo(x * CELL, HEIGHT)
@@ -2582,6 +2620,15 @@ export class GameScene extends Phaser.Scene {
       g.lineTo(WIDTH, y * CELL)
     }
     g.strokePath()
+
+    // 4. Stars
+    for (const star of this.stars) {
+      const st = t * 2 + star.x * 0.01
+      const alpha = star.alpha * (Math.sin(st) * 0.3 + 0.7)
+      g.fillStyle(0x99ccff, alpha)
+      g.fillRect(star.x, star.y, star.size, star.size)
+    }
+
     g.lineStyle(2, COLORS.wallBright, 0.8)
     g.strokeRect(0, 0, WIDTH, HEIGHT)
   }
@@ -2702,6 +2749,8 @@ export class GameScene extends Phaser.Scene {
     this.markerRift.setVisible(false)
     this.markerPowerup.setVisible(false)
     this.markerBiome.setVisible(false)
+    const globalJitter = 0.4 + ((this.cameras.main as any).shakeEffect.isRunning ? 0.8 : 0)
+
     for (const refImg of this.referenceMarkerImages) {
       refImg.setVisible(false)
     }
@@ -2893,14 +2942,28 @@ export class GameScene extends Phaser.Scene {
                     : i === 0
                       ? normalHead
                       : normalBody
-        g.fillStyle(color, i === 0 ? 1 : 0.7)
+        const glow =
+          enemy.kind === 'boss'
+            ? bossHead
+            : enemy.kind === 'egg'
+              ? eggHead
+              : enemy.kind === 'mirror'
+                ? mirrorHead
+                : enemy.kind === 'ambusher'
+                  ? ambusherHead
+                  : enemy.kind === 'stalker'
+                    ? stalkerHead
+                    : normalHead
+
         if (i === 0) {
           if (enemy.kind === 'egg') {
             const cx = segment.x * CELL + CELL / 2
             const cy = segment.y * CELL + CELL / 2
+            g.fillStyle(eggHead, 0.2)
+            g.fillCircle(cx, cy, CELL * 0.5)
             g.fillStyle(eggHead, 0.95)
             g.fillCircle(cx, cy, CELL * 0.38)
-            g.lineStyle(1, 0xfff7d4, 0.7)
+            g.lineStyle(2, 0xfff7d4, 0.7)
             g.strokeCircle(cx, cy, CELL * 0.38)
             g.lineStyle(1, 0x6e5120, 0.8)
             g.beginPath()
@@ -2910,20 +2973,19 @@ export class GameScene extends Phaser.Scene {
             g.lineTo(cx + cellPx(3), cy + cellPx(1))
             g.strokePath()
           } else {
-            g.fillRect(
+            drawPremiumSegmentPhaser(
+              g,
               segment.x * CELL + cellPx(1),
               segment.y * CELL + cellPx(1),
               CELL - cellPx(2),
               CELL - cellPx(2),
+              color,
+              glow,
+              1,
+              true,
+              globalJitter * 1.5,
             )
-            g.lineStyle(1, 0xffffff, 0.55)
-            g.strokeRect(
-              segment.x * CELL + cellPx(1),
-              segment.y * CELL + cellPx(1),
-              CELL - cellPx(2),
-              CELL - cellPx(2),
-            )
-            g.fillStyle(0x000000)
+            g.fillStyle(0x000000, 0.8)
             g.fillCircle(segment.x * CELL + cellPx(5), segment.y * CELL + cellPx(5), cellPx(2))
             g.fillCircle(
               segment.x * CELL + CELL - cellPx(5),
@@ -2931,10 +2993,11 @@ export class GameScene extends Phaser.Scene {
               cellPx(2),
             )
           }
+
           if (enemy.kind === 'boss') {
             if (this.bossPhase === 'rage') {
-              g.fillStyle(0xff3355, 0.2)
-              g.fillCircle(segment.x * CELL + CELL / 2, segment.y * CELL + CELL / 2, CELL * 0.9)
+              g.fillStyle(0xff3355, 0.3 * (Math.sin(this.time.now * 0.01) * 0.5 + 0.5))
+              g.fillCircle(segment.x * CELL + CELL / 2, segment.y * CELL + CELL / 2, CELL * 0.95)
             }
             for (let hp = 0; hp < enemy.health; hp += 1) {
               g.fillStyle(0xffcc55, 0.9)
@@ -2947,37 +3010,41 @@ export class GameScene extends Phaser.Scene {
             }
           }
         } else {
+          const alpha = 0.7
           const pad = Math.min(cellPx(5), Math.max(cellPx(1), i * cellPx(0.2)))
-          g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, CELL - pad * 2)
-          g.fillStyle(0xffffff, 0.12)
-          g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, cellPx(1))
+          drawPremiumSegmentPhaser(
+            g,
+            segment.x * CELL + pad,
+            segment.y * CELL + pad,
+            CELL - pad * 2,
+            CELL - pad * 2,
+            color,
+            glow,
+            alpha,
+            false,
+            globalJitter,
+          )
         }
       }
     }
 
+    const dev = this as any
+
     for (const [i, segment] of this.snake.entries()) {
       if (i === 0) {
-        g.fillStyle(COLORS.snakeHead)
-        g.fillRect(
+        drawPremiumSegmentPhaser(
+          g,
           segment.x * CELL + cellPx(1),
           segment.y * CELL + cellPx(1),
           CELL - cellPx(2),
           CELL - cellPx(2),
+          COLORS.snakeHead,
+          0x00ffcc,
+          1,
+          true,
+          globalJitter * 1.5,
         )
-        g.lineStyle(1, 0xffffff, 0.45)
-        g.strokeRect(
-          segment.x * CELL + cellPx(1),
-          segment.y * CELL + cellPx(1),
-          CELL - cellPx(2),
-          CELL - cellPx(2),
-        )
-        g.fillStyle(COLORS.snakeHead, 0.15)
-        g.fillRect(
-          segment.x * CELL - cellPx(2),
-          segment.y * CELL - cellPx(2),
-          CELL + cellPx(4),
-          CELL + cellPx(4),
-        )
+
         const eyeOffsetX =
           this.currentDir.x === 1 ? cellPx(5) : this.currentDir.x === -1 ? -cellPx(5) : 0
         const eyeOffsetY =
@@ -2987,28 +3054,47 @@ export class GameScene extends Phaser.Scene {
         g.fillStyle(0x03130e, 0.9)
         g.fillCircle(eyeBaseX - cellPx(3), eyeBaseY - cellPx(2), cellPx(1.6))
         g.fillCircle(eyeBaseX + cellPx(3), eyeBaseY - cellPx(2), cellPx(1.6))
+
         if (this.shields > 0) {
-          g.lineStyle(2, COLORS.shield, 0.8)
-          g.strokeRect(
-            segment.x * CELL - cellPx(2),
-            segment.y * CELL - cellPx(2),
-            CELL + cellPx(4),
-            CELL + cellPx(4),
+          const t = this.time.now * 0.006
+          const pulse = Math.sin(t) * cellPx(2)
+          const radBase = CELL * 0.65
+          g.lineStyle(cellPx(5), COLORS.shield, 0.6 + Math.sin(t * 1.5) * 0.2)
+          g.strokeCircle(segment.x * CELL + CELL / 2, segment.y * CELL + CELL / 2, radBase + pulse)
+
+          g.lineStyle(cellPx(2), 0xffffff, 0.45)
+          g.strokeCircle(
+            segment.x * CELL + CELL / 2,
+            segment.y * CELL + CELL / 2,
+            radBase + pulse - cellPx(2.5),
           )
         }
         continue
       }
       const alpha = Math.max(0.3, 1 - i * 0.025)
       const pad = Math.min(cellPx(4), cellPx(1) + i * cellPx(0.12))
-      g.fillStyle(COLORS.snake, alpha)
-      g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, CELL - pad * 2)
-      g.fillStyle(0xffffff, 0.08)
-      g.fillRect(segment.x * CELL + pad, segment.y * CELL + pad, CELL - pad * 2, cellPx(1))
+      drawPremiumSegmentPhaser(
+        g,
+        segment.x * CELL + pad,
+        segment.y * CELL + pad,
+        CELL - pad * 2,
+        CELL - pad * 2,
+        COLORS.snake,
+        0x00ff88,
+        alpha,
+        false,
+        globalJitter,
+      )
     }
 
-    for (const particle of this.particles) {
-      g.fillStyle(particle.color, particle.life)
-      g.fillCircle(particle.x, particle.y, particle.size * particle.life)
+    for (const p of this.particles) {
+      const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy)
+      const len = Math.min(cellPx(6), spd * 0.4)
+      g.lineStyle(p.size * p.life, p.color, p.life * 0.8)
+      g.beginPath()
+      g.moveTo(p.x, p.y)
+      g.lineTo(p.x - p.vx * len * 0.1, p.y - p.vy * len * 0.1)
+      g.strokePath()
     }
     for (const projectile of this.venomProjectiles) {
       const px = projectile.x * CELL + CELL / 2

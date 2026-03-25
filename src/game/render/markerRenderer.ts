@@ -27,30 +27,25 @@ const drawAppleMarkerCanvas = (
   size: number,
 ): void => {
   const r = Math.max(3, size * 0.31)
-  ctx.fillStyle = toHex(COLORS.foodGlow)
+  // 1. Inked Outline
+  ctx.strokeStyle = '#000000'
+  ctx.lineWidth = r * 0.2
   ctx.beginPath()
-  ctx.arc(cx, cy, r + 1.2, 0, Math.PI * 2)
-  ctx.fill()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.stroke()
+
+  // 2. Solid Body
   ctx.fillStyle = toHex(COLORS.food)
   ctx.beginPath()
-  ctx.ellipse(cx, cy + r * 0.06, r * 0.88, r * 1.06, 0, 0, Math.PI * 2)
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.fill()
-  /* Thin rim: reads cleaner at high export scale + NEAREST (less “chunky” silhouette). */
-  ctx.strokeStyle = 'rgba(72, 22, 32, 0.5)'
-  ctx.lineWidth = Math.max(0.6, r * 0.05)
-  ctx.lineJoin = 'round'
-  ctx.beginPath()
-  ctx.ellipse(cx, cy + r * 0.06, r * 0.88, r * 1.06, 0, 0, Math.PI * 2)
-  ctx.stroke()
+
+  // 3. Simple Stem/Leaf
   ctx.fillStyle = '#3d2817'
-  ctx.fillRect(cx - Math.max(0.5, r * 0.14), cy - r * 1.32, Math.max(1, r * 0.28), r * 0.42)
+  ctx.fillRect(cx - r * 0.1, cy - r * 1.25, r * 0.2, r * 0.4)
   ctx.fillStyle = '#2d9a3e'
   ctx.beginPath()
-  ctx.ellipse(cx + r * 0.52, cy - r * 1.18, r * 0.4, r * 0.2, 0.55, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.42)'
-  ctx.beginPath()
-  ctx.ellipse(cx - r * 0.38, cy - r * 0.22, r * 0.24, r * 0.11, -0.35, 0, Math.PI * 2)
+  ctx.ellipse(cx + r * 0.4, cy - r * 1.1, r * 0.35, r * 0.18, 0.45, 0, Math.PI * 2)
   ctx.fill()
 }
 
@@ -62,18 +57,19 @@ const drawAppleMarkerPhaser = (
   alpha: number,
 ): void => {
   const r = Math.max(3, size * 0.31)
-  g.fillStyle(COLORS.foodGlow, alpha)
-  g.fillCircle(cx, cy, r + 1.2)
+  // 1. Inked Outline
+  g.lineStyle(r * 0.22, 0x000000, alpha * 0.9)
+  g.strokeCircle(cx, cy, r)
+
+  // 2. Solid Body
   g.fillStyle(COLORS.food, alpha)
-  g.fillEllipse(cx, cy + r * 0.06, r * 0.88 * 2, r * 1.06 * 2)
-  g.lineStyle(Math.max(0.6, r * 0.05), 0x481620, alpha * 0.5)
-  g.strokeEllipse(cx, cy + r * 0.06, r * 0.88 * 2, r * 1.06 * 2)
+  g.fillCircle(cx, cy, r)
+
+  // 3. Stem/Leaf
   g.fillStyle(0x3d2817, alpha)
-  g.fillRect(cx - Math.max(0.5, r * 0.14), cy - r * 1.32, Math.max(1, r * 0.28), r * 0.42)
+  g.fillRect(cx - r * 0.1, cy - r * 1.25, r * 0.2, r * 0.4)
   g.fillStyle(0x2d9a3e, alpha)
-  g.fillEllipse(cx + r * 0.52, cy - r * 1.18, r * 0.4 * 2, r * 0.2 * 2)
-  g.fillStyle(0xffffff, alpha * 0.42)
-  g.fillEllipse(cx - r * 0.38, cy - r * 0.22, r * 0.24 * 2, r * 0.11 * 2)
+  g.fillEllipse(cx + r * 0.4, cy - r * 1.1, r * 0.35 * 2, r * 0.18 * 2)
 }
 
 const isTileTone = (tone: GlossaryMarkerTone): boolean =>

@@ -26,7 +26,54 @@ const roundRectPath = (
   ctx.arcTo(x + w, y + h, x, y + h, rad)
   ctx.arcTo(x, y + h, x, y, rad)
   ctx.arcTo(x, y, x + w, y, rad)
-  ctx.closePath()
+}
+
+/** Draw a diagonal hatching pattern inside a rectangle (simplified clipping). */
+export const drawHatchPatternPhaser = (
+  g: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: number,
+  alpha: number,
+  spacing = 5,
+  thickness = 1,
+): void => {
+  g.lineStyle(thickness, color, alpha)
+  for (let offset = -h; offset < w; offset += spacing) {
+    const startX = Math.max(x, x + offset)
+    const startY = y + (startX - (x + offset))
+    const endX = Math.min(x + w, x + offset + h)
+    const endY = y + (endX - (x + offset))
+    if (startX < endX) {
+      g.moveTo(startX, startY)
+      g.lineTo(endX, endY)
+    }
+  }
+  g.strokePath()
+}
+
+/** Draw a shaky "hand-drawn" path. */
+export const drawJitteredPathPhaser = (
+  g: Phaser.GameObjects.Graphics,
+  points: { x: number; y: number }[],
+  jitter = 0.65,
+  segmentsCount = 4,
+): void => {
+  if (points.length < 2) return
+  g.moveTo(points[0].x, points[0].y)
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i]
+    const p2 = points[i + 1]
+    const dx = (p2.x - p1.x) / segmentsCount
+    const dy = (p2.y - p1.y) / segmentsCount
+    for (let j = 1; j <= segmentsCount; j += 1) {
+      const jx = (Math.random() - 0.5) * jitter
+      const jy = (Math.random() - 0.5) * jitter
+      g.lineTo(p1.x + dx * j + jx, p1.y + dy * j + jy)
+    }
+  }
 }
 
 export type TokenPaint = {
@@ -89,33 +136,27 @@ export const drawPremiumTokenCanvas = (
   r: number,
   paint: TokenPaint,
 ): void => {
-  ctx.fillStyle = paint.glow
+  // 1. Thick Inked Outline
+  ctx.strokeStyle = '#000000'
+  ctx.lineWidth = r * 0.25
+  ctx.globalAlpha = 0.9
   ctx.beginPath()
-  ctx.arc(cx, cy, r + 1.2, 0, Math.PI * 2)
-  ctx.fill()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.stroke()
 
+  // 2. Solid Body
   ctx.fillStyle = paint.base
+  ctx.globalAlpha = 1
   ctx.beginPath()
-  ctx.ellipse(cx, cy + r * 0.04, r * 0.9, r * 0.96, 0, 0, Math.PI * 2)
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.fill()
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
+  // 3. Neon Rim
+  ctx.strokeStyle = paint.glow
+  ctx.lineWidth = Math.max(1, r * 0.08)
   ctx.beginPath()
-  ctx.ellipse(cx - r * 0.32, cy - r * 0.26, r * 0.38, r * 0.15, -0.45, 0, Math.PI * 2)
-  ctx.fill()
-
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.14)'
-  ctx.beginPath()
-  ctx.ellipse(cx + r * 0.22, cy + r * 0.34, r * 0.42, r * 0.16, 0.12, 0, Math.PI * 2)
-  ctx.fill()
-
-  if (paint.rim) {
-    ctx.strokeStyle = paint.rim
-    ctx.lineWidth = Math.max(1, r * 0.07)
-    ctx.beginPath()
-    ctx.ellipse(cx, cy + r * 0.04, r * 0.9, r * 0.96, 0, 0, Math.PI * 2)
-    ctx.stroke()
-  }
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.stroke()
 }
 
 export const drawPremiumTokenPhaser = (
@@ -127,22 +168,20 @@ export const drawPremiumTokenPhaser = (
   alpha: number,
 ): void => {
   const parse = (hex: string): number => Number.parseInt(hex.replace('#', ''), 16)
-  const glow = parse(paint.glow)
   const base = parse(paint.base)
-  const rim = paint.rim ? parse(paint.rim) : undefined
+  const glow = parse(paint.glow)
 
-  g.fillStyle(glow, alpha)
-  g.fillCircle(cx, cy, r + 1.2)
+  // 1. Thick Inked Outline
+  g.lineStyle(r * 0.25, 0x000000, alpha * 0.9)
+  g.strokeCircle(cx, cy, r)
+
+  // 2. Solid Body
   g.fillStyle(base, alpha)
-  g.fillEllipse(cx, cy + r * 0.04, r * 0.9 * 2, r * 0.96 * 2)
-  g.fillStyle(0xffffff, alpha * 0.3)
-  g.fillEllipse(cx - r * 0.32, cy - r * 0.26, r * 0.38 * 2, r * 0.15 * 2)
-  g.fillStyle(0x000000, alpha * 0.14)
-  g.fillEllipse(cx + r * 0.22, cy + r * 0.34, r * 0.42 * 2, r * 0.16 * 2)
-  if (rim !== undefined) {
-    g.lineStyle(Math.max(1, r * 0.07), rim, alpha)
-    g.strokeEllipse(cx, cy + r * 0.04, r * 0.9 * 2, r * 0.96 * 2)
-  }
+  g.fillCircle(cx, cy, r)
+
+  // 3. Neon Rim
+  g.lineStyle(Math.max(1, r * 0.08), glow, alpha)
+  g.strokeCircle(cx, cy, r)
 }
 
 /** Square-ish token with rounded corners — hazards / terrain (gel, arena, sorra). */
@@ -158,21 +197,22 @@ export const drawPremiumTileCanvas = (
   const x = cx - w / 2
   const y = cy - h / 2
   const rr = r * 0.42
-  ctx.fillStyle = paint.glow
-  roundRectPath(ctx, x - 2, y - 2, w + 4, h + 4, rr + 2)
-  ctx.fill()
+
+  // 1. Thick Inked Outline
+  ctx.strokeStyle = '#000000'
+  ctx.lineWidth = w * 0.2
+  roundRectPath(ctx, x, y, w, h, rr)
+  ctx.stroke()
+
+  // 2. Solid Base
   ctx.fillStyle = paint.base
   roundRectPath(ctx, x, y, w, h, rr)
   ctx.fill()
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.28)'
-  roundRectPath(ctx, x + w * 0.1, y + h * 0.1, w * 0.55, h * 0.38, r * 0.15)
-  ctx.fill()
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.14)'
-  roundRectPath(ctx, x + w * 0.1, y + h * 0.52, w * 0.85, h * 0.38, r * 0.15)
-  ctx.fill()
+
+  // 3. Neon Rim
   if (paint.rim) {
     ctx.strokeStyle = paint.rim
-    ctx.lineWidth = Math.max(1, r * 0.07)
+    ctx.lineWidth = Math.max(1, r * 0.1)
     roundRectPath(ctx, x, y, w, h, rr)
     ctx.stroke()
   }
@@ -192,18 +232,123 @@ export const drawPremiumTilePhaser = (
   const x = cx - w / 2
   const y = cy - h / 2
   const rr = r * 0.42
-  g.fillStyle(parse(paint.glow), alpha)
-  g.fillRoundedRect(x - 2, y - 2, w + 4, h + 4, rr + 2)
+
+  // 1. Thick Inked Outline
+  g.lineStyle(w * 0.2, 0x000000, alpha * 0.9)
+  g.strokeRoundedRect(x, y, w, h, rr)
+
+  // 2. Solid Base
   g.fillStyle(parse(paint.base), alpha)
   g.fillRoundedRect(x, y, w, h, rr)
-  g.fillStyle(0xffffff, alpha * 0.28)
-  g.fillRoundedRect(x + w * 0.1, y + h * 0.1, w * 0.55, h * 0.38, r * 0.15)
-  g.fillStyle(0x000000, alpha * 0.14)
-  g.fillRoundedRect(x + w * 0.1, y + h * 0.52, w * 0.85, h * 0.38, r * 0.15)
+
+  // 3. Neon Rim
   if (paint.rim) {
-    g.lineStyle(Math.max(1, r * 0.07), parse(paint.rim), alpha)
+    g.lineStyle(Math.max(1, r * 0.1), parse(paint.rim), alpha)
     g.strokeRoundedRect(x, y, w, h, rr)
   }
+}
+
+/**
+ * Modular squared segment (snake/enemy).
+ * Features: Rounded-rect base + nested core rect + glowing rim.
+ */
+export const drawPremiumSegmentPhaser = (
+  g: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: number,
+  glow: number,
+  alpha: number,
+  isHead = false,
+  jitter = 0.4,
+): void => {
+  const rr = isHead ? w * 0.35 : w * 0.28
+
+  // 1. Thick "Inked" Outline (Cell-Shading)
+  g.lineStyle(w * 0.15, 0x000000, alpha * 0.9)
+  g.strokeRoundedRect(x, y, w, h, rr)
+
+  // 2. Solid Color Body
+  g.fillStyle(color, alpha)
+  g.fillRoundedRect(x, y, w, h, rr)
+
+  // 3. Pronounced Neon Rim (on top of ink)
+  g.lineStyle(w * 0.08, glow, alpha)
+  const pts = [
+    { x: x + rr, y: y },
+    { x: x + w - rr, y: y },
+    { x: x + w, y: y + rr },
+    { x: x + w, y: y + h - rr },
+    { x: x + w - rr, y: y + h },
+    { x: x + rr, y: y + h },
+    { x: x, y: y + h - rr },
+    { x: x, y: y + rr },
+    { x: x + rr, y: y },
+  ]
+  g.beginPath()
+  drawJitteredPathPhaser(g, pts, jitter, 2)
+  g.strokePath()
+}
+
+export const drawPremiumSegmentCanvas = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string,
+  glow: string,
+  alpha: number,
+  isHead = false,
+  jitter = 0.4,
+): void => {
+  const rr = isHead ? w * 0.35 : w * 0.28
+  ctx.globalAlpha = alpha
+
+  // 1. Thick "Inked" Outline
+  ctx.strokeStyle = '#000000'
+  ctx.lineWidth = w * 0.15
+  roundRectPath(ctx, x, y, w, h, rr)
+  ctx.stroke()
+
+  // 2. Solid Body
+  ctx.fillStyle = color
+  roundRectPath(ctx, x, y, w, h, rr)
+  ctx.fill()
+
+  // 3. Neon Rim
+  ctx.strokeStyle = glow
+  ctx.lineWidth = w * 0.08
+  const pts = [
+    { x: x + rr, y: y },
+    { x: x + w - rr, y: y },
+    { x: x + w, y: y + rr },
+    { x: x + w, y: y + h - rr },
+    { x: x + w - rr, y: y + h },
+    { x: x + rr, y: y + h },
+    { x: x, y: y + h - rr },
+    { x: x, y: y + rr },
+    { x: x + rr, y: y },
+  ]
+  ctx.beginPath()
+  ctx.moveTo(pts[0].x, pts[0].y)
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const p1 = pts[i]
+    const p2 = pts[i + 1]
+    const dx = (p2.x - p1.x) / 3
+    const dy = (p2.y - p1.y) / 3
+    for (let j = 1; j <= 3; j += 1) {
+      ctx.lineTo(
+        p1.x + dx * j + (Math.random() - 0.5) * jitter,
+        p1.y + dy * j + (Math.random() - 0.5) * jitter,
+      )
+    }
+  }
+  ctx.stroke()
+
+  ctx.globalAlpha = 1
 }
 
 const ir = (r: number) => r * 0.48
