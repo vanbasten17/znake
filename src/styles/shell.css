@@ -36,6 +36,7 @@ body[data-ui-shell="menu"] #game-area,
 body[data-ui-shell="menu"] #hud,
 body[data-ui-shell="menu"] #controls {
   width: min(100vw, var(--layout-max-width));
+  margin-inline: auto;
 }
 
 body[data-ui-shell="menu"] #phaser-container {
@@ -55,6 +56,7 @@ body[data-ui-shell="run"] #game-area,
 body[data-ui-shell="run"] #controls {
   width: min(100vw, var(--layout-max-width));
   min-height: 0;
+  margin-inline: auto;
 }
 
 body[data-ui-shell="run"] #game-area {
@@ -69,4 +71,20 @@ body[data-ui-shell="run"] #phaser-container canvas {
 
 body[data-ui-shell="run"] #controls {
   display: none;
+}
+
+@media (min-width: 900px) and (pointer: fine) {
+  body[data-ui-shell="run"],
+  body[data-ui-shell="menu"] {
+    align-content: center;
+    justify-content: center;
+  }
+
+  body[data-ui-shell="run"] {
+    grid-template-rows: auto minmax(0, min(78dvh, 960px));
+  }
+
+  body[data-ui-shell="menu"] {
+    grid-template-rows: auto minmax(0, min(78dvh, 960px));
+  }
 }
