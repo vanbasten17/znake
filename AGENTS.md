@@ -84,6 +84,40 @@ A task is complete only if:
 
 ⸻
 
+Prompting Guidelines (for agents)
+
+When executing tasks, always follow:
+	•	Role: Act as a senior game engineer / system designer
+	•	Task: Clearly defined, narrow objective
+	•	Context: Relevant files, constraints, and architecture
+	•	Format: Structured output (see Output Format section)
+
+Avoid vague or open-ended prompts.
+
+⸻
+
+Role Specialization
+
+Adopt the appropriate role depending on the task:
+	•	Architecture → Senior Software Architect
+	•	Gameplay systems → Game Systems Designer
+	•	Debugging → Senior Programmer
+	•	Testing → QA Lead
+
+Adjust decisions and output accordingly.
+
+⸻
+
+Task Strategy
+	•	Break large tasks into small, independent steps
+	•	Each step must be:
+	•	testable
+	•	reviewable
+	•	reversible
+	•	Prefer multi-step plans over large one-shot changes
+
+⸻
+
 Coding Guidelines
 
 General
@@ -137,6 +171,16 @@ Tests should:
 
 ⸻
 
+Testing Mindset
+
+When adding or modifying logic:
+	•	Consider edge cases explicitly
+	•	Validate invariants
+	•	Prefer deterministic tests
+	•	Include both expected and unexpected scenarios
+
+⸻
+
 Telemetry & Debugging
 	•	Do not remove telemetry unless requested
 	•	Prefer structured events over console logs
@@ -182,20 +226,104 @@ Bad tasks:
 
 ⸻
 
-Output Expectations
+Output Format (mandatory)
 
-When completing a task:
-
-Provide:
-	1.	Summary of changes
+All responses must include:
+	1.	Summary (what changed and why)
 	2.	Files modified
-	3.	Any risks or assumptions
-	4.	Suggested next steps (optional)
+	3.	Risks / assumptions
+	4.	Verification steps performed
+	5.	Suggested next steps
 
-Keep changes:
-	•	Small
-	•	Reviewable
-	•	Reversible
+Use concise, structured output.
+
+⸻
+
+OpenSpec Workflow (Spec-First)
+
+All non-trivial changes MUST follow a spec-first approach using OpenSpec.
+
+Required Flow
+	1.	Create a change under:
+	•	openspec/changes//
+	2.	Produce BEFORE coding:
+	•	proposal.md
+	•	design.md
+	•	tasks.md
+	•	spec deltas (under specs/)
+	3.	Get alignment (implicit or explicit) before implementation
+	4.	Implement tasks in small, reviewable phases
+	5.	Verify:
+	•	pnpm build
+	•	pnpm check
+	•	tests (if present)
+	6.	Summarize results and remaining work
+
+⸻
+
+Proposal Requirements
+
+Must include:
+	•	Problem statement
+	•	Scope (what is included)
+	•	Non-goals (what is NOT included)
+	•	Risks and migration notes
+
+⸻
+
+Design Requirements
+
+Must define:
+	•	Target architecture (simulation / presentation / adapters)
+	•	Boundaries between systems
+	•	Data flow and ownership
+	•	How determinism is preserved (seeded RNG)
+
+⸻
+
+Task Planning Principles
+
+Tasks should be ordered based on:
+
+1. Safety (low risk first)
+2. Dependency (foundational systems first)
+3. Impact (high-value changes early)
+
+Examples of foundational work may include:
+- extracting pure logic
+- introducing determinism (e.g., seeded RNG)
+- adding test coverage
+
+However, exact task order MUST be defined per change in tasks.md.
+
+⸻
+
+Implementation Rules
+	•	Do NOT implement large rewrites in one pass
+	•	Prefer incremental extraction over replacement
+	•	Preserve gameplay behavior unless explicitly required
+	•	Keep GameScene thin (orchestrator only)
+	•	Avoid introducing new dependencies
+
+⸻
+
+When Work Is Too Large
+
+If the full change is too large:
+	•	Still create full OpenSpec plan
+	•	Implement only the highest-value subset
+	•	Clearly list remaining phases
+
+⸻
+
+Deliverables
+
+At completion, always provide:
+	•	Change ID
+	•	Summary of proposal/design/tasks
+	•	Implementation summary
+	•	Verification results
+	•	Follow-up work
 
 ⸻
 
