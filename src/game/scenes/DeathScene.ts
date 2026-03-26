@@ -1,10 +1,12 @@
 import Phaser from 'phaser'
 import styles from '../../styles/deathOverlay.module.css'
 import { STORAGE_KEYS } from '../core/constants'
+import { type DeathRecapBuildLeaning, buildDeathRecap } from '../core/deathRecap'
 import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
 import { getRunObjectiveOffsetForSeed } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
-import type { Upgrade } from '../core/types'
+import type { UpgradeFamily } from '../core/types'
+import { UPGRADE_FAMILIES } from '../core/upgrades'
 import { deriveRunSeed } from '../simulation/rng'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -31,6 +33,7 @@ type DeathOverlayData = {
   score: number
   reward: number
   totalCurrency: number
+  recap: ReturnType<typeof buildDeathRecap>
 }
 
 export class DeathScene extends Phaser.Scene {
@@ -51,6 +54,10 @@ export class DeathScene extends Phaser.Scene {
     const timeAliveMs = Math.max(0, Math.floor(data.timeAliveMs ?? 0))
     const rewardBreakdown = calculateRunRewardBreakdown(score, gameState.kills, gameState.floor)
     const reward = rewardBreakdown.finalReward
+    const recap = buildDeathRecap({
+      deathReason,
+      upgrades: gameState.persistentUpgrades,
+    })
 
     const profileAfterRun = {
       ...playerProfile,
@@ -100,6 +107,8 @@ export class DeathScene extends Phaser.Scene {
       deathReason,
       timeAliveMs,
       inputMode: getControlMode(),
+      buildLeaning: recap.buildLeaning,
+      notableChoices: recap.notableChoices.map((upgrade) => upgrade.id).join(','),
     })
 
     const best = Math.max(
@@ -118,6 +127,7 @@ export class DeathScene extends Phaser.Scene {
       score,
       reward,
       totalCurrency: goalProgressResult.profile.currency,
+      recap,
     })
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
@@ -184,7 +194,7 @@ export class DeathScene extends Phaser.Scene {
       root.append(record)
     }
 
-    this.renderUpgrades(root, gameState.persistentUpgrades)
+    this.renderRecap(root, data.recap)
 
     const actions = document.createElement('div')
     actions.className = styles.actions
@@ -215,31 +225,118 @@ export class DeathScene extends Phaser.Scene {
     return p
   }
 
-  private renderUpgrades(root: HTMLDivElement, upgrades: Upgrade[]): void {
-    if (upgrades.length === 0) {
+  private getBuildLeaningLabel(buildLeaning: DeathRecapBuildLeaning): string {
+    if (buildLeaning === 'mixed') {
+      return t('death.recap.buildLeaning.mixed')
+    }
+    if (buildLeaning === 'none') {
+      return t('death.recap.buildLeaning.none')
+    }
+    return t('death.recap.buildLeaning.family', {
+      family: this.getFamilyLabel(buildLeaning),
+    })
+  }
+
+  private getBuildLeaningSummary(buildLeaning: DeathRecapBuildLeaning): string {
+    if (buildLeaning === 'mixed') {
+      return t('death.recap.buildLeaning.mixedSummary')
+    }
+    if (buildLeaning === 'none') {
+      return t('death.recap.buildLeaning.noneSummary')
+    }
+    return t(`upgrade.family.${buildLeaning}.summary`, {
+      defaultValue: UPGRADE_FAMILIES[buildLeaning].summary,
+    })
+  }
+
+  private getFamilyLabel(family: UpgradeFamily): string {
+    return t(`upgrade.family.${family}.label`, {
+      defaultValue: UPGRADE_FAMILIES[family].label,
+    })
+  }
+
+  private getDeathReasonText(deathReason: string): string {
+    return t(`death.recap.reason.${deathReason}`, {
+      defaultValue: t('death.recap.reason.unknown'),
+    })
+  }
+
+  private renderRecap(root: HTMLDivElement, recap: ReturnType<typeof buildDeathRecap>): void {
+    const section = document.createElement('section')
+    section.className = styles.recap
+    root.append(section)
+
+    const title = document.createElement('p')
+    title.className = styles.recapTitle
+    title.textContent = t('death.recap.title')
+    section.append(title)
+
+    section.append(
+      this.createRecapBlock(
+        t('death.recap.deathReasonLabel'),
+        this.getDeathReasonText(recap.deathReason),
+      ),
+    )
+    section.append(
+      this.createRecapBlock(
+        t('death.recap.buildLeaningLabel'),
+        this.getBuildLeaningLabel(recap.buildLeaning),
+        this.getBuildLeaningSummary(recap.buildLeaning),
+      ),
+    )
+
+    const choices = document.createElement('div')
+    choices.className = styles.recapBlock
+    section.append(choices)
+
+    const choicesLabel = document.createElement('p')
+    choicesLabel.className = styles.recapLabel
+    choicesLabel.textContent = t('death.recap.notableChoicesLabel')
+    choices.append(choicesLabel)
+
+    if (recap.notableChoices.length === 0) {
+      const empty = document.createElement('p')
+      empty.className = styles.recapFallback
+      empty.textContent = t('death.recap.noNotableChoices')
+      choices.append(empty)
       return
     }
-    const title = document.createElement('p')
-    title.className = styles.upgradesTitle
-    title.textContent = t('death.upgradesEarned')
-    root.append(title)
 
     const list = document.createElement('div')
     list.className = styles.upgrades
-    root.append(list)
+    choices.append(list)
 
-    let rendered = 0
-    for (const upgrade of upgrades) {
-      if (rendered >= 5) {
-        break
-      }
+    for (const upgrade of recap.notableChoices) {
       const row = document.createElement('p')
       row.className = styles.upgrade
       const upgradeName = t(`upgrade.${upgrade.id}_name`, { defaultValue: upgrade.name })
       row.textContent = `${upgrade.icon} ${upgradeName}`
       list.append(row)
-      rendered += 1
     }
+  }
+
+  private createRecapBlock(label: string, value: string, detail?: string): HTMLDivElement {
+    const block = document.createElement('div')
+    block.className = styles.recapBlock
+
+    const labelNode = document.createElement('p')
+    labelNode.className = styles.recapLabel
+    labelNode.textContent = label
+    block.append(labelNode)
+
+    const valueNode = document.createElement('p')
+    valueNode.className = styles.recapValue
+    valueNode.textContent = value
+    block.append(valueNode)
+
+    if (detail) {
+      const detailNode = document.createElement('p')
+      detailNode.className = styles.recapDetail
+      detailNode.textContent = detail
+      block.append(detailNode)
+    }
+
+    return block
   }
 
   private teardownOverlay(): void {
@@ -266,6 +363,8 @@ export class DeathScene extends Phaser.Scene {
     gameState.persistentRewards = []
     gameState.selectedRelicId = null
     gameState.pendingFloorRoute = null
+    gameState.currentRunMapNodeId = null
+    gameState.pendingRunMapNodeId = null
     playerProfile.lifetimeStats.runsPlayed += 1
     saveProfile(playerProfile)
     trackRetentionEvent('run_start', {

@@ -10,6 +10,7 @@ const SHELL_MARKUP = `
     </div>
   </div>
   <div id="objective-status"></div>
+  <div id="route-status"></div>
   <div id="run-status">...</div>
 </div>
 <div id="game-area">

@@ -4,6 +4,7 @@ import type {
   NonBossObjectiveKind,
   RoomObjectiveDefinition,
   RoomObjectiveKind,
+  RunMapRoomType,
 } from './types'
 
 export type FloorObjective = {
@@ -118,6 +119,23 @@ export const getRoomObjective = (floor: number, runObjectiveOffset = 0): RoomObj
     return { kind, target: getActivateTerminalsObjectiveTarget(floor) }
   }
   return { kind: 'survive', target: getSurviveObjectiveTargetMs(floor) }
+}
+
+export const getRoomObjectiveForRoomType = (
+  floor: number,
+  roomType: RunMapRoomType,
+  runObjectiveOffset = 0,
+): RoomObjective | null => {
+  if (roomType === 'shop' || roomType === 'rest' || roomType === 'event') {
+    return null
+  }
+  if (roomType === 'elite') {
+    return {
+      kind: 'defeat_elite',
+      target: getDefeatEliteObjectiveTarget(floor),
+    }
+  }
+  return getRoomObjective(floor, runObjectiveOffset)
 }
 
 export const getFloorObjective = (floor: number, runObjectiveOffset = 0): FloorObjective => {

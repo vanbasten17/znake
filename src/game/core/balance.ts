@@ -1,9 +1,11 @@
 import type {
+  EventChoiceDefinition,
   FloorTemplate,
   NonBossObjectiveKind,
   RewardOption,
   RoomObjectiveKind,
   RunConfig,
+  RunMapRoomType,
   TalentId,
 } from './types'
 
@@ -129,6 +131,178 @@ export const BALANCE = {
     activateTerminalsBase: 2,
     activateTerminalsCap: 3,
   },
+  runMap: {
+    previewHorizon: 2,
+    branchChoicesOnPortalObjective: 2,
+    branchChoicesOtherwise: 1,
+    elite: {
+      enemyCountDelta: 1,
+      enemyIntervalMultiplier: 0.9,
+    },
+    nonCombat: {
+      shopScoreBonus: 40,
+      restBonusShields: 1,
+      eventBonusLength: 1,
+    },
+    roomTypeWeightsByDepth: [
+      {
+        minDepth: 0,
+        weights: {
+          combat: 1,
+          elite: 0,
+          shop: 0,
+          rest: 0,
+          event: 0,
+        } satisfies Record<RunMapRoomType, number>,
+      },
+      {
+        minDepth: 1,
+        weights: {
+          combat: 0.72,
+          elite: 0.18,
+          shop: 0.04,
+          rest: 0.03,
+          event: 0.03,
+        } satisfies Record<RunMapRoomType, number>,
+      },
+      {
+        minDepth: 4,
+        weights: {
+          combat: 0.56,
+          elite: 0.2,
+          shop: 0.08,
+          rest: 0.08,
+          event: 0.08,
+        } satisfies Record<RunMapRoomType, number>,
+      },
+    ] as const,
+  },
+  eventChoices: {
+    minOptionsPerDraft: 2,
+    maxOptionsPerDraft: 3,
+    minRecoverableSnakeLength: 2,
+    minEnemyIntervalMs: 180,
+    minMoveIntervalMs: 90,
+    definitions: [
+      {
+        id: 'risky_trade_molt',
+        kind: 'risky_trade',
+        minFloor: 1,
+        weight: 1,
+        options: [
+          {
+            id: 'trade_length_for_shield',
+            family: 'survival',
+            labelKey: 'game.eventChoice.tradeLengthForShield.label',
+            upsideKey: 'game.eventChoice.tradeLengthForShield.upside',
+            downsideKey: 'game.eventChoice.tradeLengthForShield.downside',
+            summaryKey: 'game.eventChoice.tradeLengthForShield.summary',
+            requiresConfirm: false,
+            effects: {
+              shieldDelta: 1,
+              lengthDelta: -2,
+            },
+          },
+          {
+            id: 'trade_shield_for_length',
+            family: 'control',
+            labelKey: 'game.eventChoice.tradeShieldForLength.label',
+            upsideKey: 'game.eventChoice.tradeShieldForLength.upside',
+            downsideKey: 'game.eventChoice.tradeShieldForLength.downside',
+            summaryKey: 'game.eventChoice.tradeShieldForLength.summary',
+            requiresConfirm: false,
+            effects: {
+              shieldDelta: -1,
+              lengthDelta: 2,
+            },
+          },
+          {
+            id: 'trade_score_for_shield',
+            family: 'utility',
+            labelKey: 'game.eventChoice.tradeScoreForShield.label',
+            upsideKey: 'game.eventChoice.tradeScoreForShield.upside',
+            downsideKey: 'game.eventChoice.tradeScoreForShield.downside',
+            summaryKey: 'game.eventChoice.tradeScoreForShield.summary',
+            requiresConfirm: false,
+            effects: {
+              shieldDelta: 1,
+              scoreDelta: -20,
+            },
+          },
+        ],
+      },
+      {
+        id: 'curse_offer_pressure',
+        kind: 'curse_offer',
+        minFloor: 2,
+        weight: 1,
+        options: [
+          {
+            id: 'curse_haste_barrier',
+            family: 'survival',
+            labelKey: 'game.eventChoice.curseHasteBarrier.label',
+            upsideKey: 'game.eventChoice.curseHasteBarrier.upside',
+            downsideKey: 'game.eventChoice.curseHasteBarrier.downside',
+            summaryKey: 'game.eventChoice.curseHasteBarrier.summary',
+            requiresConfirm: true,
+            effects: {
+              shieldDelta: 1,
+              enemyIntervalMultiplier: 0.88,
+            },
+          },
+          {
+            id: 'curse_bulk_drag',
+            family: 'control',
+            labelKey: 'game.eventChoice.curseBulkDrag.label',
+            upsideKey: 'game.eventChoice.curseBulkDrag.upside',
+            downsideKey: 'game.eventChoice.curseBulkDrag.downside',
+            summaryKey: 'game.eventChoice.curseBulkDrag.summary',
+            requiresConfirm: true,
+            effects: {
+              lengthDelta: 2,
+              moveIntervalMultiplier: 1.08,
+            },
+          },
+        ],
+      },
+      {
+        id: 'route_split_event',
+        kind: 'safe_vs_dangerous_route',
+        minFloor: 1,
+        weight: 1,
+        options: [
+          {
+            id: 'route_safe_guarded',
+            family: 'survival',
+            labelKey: 'game.eventChoice.routeSafeGuarded.label',
+            upsideKey: 'game.eventChoice.routeSafeGuarded.upside',
+            downsideKey: 'game.eventChoice.routeSafeGuarded.downside',
+            summaryKey: 'game.eventChoice.routeSafeGuarded.summary',
+            requiresConfirm: false,
+            effects: {
+              routeIntent: 'safer',
+              enemyIntervalMultiplier: 1.12,
+              moveIntervalMultiplier: 1.03,
+            },
+          },
+          {
+            id: 'route_risk_hunt',
+            family: 'aggro',
+            labelKey: 'game.eventChoice.routeRiskHunt.label',
+            upsideKey: 'game.eventChoice.routeRiskHunt.upside',
+            downsideKey: 'game.eventChoice.routeRiskHunt.downside',
+            summaryKey: 'game.eventChoice.routeRiskHunt.summary',
+            requiresConfirm: true,
+            effects: {
+              routeIntent: 'riskier',
+              scoreDelta: 24,
+              enemyIntervalMultiplier: 0.9,
+            },
+          },
+        ],
+      },
+    ] satisfies ReadonlyArray<EventChoiceDefinition>,
+  },
   rewards: {
     draftSize: 3,
     pool: [
@@ -248,6 +422,15 @@ export const BALANCE = {
     venomCooldownMs: 1150,
     venomStepMs: 70,
     venomMaxTravelSteps: 22,
+  },
+  bodyEconomy: {
+    minSpendableLength: 2,
+    bodyPulseCost: 1,
+    bodyPulseCooldownMs: 2600,
+    bodyPulseDurationMs: 600,
+    bodyPulseRadius: 1,
+    rewardOverclockCost: 1,
+    rewardOverclockUsesPerObjective: 1,
   },
   enemyVariants: {
     egg: {
@@ -407,6 +590,13 @@ export const createBaseRunConfig = (): RunConfig => ({
   hasRegen: BALANCE.run.hasRegen,
   regenIntervalMs: BALANCE.run.regenIntervalMs,
   maxTurnQueue: 2,
+  bodySpendMinLength: BALANCE.bodyEconomy.minSpendableLength,
+  bodyPulseCost: BALANCE.bodyEconomy.bodyPulseCost,
+  bodyPulseCooldownMs: BALANCE.bodyEconomy.bodyPulseCooldownMs,
+  bodyPulseDurationMs: BALANCE.bodyEconomy.bodyPulseDurationMs,
+  bodyPulseRadius: BALANCE.bodyEconomy.bodyPulseRadius,
+  rewardOverclockCost: BALANCE.bodyEconomy.rewardOverclockCost,
+  rewardOverclockUsesPerObjective: BALANCE.bodyEconomy.rewardOverclockUsesPerObjective,
 })
 
 export type FloorSetup = {

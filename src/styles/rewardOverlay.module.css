@@ -30,6 +30,30 @@
   letter-spacing: 1px;
 }
 
+.overclock {
+  border: 1px solid rgba(136, 214, 248, 0.64);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(8, 22, 42, 0.9);
+  color: #b9ecff;
+  font-family: var(--font-ui);
+  font-size: clamp(10px, 2.1vw, 12px);
+  letter-spacing: 0.6px;
+  cursor: pointer;
+}
+
+.overclock:hover,
+.overclock:focus-visible {
+  border-color: #9fffd5;
+  box-shadow: 0 0 0 1px rgba(159, 255, 213, 0.35);
+  outline: none;
+}
+
+.overclock:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .objective {
   margin: 0;
   font-family: var(--font-ui);

@@ -82,6 +82,15 @@ body.a11y-reduced-effects {
   transition: color 120ms ease, text-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 
+#route-status {
+  min-height: 14px;
+  font-family: var(--font-ui);
+  font-size: clamp(9px, 2vw, 11px);
+  color: #9dc8e6;
+  letter-spacing: 0.7px;
+  opacity: 0.92;
+}
+
 #title-text {
   font-family: var(--font-display);
   font-weight: 900;

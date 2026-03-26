@@ -14,6 +14,8 @@ export const gameState: GameState = {
   persistentRewards: [],
   selectedRelicId: null,
   pendingFloorRoute: null,
+  currentRunMapNodeId: null,
+  pendingRunMapNodeId: null,
 }
 
 export let playerProfile: PlayerProfile = loadProfile()

@@ -16,6 +16,7 @@ type HudNodes = {
   killsDisp: HTMLSpanElement
   runNum: HTMLSpanElement
   objectiveStatus: HTMLDivElement
+  routeStatus: HTMLDivElement
   hintBar: HTMLDivElement | null
   runStatus: HTMLDivElement
 }
@@ -34,6 +35,7 @@ const resolveHudNodes = (): HudNodes => {
     killsDisp: byId<HTMLSpanElement>('kills-disp'),
     runNum: byId<HTMLSpanElement>('run-num'),
     objectiveStatus: byId<HTMLDivElement>('objective-status'),
+    routeStatus: byId<HTMLDivElement>('route-status'),
     hintBar: document.getElementById('hint-bar') as HTMLDivElement | null,
     runStatus: byId<HTMLDivElement>('run-status'),
   }
@@ -55,6 +57,7 @@ export const setUiShell = (mode: UiShellMode): void => {
   if (mode !== 'run') {
     lastRunStatusText = ''
     resolveHudNodes().runStatus.textContent = ''
+    resolveHudNodes().routeStatus.textContent = ''
   }
 }
 
@@ -91,6 +94,10 @@ export const setRunStatusText = (value: string): void => {
 
 export const setObjectiveStatusText = (value: string): void => {
   resolveHudNodes().objectiveStatus.textContent = value
+}
+
+export const setRouteStatusText = (value: string): void => {
+  resolveHudNodes().routeStatus.textContent = value
 }
 
 export type HudPulseKind = 'danger' | 'pickup' | 'reward'

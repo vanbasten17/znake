@@ -62,6 +62,70 @@ export type RewardOption = {
   effects: RewardEffectSet
 }
 
+export type RunMapRoomType = 'combat' | 'elite' | 'shop' | 'rest' | 'event'
+
+export type RunMapResolutionKind = 'objective_reward' | 'noncombat_hook'
+
+export type RunMapNode = {
+  id: string
+  depth: number
+  roomType: RunMapRoomType
+  nextNodeIds: string[]
+  branchPoint: boolean
+  resolutionKind: RunMapResolutionKind
+}
+
+export type RunMapPreviewChoice = {
+  nodeId: string
+  branchLabel: string
+  roomType: RunMapRoomType
+  previewRoomTypes: RunMapRoomType[]
+}
+
+export type RunMapPreview = {
+  currentNode: RunMapNode
+  choices: RunMapPreviewChoice[]
+  previewHorizon: number
+}
+
+export type EventChoiceKind = 'risky_trade' | 'curse_offer' | 'safe_vs_dangerous_route'
+
+export type EventChoiceFamily = UpgradeFamily | 'utility'
+
+export type EventChoiceEffects = {
+  shieldDelta?: number
+  lengthDelta?: number
+  scoreDelta?: number
+  enemyIntervalMultiplier?: number
+  moveIntervalMultiplier?: number
+  routeIntent?: FloorRouteChoice
+}
+
+export type EventChoiceOption = {
+  id: string
+  family: EventChoiceFamily
+  labelKey: string
+  upsideKey: string
+  downsideKey: string
+  summaryKey: string
+  requiresConfirm: boolean
+  effects: EventChoiceEffects
+}
+
+export type EventChoiceDefinition = {
+  id: string
+  kind: EventChoiceKind
+  minFloor: number
+  weight: number
+  options: ReadonlyArray<EventChoiceOption>
+}
+
+export type EventChoiceDraft = {
+  definitionId: string
+  kind: EventChoiceKind
+  options: EventChoiceOption[]
+}
+
 export type RunConfig = {
   moveInterval: number
   bonusStartLength: number
@@ -76,6 +140,36 @@ export type RunConfig = {
   hasRegen: boolean
   regenIntervalMs: number
   maxTurnQueue: number
+  bodySpendMinLength: number
+  bodyPulseCost: number
+  bodyPulseCooldownMs: number
+  bodyPulseDurationMs: number
+  bodyPulseRadius: number
+  rewardOverclockCost: number
+  rewardOverclockUsesPerObjective: number
+}
+
+export type BodySpendSource = 'damage' | 'body_pulse' | 'reward_overclock'
+
+export type BodySpendBlockedReason =
+  | 'below_floor'
+  | 'on_cooldown'
+  | 'usage_limit_reached'
+  | 'not_reward_phase'
+
+export type BodySpendOutcomeStatus = 'applied' | 'blocked' | 'on_cooldown'
+
+export type BodySpendOutcome = {
+  status: BodySpendOutcomeStatus
+  source: BodySpendSource
+  spentSegments: number
+  blockedReason: BodySpendBlockedReason | null
+}
+
+export type BodyEconomyRuntimeState = {
+  bodyPulseCooldownMs: number
+  bodyPulseActiveMs: number
+  rewardOverclockUsesInWindow: number
 }
 
 export type Enemy = {
@@ -139,6 +233,8 @@ export type GameState = {
   persistentRewards: RewardOption[]
   selectedRelicId: RelicId | null
   pendingFloorRoute: FloorRouteChoice | null
+  currentRunMapNodeId: string | null
+  pendingRunMapNodeId: string | null
 }
 
 export type VirtualInput = {

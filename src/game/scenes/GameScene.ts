@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import rewardStyles from '../../styles/rewardOverlay.module.css'
+import routeStyles from '../../styles/routeOverlay.module.css'
 import { pickEliteKind, pickPowerupType, pickSpecialEnemyKind } from '../config/content'
 import { BALANCE, createBaseRunConfig, getFloorSetup } from '../core/balance'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
@@ -7,7 +8,7 @@ import { getDevScenario, isDevMode } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
 import type { GlossaryMarkerTone } from '../core/glossary'
 import { applyRelicEffect, applyTalentEffects } from '../core/meta'
-import { getFloorObjective, getRoomObjective } from '../core/objectives'
+import { getFloorObjective, getRoomObjectiveForRoomType } from '../core/objectives'
 import {
   applyRewardEffectsToConfig,
   formatRewardTranslationKey,
@@ -16,8 +17,12 @@ import {
 import { gameState, playerProfile } from '../core/state'
 import type {
   BiomeItem,
+  BodyEconomyRuntimeState,
+  BodySpendBlockedReason,
   Enemy,
   EnemyKind,
+  EventChoiceDraft,
+  EventChoiceOption,
   FloorObjectiveKind,
   FloorRouteChoice,
   FloorTemplate,
@@ -28,6 +33,8 @@ import type {
   RewardOption,
   RoomObjectiveState,
   RunConfig,
+  RunMapPreviewChoice,
+  RunMapRoomType,
   SnakeSegment,
   Vec2,
   WorldItemType,
@@ -43,6 +50,14 @@ import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerH
 import { PAINT_BY_TONE, drawPremiumSegmentPhaser } from '../render/markerVectorArt'
 import { ArcadeEffectsPipeline } from '../render/shaders'
 import {
+  collectBodyPulseHitEnemyIndexes,
+  createInitialBodyEconomyRuntimeState,
+  resetRewardOverclockWindow,
+  resolveBodyPulseSpend,
+  resolveRewardOverclockSpend,
+  tickBodyEconomyRuntimeState,
+} from '../simulation/bodyEconomy'
+import {
   type EnemyCollisionMatch,
   type EnemyCollisionPart,
   applyStalkerExtraStep,
@@ -50,6 +65,16 @@ import {
   resolveEnemyCollisionDamage,
   tickEnemy,
 } from '../simulation/enemy'
+import {
+  type EventChoiceProgressState,
+  clearEventChoiceProgress,
+  createEventChoiceProgressState,
+  draftEventChoice,
+  enterEventChoicePending,
+  resolveEventChoiceOption,
+  resolveEventChoiceProgress,
+  setEventChoiceConfirmOption,
+} from '../simulation/eventChoices'
 import {
   type RoomTemplateLayout,
   generateClassicWalls,
@@ -76,16 +101,21 @@ import {
   createRunReplayCapture,
 } from '../simulation/replay'
 import { type GameRng, createSeededRng, deriveRunSeed } from '../simulation/rng'
+import {
+  createDefaultRunMapNodeIdForFloor,
+  getRunMapPreview,
+  isCombatRunMapRoomType,
+} from '../simulation/runMap'
 import { pickOpenCell } from '../simulation/spawn'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import {
   getMoveHintText,
   getRestartHintText,
-  getRewardHintText,
   pulseHudNode,
   setHintText,
   setObjectiveStatusText,
+  setRouteStatusText,
   setRunStatusText,
   setSceneChrome,
   updateHud,
@@ -181,6 +211,7 @@ export class GameScene extends Phaser.Scene {
   private venomCharges = 0
   private venomCooldownMs = 0
   private venomProjectiles: VenomProjectile[] = []
+  private bodyEconomyState: BodyEconomyRuntimeState = createInitialBodyEconomyRuntimeState()
   private objectiveType: FloorObjectiveKind = 'portal'
   private objectiveScoreStart = 0
   private objectiveScoreTarget = 0
@@ -191,6 +222,14 @@ export class GameScene extends Phaser.Scene {
   private rewardChoices: RewardOption[] = []
   private rewardPending = false
   private rewardOverlayRoot: HTMLDivElement | null = null
+  private rewardOverclockButton: HTMLButtonElement | null = null
+  private eventChoiceProgress: EventChoiceProgressState = createEventChoiceProgressState()
+  private eventChoiceOverlayRoot: HTMLDivElement | null = null
+  private routeChoices: RunMapPreviewChoice[] = []
+  private routeOverlayRoot: HTMLDivElement | null = null
+  private roomResolveOverlayRoot: HTMLDivElement | null = null
+  private currentRoomType: RunMapRoomType = 'combat'
+  private currentRunMapNodeId = createDefaultRunMapNodeIdForFloor(1)
   private portals: PortalCell[] = []
   private portalCountdownMs = 0
   private portalGraceMs = 0
@@ -283,6 +322,7 @@ export class GameScene extends Phaser.Scene {
       gameState.currentRunSeed ??
       deriveRunSeed([Date.now(), gameState.run, gameState.floor, this.score])
     gameState.currentRunSeed = this.runSeed
+    this.applyPendingRunMapNode()
     this.rng = createSeededRng(this.runSeed)
     this.fxRng = createSeededRng(deriveRunSeed([this.runSeed, 0x9e3779b9]))
     this.replayCapture = createRunReplayCapture(this.runSeed, this.time.now)
@@ -341,6 +381,9 @@ export class GameScene extends Phaser.Scene {
       this.sandMovePenaltyMs = Math.max(this.sandMovePenaltyMs, 65)
     }
     this.isBossFloor = gameState.floor % BALANCE.biome.boss.floorInterval === 0
+    if (this.isBossFloor) {
+      this.currentRoomType = 'combat'
+    }
     this.bossPhase = 'alpha'
     if (this.isBossFloor) {
       // Boss floors must start without preloaded shields; shield access comes from pickups.
@@ -352,9 +395,16 @@ export class GameScene extends Phaser.Scene {
     this.objectiveKillsStart = gameState.kills
     this.objectiveScoreTarget = floorObjective.scoreTarget
     this.objectiveKillsTarget = floorObjective.killsTarget
-    this.roomObjective = initRoomObjectiveState(
-      getRoomObjective(gameState.floor, gameState.runObjectiveOffset),
+    this.refreshRunMapPreview()
+    const roomObjectiveDefinition = getRoomObjectiveForRoomType(
+      gameState.floor,
+      this.currentRoomType,
+      gameState.runObjectiveOffset,
     )
+    this.roomObjective = roomObjectiveDefinition
+      ? initRoomObjectiveState(roomObjectiveDefinition)
+      : null
+    this.applyRoomTypeSetup()
 
     this.bgGraphics = this.add.graphics()
     this.wallGraphics = this.add.graphics()
@@ -403,7 +453,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isBossFloor) {
       this.enemyCount = 1
       this.spawnEnemy('boss')
-    } else {
+    } else if (this.usesCombatRoomFlow()) {
       for (let i = 0; i < this.enemyCount; i += 1) {
         this.spawnEnemy()
       }
@@ -414,8 +464,10 @@ export class GameScene extends Phaser.Scene {
     }
     this.setupRoomObjectiveActors()
 
-    this.spawnFood()
-    if (debugScenario?.placeFoodNearHead) {
+    if (this.usesCombatRoomFlow()) {
+      this.spawnFood()
+    }
+    if (debugScenario?.placeFoodNearHead && this.usesCombatRoomFlow()) {
       const head = this.snake[0]
       if (head) {
         const candidate = { x: Math.min(BASE_COLS - 2, head.x + 1), y: head.y }
@@ -427,7 +479,11 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    if (!this.isBossFloor && this.rng.nextFloat() < BALANCE.spawn.powerupAtFloorStartChance) {
+    if (
+      this.usesCombatRoomFlow() &&
+      !this.isBossFloor &&
+      this.rng.nextFloat() < BALANCE.spawn.powerupAtFloorStartChance
+    ) {
       this.spawnPowerup()
     }
     if (this.isBossFloor) {
@@ -435,7 +491,7 @@ export class GameScene extends Phaser.Scene {
       this.spawnPowerup('venom')
       this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
     }
-    if (this.objectiveType === 'kills' && !this.isBossFloor) {
+    if (this.usesCombatRoomFlow() && this.objectiveType === 'kills' && !this.isBossFloor) {
       this.spawnPowerup('venom')
     }
     this.startContactGrace(BALANCE.combatFairness.grace.roomEntryMs)
@@ -457,6 +513,10 @@ export class GameScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (this.rewardPending) {
+        if (event.code === 'KeyE') {
+          this.recordReplayInput('ability', 'keyboard')
+          this.tryRewardOverclock()
+        }
         if (event.code === 'Digit1' || event.code === 'Numpad1') {
           this.pickRewardChoice(0)
         }
@@ -465,6 +525,39 @@ export class GameScene extends Phaser.Scene {
         }
         if (event.code === 'Digit3' || event.code === 'Numpad3') {
           this.pickRewardChoice(2)
+        }
+        return
+      }
+      if (this.routeOverlayRoot) {
+        if (event.code === 'Digit1' || event.code === 'Numpad1') {
+          this.pickRouteChoice(0)
+        }
+        if (event.code === 'Digit2' || event.code === 'Numpad2') {
+          this.pickRouteChoice(1)
+        }
+        return
+      }
+      if (this.eventChoiceOverlayRoot) {
+        if (event.code === 'Digit1' || event.code === 'Numpad1') {
+          this.pickEventChoice(0)
+        }
+        if (event.code === 'Digit2' || event.code === 'Numpad2') {
+          this.pickEventChoice(1)
+        }
+        if (event.code === 'Digit3' || event.code === 'Numpad3') {
+          this.pickEventChoice(2)
+        }
+        if (event.code === 'Escape') {
+          this.cancelEventChoiceConfirmation()
+        }
+        if (event.code === 'Enter' || event.code === 'Space') {
+          this.confirmPendingEventChoice()
+        }
+        return
+      }
+      if (this.roomResolveOverlayRoot) {
+        if (event.code === 'Enter' || event.code === 'Space') {
+          this.continueResolvedRoom()
         }
         return
       }
@@ -496,7 +589,11 @@ export class GameScene extends Phaser.Scene {
         this.pauseText = undefined
       }
       this.teardownRewardOverlay()
+      this.teardownRouteOverlay()
+      this.teardownEventChoiceOverlay()
+      this.teardownRoomResolveOverlay()
       setObjectiveStatusText('')
+      setRouteStatusText('')
       setRunStatusText('')
     })
 
@@ -505,10 +602,15 @@ export class GameScene extends Phaser.Scene {
     this.redrawTerrainGraphics()
     updateHud(this.score)
     this.refreshObjectiveHud()
-    setHintText(`${getMoveHintText()} · ${t('hint.itemLegend')}`)
+    this.refreshRunMapHud()
+    this.refreshHintText()
 
     if (debugScenario?.referenceBoard) {
       this.setupReferenceBoardScenario()
+    }
+
+    if (!this.usesCombatRoomFlow()) {
+      this.mountRoomResolveOverlay()
     }
 
     this.gameCreateComplete = true
@@ -548,7 +650,11 @@ export class GameScene extends Phaser.Scene {
     }
     if (window.virtualInput.ability) {
       this.recordReplayInput('ability', 'virtual')
-      this.tryFireVenom()
+      if (this.rewardPending) {
+        this.tryRewardOverclock()
+      } else {
+        this.tryUseCombatAbility()
+      }
       window.virtualInput.ability = false
     }
 
@@ -581,7 +687,13 @@ export class GameScene extends Phaser.Scene {
     const dt = simDelta / 1000
     this.updateRoomObjectiveByTime(simDelta)
     this.refreshObjectiveHud()
+    this.refreshRunMapHud()
     if (this.rewardPending) {
+      this.drawBackground()
+      this.drawFrame()
+      return
+    }
+    if (this.routeOverlayRoot || this.eventChoiceOverlayRoot || this.roomResolveOverlayRoot) {
       this.drawBackground()
       this.drawFrame()
       return
@@ -595,6 +707,7 @@ export class GameScene extends Phaser.Scene {
     this.updateCorePressure(simDelta)
     this.updateBossSupport(simDelta)
     this.updateVenomState(simDelta)
+    this.updateBodyEconomyState(simDelta)
     this.updateContactGrace(simDelta)
     this.updateRegen(simDelta)
     this.updateSnakeMovement(simDelta)
@@ -684,6 +797,7 @@ export class GameScene extends Phaser.Scene {
     this.venomCharges = 0
     this.venomCooldownMs = 0
     this.venomProjectiles = []
+    this.bodyEconomyState = createInitialBodyEconomyRuntimeState()
     this.objectiveType = 'portal'
     this.objectiveScoreStart = 0
     this.objectiveScoreTarget = 0
@@ -694,6 +808,14 @@ export class GameScene extends Phaser.Scene {
     this.rewardChoices = []
     this.rewardPending = false
     this.teardownRewardOverlay()
+    this.rewardOverclockButton = null
+    this.eventChoiceProgress = createEventChoiceProgressState()
+    this.teardownEventChoiceOverlay()
+    this.routeChoices = []
+    this.teardownRouteOverlay()
+    this.teardownRoomResolveOverlay()
+    this.currentRoomType = 'combat'
+    this.currentRunMapNodeId = createDefaultRunMapNodeIdForFloor(1)
     this.portals = []
     this.portalCountdownMs = 0
     this.portalGraceMs = 0
@@ -1401,6 +1523,22 @@ export class GameScene extends Phaser.Scene {
     return t('game.venomEmpty')
   }
 
+  private getBodyPulseStatusText(): string {
+    if (this.bodyEconomyState.bodyPulseCooldownMs > 0) {
+      return t('game.bodyPulseCooldown', {
+        seconds: Math.ceil(this.bodyEconomyState.bodyPulseCooldownMs / 1000),
+      })
+    }
+    if (this.snake.length <= this.cfg.bodySpendMinLength) {
+      return t('game.bodyPulseBlockedFloor', {
+        min: this.cfg.bodySpendMinLength,
+      })
+    }
+    return t('game.bodyPulseReady', {
+      cost: this.cfg.bodyPulseCost,
+    })
+  }
+
   private updateVenomState(delta: number): void {
     this.venomCooldownMs = Math.max(0, this.venomCooldownMs - delta)
     if (this.venomProjectiles.length === 0) {
@@ -1438,6 +1576,122 @@ export class GameScene extends Phaser.Scene {
     this.venomProjectiles = active
   }
 
+  private updateBodyEconomyState(delta: number): void {
+    this.bodyEconomyState = tickBodyEconomyRuntimeState(this.bodyEconomyState, delta)
+  }
+
+  private shouldUseVenomAbilityContext(): boolean {
+    if (this.isBossFloor) {
+      return true
+    }
+    if (this.objectiveType !== 'kills') {
+      return false
+    }
+    return this.venomCharges > 0 || this.venomCooldownMs > 0
+  }
+
+  private tryUseCombatAbility(): void {
+    if (this.shouldUseVenomAbilityContext()) {
+      this.tryFireVenom()
+      return
+    }
+    this.tryBodyPulse()
+  }
+
+  private applyBodySpendBlockedFeedback(
+    blockedReason: BodySpendBlockedReason | null,
+    spendKind: 'body_pulse' | 'reward_overclock',
+  ): void {
+    if (blockedReason === 'on_cooldown' && spendKind === 'body_pulse') {
+      setHintText(
+        t('game.bodyPulseCooldown', {
+          seconds: Math.ceil(this.bodyEconomyState.bodyPulseCooldownMs / 1000),
+        }),
+      )
+      emitFeedback('danger')
+      return
+    }
+    if (blockedReason === 'below_floor') {
+      const key =
+        spendKind === 'body_pulse'
+          ? 'game.bodyPulseBlockedFloor'
+          : 'game.rewardOverclockBlockedFloor'
+      setHintText(t(key, { min: this.cfg.bodySpendMinLength }))
+      emitFeedback('danger')
+      return
+    }
+    if (blockedReason === 'usage_limit_reached') {
+      setHintText(t('game.rewardOverclockUsed'))
+      emitFeedback('danger')
+      return
+    }
+    if (blockedReason === 'not_reward_phase') {
+      setHintText(t('game.rewardOverclockNotReady'))
+      emitFeedback('danger')
+    }
+  }
+
+  private removeSnakeSegments(
+    amount: number,
+    source: 'damage' | 'body_pulse' | 'reward_overclock',
+  ): number {
+    const loss = Math.max(1, Math.floor(amount))
+    let removed = 0
+    while (removed < loss && this.snake.length > 1) {
+      this.snake.pop()
+      removed += 1
+    }
+    if (source === 'damage' && removed > 0) {
+      setHintText(t('game.tailDamaged', { lost: removed }))
+    } else if (source === 'body_pulse' && removed > 0) {
+      setHintText(t('game.bodyPulseSpent', { spent: removed }))
+    } else if (source === 'reward_overclock' && removed > 0) {
+      setHintText(t('game.rewardOverclockSpent', { spent: removed }))
+    }
+    return removed
+  }
+
+  private tryBodyPulse(): void {
+    if (this.paused || this.isDying) {
+      return
+    }
+    const resolved = resolveBodyPulseSpend({
+      snakeLength: this.snake.length,
+      state: this.bodyEconomyState,
+      config: this.cfg,
+    })
+    this.bodyEconomyState = resolved.state
+    if (resolved.outcome.status !== 'applied') {
+      this.applyBodySpendBlockedFeedback(resolved.outcome.blockedReason, 'body_pulse')
+      return
+    }
+
+    const removed = this.removeSnakeSegments(resolved.outcome.spentSegments, 'body_pulse')
+    if (removed < resolved.outcome.spentSegments) {
+      this.die('enemy')
+      return
+    }
+    const head = this.snake[0]
+    const hitIndexes = collectBodyPulseHitEnemyIndexes({
+      head,
+      enemies: this.enemies,
+      radius: this.cfg.bodyPulseRadius,
+    })
+    for (const index of hitIndexes) {
+      const target = this.enemies[index]
+      if (target) {
+        this.killEnemy(target)
+      }
+    }
+    const hitCount = hitIndexes.length
+    if (head) {
+      this.spawnParticles(head.x, head.y, COLORS.powerup, 8 + hitCount * 2)
+      this.triggerPickupFeedback(head.x, head.y, COLORS.powerup)
+    }
+    this.enemies = this.enemies.filter((enemy) => enemy.alive)
+    emitFeedback(hitCount > 0 ? 'success' : 'confirm')
+  }
+
   private tryFireVenom(): void {
     if (this.paused || this.isDying || this.venomCharges <= 0 || this.venomCooldownMs > 0) {
       return
@@ -1465,8 +1719,187 @@ export class GameScene extends Phaser.Scene {
     emitFeedback('confirm')
   }
 
+  private tryRewardOverclock(): void {
+    const resolved = resolveRewardOverclockSpend({
+      snakeLength: this.snake.length,
+      state: this.bodyEconomyState,
+      config: this.cfg,
+      inRewardWindow: this.rewardPending,
+    })
+    this.bodyEconomyState = resolved.state
+    if (resolved.outcome.status !== 'applied') {
+      this.applyBodySpendBlockedFeedback(resolved.outcome.blockedReason, 'reward_overclock')
+      this.refreshRewardOverclockButton()
+      return
+    }
+
+    const removed = this.removeSnakeSegments(resolved.outcome.spentSegments, 'reward_overclock')
+    if (removed < resolved.outcome.spentSegments) {
+      this.die('enemy')
+      return
+    }
+    this.rewardChoices = draftRewardOptions(getRewardPool(), BALANCE.rewards.draftSize, this.rng)
+    this.mountRewardOverlay()
+    this.refreshHintText()
+    this.refreshRewardOverclockButton()
+    emitFeedback('reward')
+  }
+
   private getObjectiveScoreProgress(): number {
     return Math.max(0, this.score - this.objectiveScoreStart)
+  }
+
+  private applyPendingRunMapNode(): void {
+    const resolvedNodeId =
+      gameState.pendingRunMapNodeId ??
+      gameState.currentRunMapNodeId ??
+      createDefaultRunMapNodeIdForFloor(gameState.floor)
+    gameState.pendingRunMapNodeId = null
+    gameState.currentRunMapNodeId = resolvedNodeId
+    this.currentRunMapNodeId = resolvedNodeId
+  }
+
+  private refreshRunMapPreview(): void {
+    const preview = getRunMapPreview({
+      runSeed: this.runSeed,
+      currentNodeId: this.currentRunMapNodeId,
+      runObjectiveOffset: gameState.runObjectiveOffset,
+    })
+    this.currentRoomType = this.isBossFloor ? 'combat' : preview.currentNode.roomType
+    this.routeChoices = preview.choices
+  }
+
+  private usesCombatRoomFlow(): boolean {
+    if (this.isBossFloor) {
+      return true
+    }
+    return isCombatRunMapRoomType(this.currentRoomType)
+  }
+
+  private applyRoomTypeSetup(): void {
+    if (this.currentRoomType === 'elite') {
+      this.enemyCount = Math.max(1, this.enemyCount + BALANCE.runMap.elite.enemyCountDelta)
+      this.enemyInterval = Math.max(
+        180,
+        this.enemyInterval * BALANCE.runMap.elite.enemyIntervalMultiplier,
+      )
+    }
+    if (!this.usesCombatRoomFlow()) {
+      this.enemyCount = 0
+    }
+  }
+
+  private getRoomTypeLabel(roomType: RunMapRoomType): string {
+    if (roomType === 'elite') {
+      return t('game.roomTypeElite')
+    }
+    if (roomType === 'shop') {
+      return t('game.roomTypeShop')
+    }
+    if (roomType === 'rest') {
+      return t('game.roomTypeRest')
+    }
+    if (roomType === 'event') {
+      return t('game.roomTypeEvent')
+    }
+    return t('game.roomTypeCombat')
+  }
+
+  private getRoomTypeDescription(roomType: RunMapRoomType): string {
+    if (roomType === 'elite') {
+      return t('game.roomTypeEliteDesc')
+    }
+    if (roomType === 'shop') {
+      return t('game.roomTypeShopDesc')
+    }
+    if (roomType === 'rest') {
+      return t('game.roomTypeRestDesc')
+    }
+    if (roomType === 'event') {
+      return t('game.roomTypeEventDesc')
+    }
+    return t('game.roomTypeCombatDesc')
+  }
+
+  private formatRouteChoicePreview(choice: RunMapPreviewChoice): string {
+    const firstFuture = choice.previewRoomTypes[1]
+    if (!firstFuture) {
+      return t('game.routeChoiceCompact', {
+        index: choice.branchLabel,
+        room: this.getRoomTypeLabel(choice.roomType),
+      })
+    }
+    return t('game.routePreviewCompact', {
+      room: t('game.routeChoiceCompact', {
+        index: choice.branchLabel,
+        room: this.getRoomTypeLabel(choice.roomType),
+      }),
+      next: this.getRoomTypeLabel(firstFuture),
+    })
+  }
+
+  private refreshRunMapHud(): void {
+    const current = t('game.routeCurrentRoom', {
+      room: this.getRoomTypeLabel(this.currentRoomType),
+    })
+    if (this.routeChoices.length <= 0) {
+      setRouteStatusText(current)
+      return
+    }
+    if (this.routeChoices.length === 1) {
+      setRouteStatusText(
+        `${current} · ${t('game.routeNextOne', {
+          choice: this.formatRouteChoicePreview(this.routeChoices[0]),
+        })}`,
+      )
+      return
+    }
+    const choices = this.routeChoices
+      .map((choice) => this.formatRouteChoicePreview(choice))
+      .join(' · ')
+    setRouteStatusText(`${current} · ${t('game.routeNextMany', { choices })}`)
+  }
+
+  private refreshHintText(): void {
+    const keyboardMode = getControlMode() === 'keyboard'
+    if (this.rewardPending) {
+      setHintText(
+        keyboardMode
+          ? t('hint.rewardKeyboardWithOverclock', { cost: this.cfg.rewardOverclockCost })
+          : t('hint.rewardTouchWithOverclock', { cost: this.cfg.rewardOverclockCost }),
+      )
+      return
+    }
+    if (this.routeOverlayRoot) {
+      setHintText(keyboardMode ? t('hint.routeKeyboard') : t('hint.routeTouch'))
+      return
+    }
+    if (this.eventChoiceOverlayRoot) {
+      if (
+        this.eventChoiceProgress.status === 'pending' &&
+        this.eventChoiceProgress.confirmOptionId
+      ) {
+        setHintText(
+          keyboardMode ? t('hint.eventChoiceConfirmKeyboard') : t('hint.eventChoiceConfirmTouch'),
+        )
+      } else {
+        setHintText(keyboardMode ? t('hint.eventChoiceKeyboard') : t('hint.eventChoiceTouch'))
+      }
+      return
+    }
+    if (this.roomResolveOverlayRoot) {
+      setHintText(keyboardMode ? t('hint.continueKeyboard') : t('hint.continueTouch'))
+      return
+    }
+    if (!this.usesCombatRoomFlow()) {
+      setHintText(keyboardMode ? t('hint.continueKeyboard') : t('hint.continueTouch'))
+      return
+    }
+    if (this.objectiveType === 'portal' && this.portals.length > 0) {
+      setHintText(t('game.routeChoiceHint'))
+      return
+    }
+    setHintText(`${getMoveHintText()} · ${t('hint.itemLegend')}`)
   }
 
   private getObjectiveKillsProgress(): number {
@@ -1498,6 +1931,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getObjectiveStatusText(): string {
+    const abilityStatus = this.shouldUseVenomAbilityContext()
+      ? this.getVenomStatusText()
+      : this.getBodyPulseStatusText()
+    if (!this.usesCombatRoomFlow() && !this.isBossFloor) {
+      return this.getRoomTypeLabel(this.currentRoomType)
+    }
     if (this.isBossFloor || this.objectiveType === 'boss') {
       const phaseLabel =
         this.bossPhase === 'rage' ? t('game.bossPhaseRage') : t('game.bossPhaseAlpha')
@@ -1505,18 +1944,18 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.objectiveType === 'portal') {
       if (this.portals.length === 0) {
-        return t('game.portalIn', { seconds: Math.ceil(this.portalCountdownMs / 1000) })
+        return `${t('game.portalIn', { seconds: Math.ceil(this.portalCountdownMs / 1000) })} · ${abilityStatus}`
       }
       if (this.portalGraceMs > 0) {
-        return `${t('game.portalChoose')} · ${t('game.squeezeIn', { seconds: Math.ceil(this.portalGraceMs / 1000) })}`
+        return `${t('game.portalChoose')} · ${t('game.squeezeIn', { seconds: Math.ceil(this.portalGraceMs / 1000) })} · ${abilityStatus}`
       }
-      return `${t('game.portalChoose')} · ${t('game.squeezeActive')}`
+      return `${t('game.portalChoose')} · ${t('game.squeezeActive')} · ${abilityStatus}`
     }
     if (this.objectiveType === 'score') {
       return t('game.objectiveScoreStatus', {
         progress: this.getObjectiveScoreProgress(),
         target: this.objectiveScoreTarget,
-        pressure: this.getPressureStatusText(),
+        pressure: `${this.getPressureStatusText()} · ${abilityStatus}`,
       })
     }
     if (this.objectiveType === 'kills') {
@@ -1524,7 +1963,7 @@ export class GameScene extends Phaser.Scene {
         progress: this.getObjectiveKillsProgress(),
         target: this.objectiveKillsTarget,
         pressure: this.getPressureStatusText(),
-        venomStatus: this.getVenomStatusText(),
+        venomStatus: abilityStatus,
       })
     }
     return t('game.objectiveKillsStatus', {
@@ -1570,7 +2009,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private setupRoomObjectiveActors(): void {
-    if (!this.roomObjective || this.isBossFloor) {
+    if (!this.roomObjective || this.isBossFloor || !this.usesCombatRoomFlow()) {
       this.objectiveTerminals = []
       return
     }
@@ -1588,7 +2027,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateRoomObjectiveByTime(deltaMs: number): void {
-    if (!this.roomObjective || this.rewardPending || this.isDying || this.isBossFloor) {
+    if (
+      !this.roomObjective ||
+      this.rewardPending ||
+      this.isDying ||
+      this.isBossFloor ||
+      !this.usesCombatRoomFlow()
+    ) {
       return
     }
     if (this.roomObjective.kind !== 'survive' || this.roomObjective.completed) {
@@ -1607,7 +2052,12 @@ export class GameScene extends Phaser.Scene {
       | { type: 'elite_defeated'; amount?: number }
       | { type: 'terminal_activated'; amount?: number },
   ): void {
-    if (!this.roomObjective || this.rewardPending || this.isBossFloor) {
+    if (
+      !this.roomObjective ||
+      this.rewardPending ||
+      this.isBossFloor ||
+      !this.usesCombatRoomFlow()
+    ) {
       return
     }
     const next = advanceRoomObjectiveState(this.roomObjective, event)
@@ -1618,7 +2068,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private ensureRoomObjectiveAvailability(): void {
-    if (!this.roomObjective || this.roomObjective.completed || this.isBossFloor) {
+    if (
+      !this.roomObjective ||
+      this.roomObjective.completed ||
+      this.isBossFloor ||
+      !this.usesCombatRoomFlow()
+    ) {
       return
     }
     if (this.roomObjective.kind === 'collect_cores') {
@@ -1646,11 +2101,12 @@ export class GameScene extends Phaser.Scene {
     ) {
       return
     }
+    this.bodyEconomyState = resetRewardOverclockWindow(this.bodyEconomyState)
     this.rewardChoices = draftRewardOptions(getRewardPool(), BALANCE.rewards.draftSize, this.rng)
     this.rewardPending = true
     this.triggerObjectiveFeedback(false)
     this.mountRewardOverlay()
-    setHintText(getRewardHintText())
+    this.refreshHintText()
   }
 
   private pickRewardChoice(index: number): void {
@@ -1669,7 +2125,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.teardownRewardOverlay()
     this.refreshObjectiveHud()
-    setHintText(`${getMoveHintText()} · ${t('hint.itemLegend')}`)
+    this.refreshHintText()
     emitFeedback('reward')
   }
 
@@ -1709,6 +2165,13 @@ export class GameScene extends Phaser.Scene {
     subtitle.textContent = t('reward.chooseOne')
     root.append(subtitle)
 
+    const overclockButton = document.createElement('button')
+    overclockButton.type = 'button'
+    overclockButton.className = rewardStyles.overclock
+    overclockButton.addEventListener('click', () => this.tryRewardOverclock())
+    root.append(overclockButton)
+    this.rewardOverclockButton = overclockButton
+
     const objective = document.createElement('p')
     objective.className = rewardStyles.objective
     objective.textContent = this.getRoomObjectiveStatusText()
@@ -1721,6 +2184,7 @@ export class GameScene extends Phaser.Scene {
     for (const [index, reward] of this.rewardChoices.entries()) {
       cards.append(this.createRewardCard(reward, index))
     }
+    this.refreshRewardOverclockButton()
 
     gameArea.append(root)
     this.rewardOverlayRoot = root
@@ -1770,6 +2234,445 @@ export class GameScene extends Phaser.Scene {
       this.rewardOverlayRoot.remove()
       this.rewardOverlayRoot = null
     }
+    this.rewardOverclockButton = null
+  }
+
+  private refreshRewardOverclockButton(): void {
+    if (!this.rewardOverclockButton) {
+      return
+    }
+    const uses = this.bodyEconomyState.rewardOverclockUsesInWindow
+    const maxUses = this.cfg.rewardOverclockUsesPerObjective
+    const exhausted = uses >= maxUses
+    const blockedByLength =
+      this.snake.length - this.cfg.rewardOverclockCost < this.cfg.bodySpendMinLength
+    const blocked = exhausted || blockedByLength
+    this.rewardOverclockButton.disabled = blocked
+    if (exhausted) {
+      this.rewardOverclockButton.textContent = t('game.rewardOverclockUsed')
+      return
+    }
+    if (blockedByLength) {
+      this.rewardOverclockButton.textContent = t('game.rewardOverclockBlockedFloor', {
+        min: this.cfg.bodySpendMinLength,
+      })
+      return
+    }
+    this.rewardOverclockButton.textContent = t('game.rewardOverclockReady', {
+      cost: this.cfg.rewardOverclockCost,
+    })
+  }
+
+  private mountRouteOverlay(): void {
+    this.teardownRouteOverlay()
+    if (this.routeChoices.length <= 1) {
+      return
+    }
+    const gameArea = document.getElementById('game-area')
+    if (!gameArea) {
+      return
+    }
+
+    const root = document.createElement('div')
+    root.className = routeStyles.overlay
+
+    const panel = document.createElement('section')
+    panel.className = routeStyles.panel
+    root.append(panel)
+
+    const title = document.createElement('h2')
+    title.className = routeStyles.title
+    title.textContent = t('game.routeChoiceTitle')
+    panel.append(title)
+
+    const subtitle = document.createElement('p')
+    subtitle.className = routeStyles.subtitle
+    subtitle.textContent = t('game.routeChoiceSubtitle')
+    panel.append(subtitle)
+
+    const cards = document.createElement('div')
+    cards.className = routeStyles.cards
+    panel.append(cards)
+
+    for (const [index, choice] of this.routeChoices.entries()) {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = routeStyles.card
+      button.addEventListener('click', () => this.pickRouteChoice(index))
+
+      const hotkey = document.createElement('span')
+      hotkey.className = routeStyles.hotkey
+      hotkey.textContent = String(index + 1)
+      button.append(hotkey)
+
+      const content = document.createElement('span')
+      content.className = routeStyles.content
+      button.append(content)
+
+      const name = document.createElement('span')
+      name.className = routeStyles.name
+      name.textContent = this.getRoomTypeLabel(choice.roomType)
+      content.append(name)
+
+      const detail = document.createElement('span')
+      detail.className = routeStyles.detail
+      detail.textContent = this.getRoomTypeDescription(choice.roomType)
+      content.append(detail)
+
+      const nextPreview = choice.previewRoomTypes[1]
+      if (nextPreview) {
+        const preview = document.createElement('span')
+        preview.className = routeStyles.preview
+        preview.textContent = t('game.routeChoiceFuture', {
+          preview: this.getRoomTypeLabel(nextPreview),
+        })
+        content.append(preview)
+      }
+
+      cards.append(button)
+    }
+
+    gameArea.append(root)
+    this.routeOverlayRoot = root
+    this.refreshHintText()
+  }
+
+  private teardownRouteOverlay(): void {
+    if (this.routeOverlayRoot) {
+      this.routeOverlayRoot.remove()
+      this.routeOverlayRoot = null
+    }
+  }
+
+  private pickRouteChoice(index: number): void {
+    const choice = this.routeChoices[index]
+    if (!choice) {
+      return
+    }
+    emitFeedback('confirm')
+    gameState.pendingRunMapNodeId = choice.nodeId
+    this.teardownRouteOverlay()
+    this.refreshHintText()
+    transitionToScene(this, 'Upgrade', {
+      chrome: 'run',
+      data: { score: this.score, floor: gameState.floor },
+    })
+  }
+
+  private completeRoomExit(): void {
+    if (this.routeChoices.length <= 0) {
+      gameState.pendingRunMapNodeId = createDefaultRunMapNodeIdForFloor(gameState.floor + 1)
+      transitionToScene(this, 'Upgrade', {
+        chrome: 'run',
+        data: { score: this.score, floor: gameState.floor },
+      })
+      return
+    }
+    if (this.routeChoices.length === 1) {
+      this.pickRouteChoice(0)
+      return
+    }
+    this.mountRouteOverlay()
+  }
+
+  private draftEventChoiceForRoom(): EventChoiceDraft | null {
+    return draftEventChoice({
+      runSeed: this.runSeed,
+      floor: gameState.floor,
+      roomNodeId: this.currentRunMapNodeId,
+      context: {
+        floor: gameState.floor,
+        currentShields: this.shields,
+        snakeLength: this.snake.length,
+        minSnakeLength: this.cfg.bodySpendMinLength,
+        score: this.score,
+      },
+    })
+  }
+
+  private mountEventChoiceOverlay(): void {
+    this.teardownEventChoiceOverlay()
+    const draft = this.draftEventChoiceForRoom()
+    if (!draft) {
+      this.pendingGrowth += BALANCE.runMap.nonCombat.eventBonusLength
+      this.completeRoomExit()
+      return
+    }
+    this.eventChoiceProgress = enterEventChoicePending(draft)
+    this.renderEventChoiceOverlay()
+  }
+
+  private renderEventChoiceOverlay(): void {
+    this.teardownEventChoiceOverlay()
+    if (this.eventChoiceProgress.status === 'idle') {
+      return
+    }
+    const gameArea = document.getElementById('game-area')
+    if (!gameArea) {
+      return
+    }
+
+    const root = document.createElement('div')
+    root.className = routeStyles.overlay
+
+    const panel = document.createElement('section')
+    panel.className = routeStyles.panel
+    root.append(panel)
+
+    const title = document.createElement('h2')
+    title.className = routeStyles.title
+    title.textContent =
+      this.eventChoiceProgress.status === 'pending'
+        ? t('game.eventChoiceTitle')
+        : t('game.eventChoiceResolvedTitle')
+    panel.append(title)
+
+    const subtitle = document.createElement('p')
+    subtitle.className = routeStyles.subtitle
+    subtitle.textContent =
+      this.eventChoiceProgress.status === 'pending'
+        ? t('game.eventChoiceSubtitle')
+        : t('game.eventChoiceResolvedSubtitle')
+    panel.append(subtitle)
+
+    if (this.eventChoiceProgress.status === 'pending') {
+      const cards = document.createElement('div')
+      cards.className = routeStyles.cards
+      panel.append(cards)
+
+      for (const [index, option] of this.eventChoiceProgress.draft.options.entries()) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = routeStyles.card
+        button.addEventListener('click', () => this.pickEventChoice(index))
+
+        const hotkey = document.createElement('span')
+        hotkey.className = routeStyles.hotkey
+        hotkey.textContent = String(index + 1)
+        button.append(hotkey)
+
+        const content = document.createElement('span')
+        content.className = routeStyles.content
+        button.append(content)
+
+        const name = document.createElement('span')
+        name.className = routeStyles.name
+        name.textContent = t(option.labelKey)
+        content.append(name)
+
+        const upside = document.createElement('span')
+        upside.className = routeStyles.detail
+        upside.textContent = t(option.upsideKey)
+        content.append(upside)
+
+        const downside = document.createElement('span')
+        downside.className = routeStyles.preview
+        downside.textContent = t(option.downsideKey)
+        content.append(downside)
+
+        cards.append(button)
+      }
+
+      if (this.eventChoiceProgress.confirmOptionId) {
+        const confirm = document.createElement('p')
+        confirm.className = routeStyles.body
+        confirm.textContent = t('game.eventChoiceConfirm')
+        panel.append(confirm)
+      }
+    } else {
+      const body = document.createElement('p')
+      body.className = routeStyles.body
+      body.textContent = t(this.eventChoiceProgress.option.summaryKey)
+      panel.append(body)
+
+      const cta = document.createElement('button')
+      cta.type = 'button'
+      cta.className = routeStyles.cta
+      cta.textContent = t('game.eventChoiceContinue')
+      cta.addEventListener('click', () => this.continueResolvedEventChoice())
+      panel.append(cta)
+    }
+
+    gameArea.append(root)
+    this.eventChoiceOverlayRoot = root
+    this.refreshHintText()
+  }
+
+  private teardownEventChoiceOverlay(): void {
+    if (!this.eventChoiceOverlayRoot) {
+      return
+    }
+    this.eventChoiceOverlayRoot.remove()
+    this.eventChoiceOverlayRoot = null
+  }
+
+  private cancelEventChoiceConfirmation(): void {
+    if (
+      this.eventChoiceProgress.status !== 'pending' ||
+      !this.eventChoiceProgress.confirmOptionId
+    ) {
+      return
+    }
+    this.eventChoiceProgress = setEventChoiceConfirmOption(this.eventChoiceProgress, null)
+    this.renderEventChoiceOverlay()
+  }
+
+  private confirmPendingEventChoice(): void {
+    if (this.eventChoiceProgress.status === 'resolved') {
+      this.continueResolvedEventChoice()
+      return
+    }
+    if (
+      this.eventChoiceProgress.status !== 'pending' ||
+      !this.eventChoiceProgress.confirmOptionId
+    ) {
+      return
+    }
+    const confirmOptionId = this.eventChoiceProgress.confirmOptionId
+    const option = this.eventChoiceProgress.draft.options.find(
+      (candidate) => candidate.id === confirmOptionId,
+    )
+    if (!option) {
+      return
+    }
+    this.applyEventChoice(option)
+  }
+
+  private pickEventChoice(index: number): void {
+    if (this.eventChoiceProgress.status !== 'pending') {
+      return
+    }
+    const option = this.eventChoiceProgress.draft.options[index]
+    if (!option) {
+      return
+    }
+    if (option.requiresConfirm && this.eventChoiceProgress.confirmOptionId !== option.id) {
+      this.eventChoiceProgress = setEventChoiceConfirmOption(this.eventChoiceProgress, option.id)
+      this.renderEventChoiceOverlay()
+      return
+    }
+    this.applyEventChoice(option)
+  }
+
+  private applyEventChoice(option: EventChoiceOption): void {
+    const resolved = resolveEventChoiceOption({
+      option,
+      currentShields: this.shields,
+      currentPendingGrowth: this.pendingGrowth,
+      currentScore: this.score,
+      currentEnemyInterval: this.enemyInterval,
+      currentMoveInterval: this.cfg.moveInterval,
+    })
+
+    if (resolved.consumedLength > 0) {
+      const removed = this.removeSnakeSegments(resolved.consumedLength, 'damage')
+      if (removed < resolved.consumedLength) {
+        this.die('enemy')
+        return
+      }
+    }
+
+    this.shields = resolved.nextShields
+    this.pendingGrowth = resolved.nextPendingGrowth
+    this.score = resolved.nextScore
+    this.enemyInterval = resolved.nextEnemyInterval
+    this.cfg.moveInterval = resolved.nextMoveInterval
+    if (resolved.routeIntent) {
+      gameState.pendingFloorRoute = resolved.routeIntent
+    }
+    updateHud(this.score)
+
+    this.eventChoiceProgress = resolveEventChoiceProgress(this.eventChoiceProgress, option)
+    emitFeedback('reward')
+    this.renderEventChoiceOverlay()
+  }
+
+  private continueResolvedEventChoice(): void {
+    if (this.eventChoiceProgress.status !== 'resolved') {
+      return
+    }
+    emitFeedback('confirm')
+    this.eventChoiceProgress = clearEventChoiceProgress()
+    this.teardownEventChoiceOverlay()
+    this.completeRoomExit()
+  }
+
+  private mountRoomResolveOverlay(): void {
+    this.teardownRoomResolveOverlay()
+    if (this.usesCombatRoomFlow()) {
+      return
+    }
+    if (this.currentRoomType === 'event') {
+      this.mountEventChoiceOverlay()
+      return
+    }
+
+    if (this.currentRoomType === 'shop') {
+      this.score += Math.floor(BALANCE.runMap.nonCombat.shopScoreBonus * this.cfg.scoreMult)
+      updateHud(this.score)
+    } else if (this.currentRoomType === 'rest') {
+      this.shields += BALANCE.runMap.nonCombat.restBonusShields
+    }
+
+    const gameArea = document.getElementById('game-area')
+    if (!gameArea) {
+      return
+    }
+    const root = document.createElement('div')
+    root.className = routeStyles.overlay
+
+    const panel = document.createElement('section')
+    panel.className = routeStyles.panel
+    root.append(panel)
+
+    const title = document.createElement('h2')
+    title.className = routeStyles.title
+    title.textContent = t('game.roomResolveTitle', {
+      room: this.getRoomTypeLabel(this.currentRoomType),
+    })
+    panel.append(title)
+
+    const subtitle = document.createElement('p')
+    subtitle.className = routeStyles.subtitle
+    subtitle.textContent = this.getRoomTypeDescription(this.currentRoomType)
+    panel.append(subtitle)
+
+    const body = document.createElement('p')
+    body.className = routeStyles.body
+    body.textContent =
+      this.currentRoomType === 'shop'
+        ? t('game.roomResolveShopBody', { score: BALANCE.runMap.nonCombat.shopScoreBonus })
+        : this.currentRoomType === 'rest'
+          ? t('game.roomResolveRestBody', { shields: BALANCE.runMap.nonCombat.restBonusShields })
+          : t('game.roomResolveEventBody', { length: BALANCE.runMap.nonCombat.eventBonusLength })
+    panel.append(body)
+
+    const cta = document.createElement('button')
+    cta.type = 'button'
+    cta.className = routeStyles.cta
+    cta.textContent = t('game.roomResolveContinue')
+    cta.addEventListener('click', () => this.continueResolvedRoom())
+    panel.append(cta)
+
+    gameArea.append(root)
+    this.roomResolveOverlayRoot = root
+    this.refreshHintText()
+  }
+
+  private teardownRoomResolveOverlay(): void {
+    if (this.roomResolveOverlayRoot) {
+      this.roomResolveOverlayRoot.remove()
+      this.roomResolveOverlayRoot = null
+    }
+  }
+
+  private continueResolvedRoom(): void {
+    if (!this.roomResolveOverlayRoot) {
+      return
+    }
+    emitFeedback('confirm')
+    this.teardownRoomResolveOverlay()
+    this.completeRoomExit()
   }
 
   private applyPendingFloorRoute(): void {
@@ -1960,7 +2863,7 @@ export class GameScene extends Phaser.Scene {
 
   private setupPortalFlow(): void {
     const portalState = initPortalFlowState({
-      isBossFloor: this.isBossFloor,
+      isBossFloor: this.isBossFloor || !this.usesCombatRoomFlow(),
       floor: gameState.floor,
       objectiveType: this.objectiveType,
       countdownBaseMs: BALANCE.portal.countdownBaseMs,
@@ -1978,7 +2881,7 @@ export class GameScene extends Phaser.Scene {
 
   private setupCorePressureFlow(): void {
     const pressure = initCorePressureState({
-      enabled: BALANCE.biome.pressure.enabled,
+      enabled: BALANCE.biome.pressure.enabled && this.usesCombatRoomFlow(),
       isBossFloor: this.isBossFloor,
       floor: gameState.floor,
       startFloor: BALANCE.biome.pressure.startFloor,
@@ -1993,7 +2896,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateCorePressure(delta: number): void {
-    if (!this.corePressureActive || this.isDying) {
+    if (!this.corePressureActive || this.isDying || !this.usesCombatRoomFlow()) {
       return
     }
     const step = tickCorePressure({
@@ -2039,20 +2942,27 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnPortals(): void {
-    if (this.portals.length > 0 || this.isBossFloor || this.objectiveType !== 'portal') {
+    if (
+      this.portals.length > 0 ||
+      this.isBossFloor ||
+      this.objectiveType !== 'portal' ||
+      !this.usesCombatRoomFlow()
+    ) {
       return
     }
     const saferCell = this.pickOpenCell()
     this.portals = [{ ...saferCell, pulse: 0, route: 'safer' }]
-    const riskierCell = this.pickOpenCell()
-    this.portals.push({ ...riskierCell, pulse: 0, route: 'riskier' })
+    if (this.routeChoices.length > 1) {
+      const riskierCell = this.pickOpenCell()
+      this.portals.push({ ...riskierCell, pulse: 0, route: 'riskier' })
+    }
     emitFeedback('portal')
     this.portalGraceSecondCue = Math.ceil(this.portalGraceMs / 1000) + 1
-    setHintText(t('game.portalChooseHint'))
+    this.refreshHintText()
   }
 
   private updatePortalFlow(delta: number): void {
-    if (this.isBossFloor || this.isDying) {
+    if (this.isBossFloor || this.isDying || !this.usesCombatRoomFlow()) {
       return
     }
     const step = tickPortalFlow({
@@ -2328,11 +3238,7 @@ export class GameScene extends Phaser.Scene {
 
   private applySnakeSegmentDamage(enemy: Enemy, part: EnemyCollisionPart): boolean {
     const damage = Math.max(1, this.getEnemyCollisionDamage(enemy, part))
-    let removed = 0
-    while (removed < damage && this.snake.length > 1) {
-      this.snake.pop()
-      removed += 1
-    }
+    const removed = this.removeSnakeSegments(damage, 'damage')
     if (removed < damage) {
       this.die('enemy')
       return false
@@ -2341,7 +3247,6 @@ export class GameScene extends Phaser.Scene {
     if (head) {
       this.triggerDamageFeedback(head.x, head.y, COLORS.enemyHead)
     }
-    setHintText(t('game.tailDamaged', { lost: removed }))
     return true
   }
 
@@ -2497,24 +3402,9 @@ export class GameScene extends Phaser.Scene {
     ) {
       const selectedPortal = this.portals.find((portal) => portal.x === nx && portal.y === ny)
       if (selectedPortal) {
-        gameState.pendingFloorRoute = selectedPortal.route
-        trackRetentionEvent('portal_route_selected', {
-          route: selectedPortal.route,
-          floor: gameState.floor,
-          score: this.score,
-        })
-        if (selectedPortal.route === 'riskier') {
-          this.score += Math.floor(
-            BALANCE.portal.routeChoice.riskier.scoreBonus * this.cfg.scoreMult,
-          )
-          updateHud(this.score)
-        }
+        const portalIndex = selectedPortal.route === 'riskier' ? 1 : 0
+        this.pickRouteChoice(portalIndex)
       }
-      emitFeedback('confirm')
-      transitionToScene(this, 'Upgrade', {
-        chrome: 'run',
-        data: { score: this.score, floor: gameState.floor },
-      })
       return
     }
 
@@ -2709,10 +3599,7 @@ export class GameScene extends Phaser.Scene {
     })
     if (completed) {
       this.triggerObjectiveFeedback(true)
-      transitionToScene(this, 'Upgrade', {
-        chrome: 'run',
-        data: { score: this.score, floor: gameState.floor },
-      })
+      this.completeRoomExit()
       return true
     }
     return false
