@@ -14,7 +14,7 @@ export const createGame = (): Phaser.Game =>
     height: HEIGHT,
     backgroundColor: '#020208',
     parent: 'phaser-container',
-    pipeline: [ArcadeEffectsPipeline as any],
+    pipeline: [ArcadeEffectsPipeline as unknown as Phaser.Renderer.WebGL.WebGLPipeline],
     scene: [MenuScene, RelicDraftScene, GameScene, UpgradeScene, DeathScene],
     render: {
       antialias: false,

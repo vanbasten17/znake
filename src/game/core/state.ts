@@ -9,6 +9,7 @@ export const gameState: GameState = {
   kills: 0,
   eliteKills: 0,
   floor: 1,
+  currentRunSeed: null,
   runObjectiveOffset: rollRunObjectiveOffset(),
   persistentUpgrades: [],
   selectedRelicId: null,

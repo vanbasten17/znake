@@ -1,5 +1,10 @@
 import { BALANCE } from './balance'
 import { STORAGE_KEYS } from './constants'
+import {
+  CURRENT_PROFILE_VERSION,
+  createDefaultProfile,
+  parseAndMigrateProfile,
+} from './profileVersioning'
 import type {
   GoalDefinition,
   GoalId,
@@ -10,18 +15,6 @@ import type {
   TalentDefinition,
   TalentId,
 } from './types'
-
-const PROFILE_VERSION = 2
-
-const createDefaultGoalProgress = (): PlayerProfile['goalProgress'] => ({
-  floor_5: 0,
-  elite_hunter_12: 0,
-})
-
-const createDefaultClaimedGoals = (): PlayerProfile['claimedGoals'] => ({
-  floor_5: false,
-  elite_hunter_12: false,
-})
 
 export const PROGRESSION_GOALS: GoalDefinition[] = [
   {
@@ -35,24 +28,6 @@ export const PROGRESSION_GOALS: GoalDefinition[] = [
     reward: BALANCE.economy.goals.elite_hunter_12.reward,
   },
 ]
-
-const isGoalId = (value: unknown): value is GoalId =>
-  PROGRESSION_GOALS.some((goal) => goal.id === value)
-
-const defaultProfile = (): PlayerProfile => ({
-  profileVersion: PROFILE_VERSION,
-  currency: 0,
-  unlockedTalents: [],
-  lifetimeStats: {
-    runsPlayed: 0,
-    totalScore: 0,
-    totalKills: 0,
-    eliteKills: 0,
-    bestFloor: 1,
-  },
-  goalProgress: createDefaultGoalProgress(),
-  claimedGoals: createDefaultClaimedGoals(),
-})
 
 export const TALENT_TREE: TalentDefinition[] = [
   {
@@ -149,78 +124,10 @@ export const RELIC_POOL: RelicDefinition[] = [
 export const getRelicById = (id: RelicId | null): RelicDefinition | null =>
   RELIC_POOL.find((relic) => relic.id === id) ?? null
 
-const parseProfile = (raw: string): PlayerProfile | null => {
-  try {
-    const parsed = JSON.parse(raw) as Partial<PlayerProfile>
-    if (typeof parsed.currency !== 'number' || !Array.isArray(parsed.unlockedTalents)) {
-      return null
-    }
-
-    if (
-      !parsed.lifetimeStats ||
-      typeof parsed.lifetimeStats.runsPlayed !== 'number' ||
-      typeof parsed.lifetimeStats.totalScore !== 'number' ||
-      typeof parsed.lifetimeStats.totalKills !== 'number' ||
-      typeof parsed.lifetimeStats.bestFloor !== 'number'
-    ) {
-      return null
-    }
-
-    const baseLifetimeStats = {
-      runsPlayed: Math.max(0, Math.floor(parsed.lifetimeStats.runsPlayed)),
-      totalScore: Math.max(0, Math.floor(parsed.lifetimeStats.totalScore)),
-      totalKills: Math.max(0, Math.floor(parsed.lifetimeStats.totalKills)),
-      eliteKills: Math.max(
-        0,
-        Math.floor(
-          typeof parsed.lifetimeStats.eliteKills === 'number' ? parsed.lifetimeStats.eliteKills : 0,
-        ),
-      ),
-      bestFloor: Math.max(1, Math.floor(parsed.lifetimeStats.bestFloor)),
-    }
-
-    const resolvedGoalProgress = createDefaultGoalProgress()
-    const resolvedClaimedGoals = createDefaultClaimedGoals()
-
-    if (parsed.profileVersion === PROFILE_VERSION) {
-      const progressEntries = Object.entries(parsed.goalProgress ?? {})
-      for (const [goalId, value] of progressEntries) {
-        if (isGoalId(goalId) && typeof value === 'number') {
-          resolvedGoalProgress[goalId] = Math.max(0, Math.floor(value))
-        }
-      }
-      const claimedEntries = Object.entries(parsed.claimedGoals ?? {})
-      for (const [goalId, value] of claimedEntries) {
-        if (isGoalId(goalId) && typeof value === 'boolean') {
-          resolvedClaimedGoals[goalId] = value
-        }
-      }
-    }
-
-    if (parsed.profileVersion === 1) {
-      resolvedGoalProgress.floor_5 = Math.max(
-        resolvedGoalProgress.floor_5,
-        baseLifetimeStats.bestFloor,
-      )
-    }
-
-    return {
-      profileVersion: PROFILE_VERSION,
-      currency: Math.max(0, Math.floor(parsed.currency)),
-      unlockedTalents: parsed.unlockedTalents.filter(isTalentId),
-      lifetimeStats: baseLifetimeStats,
-      goalProgress: resolvedGoalProgress,
-      claimedGoals: resolvedClaimedGoals,
-    }
-  } catch {
-    return null
-  }
-}
-
 export const loadProfile = (): PlayerProfile => {
   const primaryRaw = localStorage.getItem(STORAGE_KEYS.profile)
   if (primaryRaw) {
-    const profile = parseProfile(primaryRaw)
+    const profile = parseAndMigrateProfile(primaryRaw)
     if (profile) {
       return profile
     }
@@ -228,17 +135,20 @@ export const loadProfile = (): PlayerProfile => {
 
   const backupRaw = localStorage.getItem(STORAGE_KEYS.profileBackup)
   if (backupRaw) {
-    const profile = parseProfile(backupRaw)
+    const profile = parseAndMigrateProfile(backupRaw)
     if (profile) {
       return profile
     }
   }
 
-  return defaultProfile()
+  return createDefaultProfile()
 }
 
 export const saveProfile = (profile: PlayerProfile): void => {
-  const payload = JSON.stringify(profile)
+  const payload = JSON.stringify({
+    ...profile,
+    profileVersion: CURRENT_PROFILE_VERSION,
+  })
   try {
     localStorage.setItem(STORAGE_KEYS.profile, payload)
     localStorage.setItem(STORAGE_KEYS.profileBackup, payload)
@@ -250,9 +160,6 @@ export const saveProfile = (profile: PlayerProfile): void => {
     }
   }
 }
-
-const isTalentId = (value: unknown): value is TalentId =>
-  TALENT_TREE.some((talent) => talent.id === value)
 
 export const applyTalentEffects = (cfg: RunConfig, profile: PlayerProfile): void => {
   for (const talent of TALENT_TREE) {
@@ -334,7 +241,7 @@ export const calculateRunRewardBreakdown = (score: number, kills: number, floor:
   }
 }
 
-export const createDefaultProfileForTests = defaultProfile
+export const createDefaultProfileForTests = createDefaultProfile
 
 export const applyRunGoalProgress = (
   profile: PlayerProfile,

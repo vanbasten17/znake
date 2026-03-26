@@ -1,6 +1,7 @@
 import './styles/tokens.css'
 import './styles/shell.css'
 import './styles/app.css'
+import { setupRuntimeDevtools } from './game/devtools/runtime'
 import { setupAccessibility } from './game/systems/accessibility'
 import { setupControlScheme } from './game/systems/controlScheme'
 import { getStartHintText, setHintText } from './game/systems/domHud'
@@ -16,6 +17,7 @@ setupAccessibility()
 setupFeedback()
 setupInput()
 setupVoiceInput()
+setupRuntimeDevtools()
 
 const boot = async (): Promise<void> => {
   await initI18n()

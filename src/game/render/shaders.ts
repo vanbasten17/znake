@@ -107,14 +107,14 @@ export class ArcadeEffectsPipeline extends Phaser.Renderer.WebGL.Pipelines.PostF
   }
 
   onPreRender(): void {
-    const pipeline = this as any
-    pipeline.set1f('uTime', this.game.loop.time)
-    pipeline.set2f('uResolution', pipeline.renderer.width, pipeline.renderer.height)
-    pipeline.set1f('uBloomIntensity', this._bloom)
-    pipeline.set1f('uCRTIntensity', this._crt)
-    pipeline.set1f('uChromaticAberration', this._chromatic)
-    pipeline.set1f('uSteps', this._steps)
-    pipeline.set1f('uInkIntensity', this._ink)
+    const renderer = this.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer
+    this.set1f('uTime', this.game.loop.time)
+    this.set2f('uResolution', renderer.width, renderer.height)
+    this.set1f('uBloomIntensity', this._bloom)
+    this.set1f('uCRTIntensity', this._crt)
+    this.set1f('uChromaticAberration', this._chromatic)
+    this.set1f('uSteps', this._steps)
+    this.set1f('uInkIntensity', this._ink)
   }
 
   public setBloom(v: number): void {

@@ -19,7 +19,7 @@ export { MARKER_SEMANTIC_ROLE, type MarkerSemanticRole } from './markerSemantics
 const toHex = (value: number): string => `#${value.toString(16).padStart(6, '0')}`
 
 /**
- * Premium Squared Neon apple — reference quality (`core`). 
+ * Premium Squared Neon apple — reference quality (`core`).
  * Follows "Circuit-Core" aesthetic: rounded square "chip" base + geometric stem + neon glow.
  */
 const drawAppleMarkerCanvas = (
@@ -29,13 +29,13 @@ const drawAppleMarkerCanvas = (
   size: number,
 ): void => {
   // Solid Unified Red look: Single consistent fill (no nested rim contrast)
-  const r = Math.round(size * 0.44 * 2) / 2 
-  const rr = Math.round(r * 0.48 * 2) / 2   
+  const r = Math.round(size * 0.44 * 2) / 2
+  const rr = Math.round(r * 0.48 * 2) / 2
   const w = Math.round(r * 1.85 * 2) / 2
   const h = Math.round(r * 1.85 * 2) / 2
-  
+
   const cx_adj = cx
-  const cy_adj = cy + Math.round(r * 0.15 * 2) / 2 
+  const cy_adj = cy + Math.round(r * 0.15 * 2) / 2
   const x = Math.round((cx_adj - w / 2) * 2) / 2
   const y = Math.round((cy_adj - h / 2) * 2) / 2
 
@@ -81,11 +81,11 @@ const drawAppleMarkerPhaser = (
   alpha: number,
 ): void => {
   // Solid Unified Red look
-  const r = Math.round(size * 0.44 * 2) / 2 
-  const rr = Math.round(r * 0.48 * 2) / 2   
+  const r = Math.round(size * 0.44 * 2) / 2
+  const rr = Math.round(r * 0.48 * 2) / 2
   const w = Math.round(r * 1.85 * 2) / 2
   const h = Math.round(r * 1.85 * 2) / 2
-  
+
   const cx_adj = cx
   const cy_adj = cy + Math.round(r * 0.15 * 2) / 2
   const x = Math.round((cx_adj - w / 2) * 2) / 2

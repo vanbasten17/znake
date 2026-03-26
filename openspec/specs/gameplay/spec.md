@@ -196,31 +196,19 @@ The system SHALL support deterministic debug scenario bootstrap for fast smoke t
 
 ### Requirement: Room template floor generation
 
-The system SHALL support a connected room/corridor floor template as a selectable alternative to classic wall scatter generation.
+The system SHALL keep floor layout generation and spawn-safe candidate resolution in pure simulation modules, while `GameScene` orchestrates calls and rendering side effects.
 
-#### Scenario: Floor template is selected per floor setup
+#### Scenario: Scene orchestrates pure floor generation
 
-- **WHEN** a new floor starts
-- **THEN** gameplay resolves a configured floor template (`classic` or `rooms_v1`)
-- **AND** generation pipeline uses the selected template
+- **WHEN** a floor starts
+- **THEN** `GameScene` delegates layout generation and validation to simulation-layer functions
+- **AND** the delegated functions do not import Phaser, DOM, or global browser APIs
 
-#### Scenario: Room template guarantees connectivity
+#### Scenario: Scene orchestrates pure spawn candidate selection
 
-- **WHEN** `rooms_v1` template is used
-- **THEN** room and corridor carving creates a connected playable area
-- **AND** generated topology is validated before run start
-
-#### Scenario: Invalid room generation falls back safely
-
-- **WHEN** room template generation fails validation after bounded retries
-- **THEN** system falls back to classic floor generation
-- **AND** run proceeds without crash or soft-lock
-
-#### Scenario: Spawn behavior respects room/corridor zones
-
-- **WHEN** room template is active
-- **THEN** food and enemy spawns use zone-aware placement heuristics
-- **AND** spawn safety constraints remain equivalent to existing rules
+- **WHEN** food/powerup/portal/enemy spawn cell selection is needed
+- **THEN** `GameScene` delegates candidate resolution to simulation-layer helpers
+- **AND** scene remains responsible for applying resulting entities to runtime state and visual updates only
 
 ### Requirement: Boss-floor encounter scaffold
 

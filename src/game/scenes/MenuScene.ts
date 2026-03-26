@@ -619,6 +619,7 @@ export class MenuScene extends Phaser.Scene {
     gameState.kills = 0
     gameState.eliteKills = 0
     gameState.floor = 1
+    gameState.currentRunSeed = null
     gameState.persistentUpgrades = []
     gameState.selectedRelicId = null
     gameState.pendingFloorRoute = null

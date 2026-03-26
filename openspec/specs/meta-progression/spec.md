@@ -19,17 +19,19 @@ The system SHALL allow spending persistent currency from Main Menu via pointer/t
 
 ### Requirement: Persistent profile
 
-The system SHALL maintain a persistent player profile with versioned schema, one currency, unlocked talents, and lifetime stats.
+The system SHALL load and persist profile state through explicit versioned migrations.
 
-#### Scenario: New profile bootstrap
+#### Scenario: Migration chain upgrades older profile versions
 
-- **WHEN** the game is launched without existing profile data
-- **THEN** it creates a default profile with zero currency, no unlocked talents, and initialized lifetime stats
+- **WHEN** stored profile payload version is older than current profile schema
+- **THEN** ordered migration steps upgrade payload to current schema
+- **AND** upgraded profile is validated before being used by runtime
 
-#### Scenario: Existing profile load
+#### Scenario: Unsafe payloads fallback safely
 
-- **WHEN** the game is launched with valid profile data
-- **THEN** it loads the profile and exposes it to run-start and run-end flows
+- **WHEN** stored profile payload is malformed or migration fails validation
+- **THEN** runtime falls back to safe default profile
+- **AND** backup payload path remains available as secondary recovery source
 
 ### Requirement: Run-start relic draft
 

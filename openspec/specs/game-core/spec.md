@@ -38,19 +38,18 @@ The system SHALL separate run-scoped state from profile-scoped persistent state.
 
 ### Requirement: Run configuration
 
-The system SHALL support a per-run configuration (move interval, bonus length, shields, magnet, ghost charges, score multiplier, enemy slow, regen) that upgrades modify.
+The system SHALL provide deterministic randomness primitives for gameplay systems that depend on random decisions.
 
-#### Scenario: Upgrades apply to run config
+#### Scenario: Seeded RNG drives extracted simulation systems
 
-- **WHEN** GameScene creates with persistentUpgrades
-- **THEN** each upgrade's apply() is called on the run config before gameplay starts
+- **WHEN** a run starts
+- **THEN** the runtime initializes a seeded RNG instance for simulation helpers
+- **AND** extracted simulation modules consume that RNG instead of direct `Math.random()` usage
 
-#### Scenario: Base config has sensible defaults
+#### Scenario: Same seed reproduces same simulation decisions
 
-- **WHEN** no upgrades are selected
-- **THEN** moveInterval=160ms, bonusStartLength=0, bonusShields=0, hasMagnet=false, ghostCharges=0, scoreMult=1, enemySlow=1, hasRegen=false
-
----
+- **WHEN** the same seed and equivalent simulation inputs are used
+- **THEN** extracted simulation functions produce equivalent random decisions and outputs
 
 ### Requirement: Upgrade definitions
 

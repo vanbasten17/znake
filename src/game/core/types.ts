@@ -79,6 +79,7 @@ export type GameState = {
   kills: number
   eliteKills: number
   floor: number
+  currentRunSeed: number | null
   runObjectiveOffset: number
   persistentUpgrades: Upgrade[]
   selectedRelicId: RelicId | null

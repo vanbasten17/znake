@@ -1,7 +1,8 @@
 import Phaser from 'phaser'
+import { pickEliteKind, pickPowerupType, pickSpecialEnemyKind } from '../config/content'
 import { BALANCE, createBaseRunConfig, getFloorSetup } from '../core/balance'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
-import { getDevScenario } from '../core/devScenarios'
+import { getDevScenario, isDevMode } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
 import type { GlossaryMarkerTone } from '../core/glossary'
 import { applyRelicEffect, applyTalentEffects } from '../core/meta'
@@ -23,9 +24,19 @@ import type {
   Vec2,
   WorldItemType,
 } from '../core/types'
+import { setupRuntimeDevtools } from '../devtools/runtime'
+import { bindRestartWithSameSeed, getSlowMotionFactor, setDevRunSeed } from '../devtools/runtime'
 import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerHiRes'
-import { ArcadeEffectsPipeline } from '../render/shaders'
 import { PAINT_BY_TONE, drawPremiumSegmentPhaser } from '../render/markerVectorArt'
+import { ArcadeEffectsPipeline } from '../render/shaders'
+import {
+  type RoomTemplateLayout,
+  generateClassicWalls,
+  generateRoomTemplateLayout,
+  generateScatterTiles,
+} from '../simulation/layout'
+import { type GameRng, createSeededRng, deriveRunSeed } from '../simulation/rng'
+import { pickOpenCell } from '../simulation/spawn'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -46,16 +57,11 @@ import { allowsMarkerGlow } from '../visual/visualLanguage'
 type GameSceneData = {
   score?: number
   devScenarioId?: DevScenarioId
+  runSeed?: number
 }
 
 type DeathReason = 'wall' | 'self' | 'enemy' | 'rift'
 type PortalCell = Vec2 & { pulse: number; route: FloorRouteChoice }
-type RoomRect = { x: number; y: number; w: number; h: number; cx: number; cy: number }
-type RoomTemplateLayout = {
-  walls: Set<string>
-  roomCells: Set<string>
-  corridorCells: Set<string>
-}
 type BossPhase = 'alpha' | 'rage'
 type EnemyCollisionPart = 'head' | 'body'
 type EnemyCollision = {
@@ -89,6 +95,7 @@ const directionMap: Record<string, Vec2> = {
 }
 
 export class GameScene extends Phaser.Scene {
+  private readonly devMode = isDevMode()
   private score = 0
   private paused = false
   private moveQueue: Vec2[] = []
@@ -107,6 +114,8 @@ export class GameScene extends Phaser.Scene {
   private wallCount = 0
   private floorTemplate: FloorTemplate = 'classic'
   private floorTemplateFallbackUsed = false
+  private runSeed = 0
+  private rng: GameRng = createSeededRng(1)
   private enemyCount = 0
   private pendingGrowth = 0
   private venomCharges = 0
@@ -194,6 +203,7 @@ export class GameScene extends Phaser.Scene {
   public async create(data: GameSceneData): Promise<void> {
     this.gameCreateComplete = false
     resetVirtualInput()
+    setupRuntimeDevtools()
     const debugScenario = data.devScenarioId ? getDevScenario(data.devScenarioId) : null
     if (debugScenario) {
       gameState.floor = debugScenario.floor
@@ -202,6 +212,19 @@ export class GameScene extends Phaser.Scene {
     this.resetLocalState()
     this.runStartMs = this.time.now
     this.isDying = false
+    this.runSeed =
+      data.runSeed ??
+      gameState.currentRunSeed ??
+      deriveRunSeed([Date.now(), gameState.run, gameState.floor, this.score])
+    gameState.currentRunSeed = this.runSeed
+    this.rng = createSeededRng(this.runSeed)
+    setDevRunSeed(this.runSeed)
+    bindRestartWithSameSeed(() => {
+      transitionToScene(this, 'Game', {
+        chrome: 'run',
+        data: { score: 0, runSeed: this.runSeed },
+      })
+    })
     setSceneChrome('run')
 
     applyTalentEffects(this.cfg, playerProfile)
@@ -328,7 +351,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    if (!this.isBossFloor && Math.random() < BALANCE.spawn.powerupAtFloorStartChance) {
+    if (!this.isBossFloor && this.rng.nextFloat() < BALANCE.spawn.powerupAtFloorStartChance) {
       this.spawnPowerup()
     }
     if (this.isBossFloor) {
@@ -362,6 +385,12 @@ export class GameScene extends Phaser.Scene {
       }
       if (event.code === 'KeyE') {
         window.virtualInput.ability = true
+      }
+      if (this.devMode && event.code === 'KeyR') {
+        transitionToScene(this, 'Game', {
+          chrome: 'run',
+          data: { score: 0, runSeed: this.runSeed },
+        })
       }
       if (event.code === 'Space') {
         this.togglePause()
@@ -439,18 +468,19 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    const dt = delta / 1000
+    const simDelta = delta * getSlowMotionFactor()
+    const dt = simDelta / 1000
     this.drawBackground()
     this.updateCameraShake(dt)
-    this.updateEnemyMovement(delta)
+    this.updateEnemyMovement(simDelta)
     this.ensureObjectiveEnemyAvailability()
-    this.updateVoidRift(delta)
-    this.updatePortalFlow(delta)
-    this.updateCorePressure(delta)
-    this.updateBossSupport(delta)
-    this.updateVenomState(delta)
-    this.updateRegen(delta)
-    this.updateSnakeMovement(delta)
+    this.updateVoidRift(simDelta)
+    this.updatePortalFlow(simDelta)
+    this.updateCorePressure(simDelta)
+    this.updateBossSupport(simDelta)
+    this.updateVenomState(simDelta)
+    this.updateRegen(simDelta)
+    this.updateSnakeMovement(simDelta)
     this.updateMagnetFood()
     this.updateParticles(dt)
 
@@ -502,7 +532,10 @@ export class GameScene extends Phaser.Scene {
       hazardParts.length > 0
         ? `${localizedBiome} · ${objectiveInfo}${modifierInfo} · ${hazardParts.join(' · ')}`
         : `${localizedBiome} · ${objectiveInfo}${modifierInfo}`
-    setRunStatusText(hudStatus)
+    const debugSuffix = this.devMode
+      ? ` · seed:${this.runSeed} · x${getSlowMotionFactor().toFixed(2)}`
+      : ''
+    setRunStatusText(`${hudStatus}${debugSuffix}`)
 
     this.drawFrame()
   }
@@ -647,7 +680,10 @@ export class GameScene extends Phaser.Scene {
     for (const enemy of this.enemies) {
       if (enemy.alive) {
         this.moveEnemy(enemy)
-        if (enemy.kind === 'stalker' && Math.random() < 1 - BALANCE.elite.stalker.speedMultiplier) {
+        if (
+          enemy.kind === 'stalker' &&
+          this.rng.nextFloat() < 1 - BALANCE.elite.stalker.speedMultiplier
+        ) {
           this.moveEnemy(enemy)
         }
       }
@@ -726,9 +762,9 @@ export class GameScene extends Phaser.Scene {
     // If the player has no shield, prioritize survival support.
     // If shielded already, prioritize venom so offense keeps flowing.
     if (this.shields <= 0) {
-      this.spawnPowerup(Math.random() < 0.65 ? 'shield' : 'venom')
+      this.spawnPowerup(this.rng.nextFloat() < 0.65 ? 'shield' : 'venom')
     } else {
-      this.spawnPowerup(Math.random() < 0.85 ? 'venom' : 'shield')
+      this.spawnPowerup(this.rng.nextFloat() < 0.85 ? 'venom' : 'shield')
     }
     this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
   }
@@ -1254,229 +1290,57 @@ export class GameScene extends Phaser.Scene {
   }
 
   private generateWalls(): Set<string> {
-    const walls = new Set<string>()
-    const cx = Math.floor(BASE_COLS / 2)
-    const cy = Math.floor(BASE_ROWS / 2)
-    const attempts = this.wallCount * 8
-    for (let a = 0; a < attempts && walls.size < this.wallCount * 3; a += 1) {
-      const x = 2 + Math.floor(Math.random() * (BASE_COLS - 4))
-      const y = 2 + Math.floor(Math.random() * (BASE_ROWS - 4))
-      const len = 2 + Math.floor(Math.random() * 3)
-      const horizontal = Math.random() < 0.5
-      let valid = true
-      for (let i = 0; i < len; i += 1) {
-        const wx = horizontal ? x + i : x
-        const wy = horizontal ? y : y + i
-        if (Math.abs(wx - cx) < 4 && Math.abs(wy - cy) < 4) {
-          valid = false
-          break
-        }
-      }
-      if (!valid) {
-        continue
-      }
-      for (let i = 0; i < len; i += 1) {
-        const wx = horizontal ? x + i : x
-        const wy = horizontal ? y : y + i
-        if (wx > 0 && wx < BASE_COLS - 1 && wy > 0 && wy < BASE_ROWS - 1) {
-          walls.add(`${wx},${wy}`)
-        }
-      }
-    }
-    return walls
+    return generateClassicWalls({
+      cols: BASE_COLS,
+      rows: BASE_ROWS,
+      wallCount: this.wallCount,
+      centerSafeRadius: 4,
+      rng: this.rng,
+    })
   }
 
   private generateRoomTemplateLayout(): RoomTemplateLayout | null {
-    const cfg = BALANCE.floorTemplate.roomsV1
-    const roomTarget = cfg.minRooms + Math.floor(Math.random() * (cfg.maxRooms - cfg.minRooms + 1))
-    const roomAttempts = roomTarget * 40
-    const rooms: RoomRect[] = []
-    for (let attempt = 0; attempt < roomAttempts && rooms.length < roomTarget; attempt += 1) {
-      const w =
-        cfg.minRoomSize + Math.floor(Math.random() * (cfg.maxRoomSize - cfg.minRoomSize + 1))
-      const h =
-        cfg.minRoomSize + Math.floor(Math.random() * (cfg.maxRoomSize - cfg.minRoomSize + 1))
-      const maxX = BASE_COLS - 1 - w
-      const maxY = BASE_ROWS - 1 - h
-      if (maxX <= 1 || maxY <= 1) {
-        continue
-      }
-      const x = 1 + Math.floor(Math.random() * (maxX - 1 + 1))
-      const y = 1 + Math.floor(Math.random() * (maxY - 1 + 1))
-      const gap = cfg.minRoomGap
-      const overlaps = rooms.some((room) => {
-        const left = x - gap
-        const right = x + w - 1 + gap
-        const top = y - gap
-        const bottom = y + h - 1 + gap
-        const otherLeft = room.x
-        const otherRight = room.x + room.w - 1
-        const otherTop = room.y
-        const otherBottom = room.y + room.h - 1
-        return !(right < otherLeft || left > otherRight || bottom < otherTop || top > otherBottom)
-      })
-      if (overlaps) {
-        continue
-      }
-      rooms.push({
-        x,
-        y,
-        w,
-        h,
-        cx: Math.floor(x + w / 2),
-        cy: Math.floor(y + h / 2),
-      })
-    }
-    if (rooms.length < 2) {
-      return null
-    }
-    rooms.sort((a, b) => a.cx - b.cx)
-
-    const walkable = new Set<string>()
-    const roomCells = new Set<string>()
-    const corridorCells = new Set<string>()
-    const carve = (x: number, y: number, zone: 'room' | 'corridor'): void => {
-      if (x < 1 || x >= BASE_COLS - 1 || y < 1 || y >= BASE_ROWS - 1) {
-        return
-      }
-      const key = `${x},${y}`
-      walkable.add(key)
-      if (zone === 'room') {
-        roomCells.add(key)
-      } else {
-        corridorCells.add(key)
-      }
-    }
-
-    for (const room of rooms) {
-      for (let y = room.y; y < room.y + room.h; y += 1) {
-        for (let x = room.x; x < room.x + room.w; x += 1) {
-          carve(x, y, 'room')
-        }
-      }
-    }
-
-    const carveCorridor = (from: RoomRect, to: RoomRect): void => {
-      const stepX = from.cx <= to.cx ? 1 : -1
-      for (let x = from.cx; x !== to.cx; x += stepX) {
-        carve(x, from.cy, 'corridor')
-      }
-      carve(to.cx, from.cy, 'corridor')
-      const stepY = from.cy <= to.cy ? 1 : -1
-      for (let y = from.cy; y !== to.cy; y += stepY) {
-        carve(to.cx, y, 'corridor')
-      }
-      carve(to.cx, to.cy, 'corridor')
-    }
-
-    for (let i = 0; i < rooms.length - 1; i += 1) {
-      carveCorridor(rooms[i] as RoomRect, rooms[i + 1] as RoomRect)
-    }
-    if (rooms.length >= 3) {
-      const a = rooms[0] as RoomRect
-      const b = rooms[rooms.length - 1] as RoomRect
-      carveCorridor(a, b)
-    }
-
-    const centerX = Math.floor(BASE_COLS / 2)
-    const centerY = Math.floor(BASE_ROWS / 2)
-    for (let y = centerY - 1; y <= centerY + 1; y += 1) {
-      for (let x = centerX - 1; x <= centerX + 1; x += 1) {
-        carve(x, y, 'corridor')
-      }
-    }
-
-    const firstKey = walkable.values().next().value
-    if (!firstKey) {
-      return null
-    }
-    const [sxRaw, syRaw] = firstKey.split(',')
-    const sx = Number(sxRaw)
-    const sy = Number(syRaw)
-    const visited = new Set<string>()
-    const queue: Vec2[] = [{ x: sx, y: sy }]
-    visited.add(firstKey)
-    while (queue.length > 0) {
-      const next = queue.shift()
-      if (!next) {
-        continue
-      }
-      const neighbors: Vec2[] = [
-        { x: next.x + 1, y: next.y },
-        { x: next.x - 1, y: next.y },
-        { x: next.x, y: next.y + 1 },
-        { x: next.x, y: next.y - 1 },
-      ]
-      for (const neighbor of neighbors) {
-        const key = `${neighbor.x},${neighbor.y}`
-        if (!walkable.has(key) || visited.has(key)) {
-          continue
-        }
-        visited.add(key)
-        queue.push(neighbor)
-      }
-    }
-    if (visited.size !== walkable.size) {
-      return null
-    }
-
-    const walls = new Set<string>()
-    for (let y = 1; y < BASE_ROWS - 1; y += 1) {
-      for (let x = 1; x < BASE_COLS - 1; x += 1) {
-        const key = `${x},${y}`
-        if (!walkable.has(key)) {
-          walls.add(key)
-        }
-      }
-    }
-    return { walls, roomCells, corridorCells }
+    return generateRoomTemplateLayout({
+      cols: BASE_COLS,
+      rows: BASE_ROWS,
+      config: {
+        minRooms: BALANCE.floorTemplate.roomsV1.minRooms,
+        maxRooms: BALANCE.floorTemplate.roomsV1.maxRooms,
+        minRoomSize: BALANCE.floorTemplate.roomsV1.minRoomSize,
+        maxRoomSize: BALANCE.floorTemplate.roomsV1.maxRoomSize,
+        minRoomGap: BALANCE.floorTemplate.roomsV1.minRoomGap,
+      },
+      rng: this.rng,
+    })
   }
 
   private generateIceTiles(): Set<string> {
-    const iceTiles = new Set<string>()
     if (!this.iceActive || this.iceTileCount <= 0) {
-      return iceTiles
+      return new Set<string>()
     }
-
-    const cx = Math.floor(BASE_COLS / 2)
-    const cy = Math.floor(BASE_ROWS / 2)
-    const attempts = this.iceTileCount * 20
-    for (let i = 0; i < attempts && iceTiles.size < this.iceTileCount; i += 1) {
-      const x = 1 + Math.floor(Math.random() * (BASE_COLS - 2))
-      const y = 1 + Math.floor(Math.random() * (BASE_ROWS - 2))
-      if (this.walls.has(`${x},${y}`)) {
-        continue
-      }
-      if (Math.abs(x - cx) < 3 && Math.abs(y - cy) < 3) {
-        continue
-      }
-      iceTiles.add(`${x},${y}`)
-    }
-    return iceTiles
+    return generateScatterTiles({
+      cols: BASE_COLS,
+      rows: BASE_ROWS,
+      tileCount: this.iceTileCount,
+      blocked: this.walls,
+      centerSafeRadius: 3,
+      rng: this.rng,
+    })
   }
 
   private generateSandTiles(): Set<string> {
-    const sandTiles = new Set<string>()
     if (!this.sandActive || this.sandTileCount <= 0) {
-      return sandTiles
+      return new Set<string>()
     }
-
-    const cx = Math.floor(BASE_COLS / 2)
-    const cy = Math.floor(BASE_ROWS / 2)
-    const attempts = this.sandTileCount * 20
-    for (let i = 0; i < attempts && sandTiles.size < this.sandTileCount; i += 1) {
-      const x = 1 + Math.floor(Math.random() * (BASE_COLS - 2))
-      const y = 1 + Math.floor(Math.random() * (BASE_ROWS - 2))
-      const key = `${x},${y}`
-      if (this.walls.has(key) || this.iceTiles.has(key)) {
-        continue
-      }
-      if (Math.abs(x - cx) < 3 && Math.abs(y - cy) < 3) {
-        continue
-      }
-      sandTiles.add(key)
-    }
-    return sandTiles
+    const blocked = new Set<string>([...this.walls, ...this.iceTiles])
+    return generateScatterTiles({
+      cols: BASE_COLS,
+      rows: BASE_ROWS,
+      tileCount: this.sandTileCount,
+      blocked,
+      centerSafeRadius: 3,
+      rng: this.rng,
+    })
   }
 
   private seedDebugIceLane(): void {
@@ -1710,14 +1574,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnPowerup(forcedType?: PowerupType): void {
-    const types: PowerupType[] =
-      this.objectiveType === 'kills'
-        ? ['venom', 'venom', 'venom', 'shield', 'slow', 'ghost', 'score']
-        : this.isBossFloor
-          ? ['venom', 'venom', 'shield', 'shield', 'slow', 'ghost', 'score']
-          : ['shield', 'slow', 'ghost', 'score']
     const cell = this.pickOpenCell()
-    const type = forcedType ?? types[Math.floor(Math.random() * types.length)] ?? 'shield'
+    const type = pickPowerupType({
+      isBossFloor: this.isBossFloor,
+      objectiveType: this.objectiveType,
+      forcedType,
+      rng: this.rng,
+    })
     this.powerup = { x: cell.x, y: cell.y, type, pulse: 0 }
   }
 
@@ -1725,65 +1588,29 @@ export class GameScene extends Phaser.Scene {
     preferredZone?: 'room' | 'corridor' | null
     minDistanceFromCenter?: number
   }): Vec2 {
-    const candidates: Vec2[] = []
     const zoneCells =
       options?.preferredZone === 'room'
         ? this.roomCells
         : options?.preferredZone === 'corridor'
           ? this.corridorCells
           : null
-    const cx = Math.floor(BASE_COLS / 2)
-    const cy = Math.floor(BASE_ROWS / 2)
-    const minDistance = options?.minDistanceFromCenter ?? 0
-    for (let y = 1; y < BASE_ROWS - 1; y += 1) {
-      for (let x = 1; x < BASE_COLS - 1; x += 1) {
-        const key = `${x},${y}`
-        if (zoneCells && !zoneCells.has(key)) {
-          continue
-        }
-        if (minDistance > 0 && Math.abs(x - cx) + Math.abs(y - cy) < minDistance) {
-          continue
-        }
-        if (!this.isSafe(x, y)) {
-          continue
-        }
-        if (this.food && this.food.x === x && this.food.y === y) {
-          continue
-        }
-        candidates.push({ x, y })
-      }
-    }
-    if (candidates.length > 0) {
-      return candidates[Math.floor(Math.random() * candidates.length)] as Vec2
-    }
-    for (let attempts = 0; attempts < 300; attempts += 1) {
-      const x = 1 + Math.floor(Math.random() * (BASE_COLS - 2))
-      const y = 1 + Math.floor(Math.random() * (BASE_ROWS - 2))
-      if (!this.isSafe(x, y) || (this.food && this.food.x === x && this.food.y === y)) {
-        continue
-      }
-      return { x, y }
-    }
-    return { x: cx, y: cy }
-  }
-
-  private getEliteSpawnConfig(): (typeof BALANCE.elite.spawnByFloor)[number] {
-    const floor = gameState.floor
-    const sorted = [...BALANCE.elite.spawnByFloor].sort((a, b) => b.minFloor - a.minFloor)
-    return sorted.find((config) => floor >= config.minFloor) ?? BALANCE.elite.spawnByFloor[0]
-  }
-
-  private getEnemyVariantConfig(): {
-    eggChance: number
-    mirrorChance: number
-  } {
-    const floor = gameState.floor
-    const eggEnabled = floor >= BALANCE.enemyVariants.egg.minFloor
-    const mirrorEnabled = floor >= BALANCE.enemyVariants.mirror.minFloor
-    return {
-      eggChance: eggEnabled ? BALANCE.enemyVariants.egg.spawnChance : 0,
-      mirrorChance: mirrorEnabled ? BALANCE.enemyVariants.mirror.spawnChance : 0,
-    }
+    return pickOpenCell({
+      cols: BASE_COLS,
+      rows: BASE_ROWS,
+      preferredZoneCells: zoneCells,
+      minDistanceFromCenter: options?.minDistanceFromCenter ?? 0,
+      rng: this.rng,
+      occupancy: {
+        walls: this.walls,
+        snake: this.snake,
+        enemies: this.enemies.map((enemy) => enemy.body),
+        portals: this.portals,
+        rift: this.riftCell,
+        food: this.food,
+        powerup: this.powerup,
+        biomeItem: this.biomeItem,
+      },
+    })
   }
 
   private getItemSpawnConfig(): (typeof BALANCE.item.spawnByFloor)[number] {
@@ -1793,30 +1620,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resolveEliteKind(): EnemyKind | null {
-    const config = this.getEliteSpawnConfig()
-    if (Math.random() >= config.spawnChance) {
-      return null
-    }
-    const totalWeight = config.kindWeights.stalker + config.kindWeights.ambusher
-    if (totalWeight <= 0) {
-      return null
-    }
-    const roll = Math.random() * totalWeight
-    return roll < config.kindWeights.stalker ? 'stalker' : 'ambusher'
+    return pickEliteKind({ floor: gameState.floor, rng: this.rng })
   }
 
   private resolveSpecialEnemyKind(): EnemyKind | null {
-    const config = this.getEnemyVariantConfig()
-    const totalWeight = config.eggChance + config.mirrorChance
-    if (totalWeight <= 0) {
-      return null
-    }
-    const roll = Math.random()
-    if (roll >= totalWeight) {
-      return null
-    }
-    const weightedRoll = Math.random() * totalWeight
-    return weightedRoll < config.eggChance ? 'egg' : 'mirror'
+    return pickSpecialEnemyKind({ floor: gameState.floor, rng: this.rng })
   }
 
   private activateRiftSuppression(source: WorldItemType): void {
@@ -1841,9 +1649,9 @@ export class GameScene extends Phaser.Scene {
     const portalBeaconRoll =
       this.objectiveType === 'portal' &&
       this.portals.length === 0 &&
-      Math.random() < floorItemConfig.portalBeaconOnFoodChance
-    const riftBatteryRoll = Math.random() < floorItemConfig.riftBatteryOnFoodChance
-    const coreRoll = Math.random() < BALANCE.biome.coreItem.spawnChanceOnFood
+      this.rng.nextFloat() < floorItemConfig.portalBeaconOnFoodChance
+    const riftBatteryRoll = this.rng.nextFloat() < floorItemConfig.riftBatteryOnFoodChance
+    const coreRoll = this.rng.nextFloat() < BALANCE.biome.coreItem.spawnChanceOnFood
     const type: WorldItemType | null = portalBeaconRoll
       ? 'portal_beacon'
       : riftBatteryRoll
@@ -1871,7 +1679,7 @@ export class GameScene extends Phaser.Scene {
     const y = seedCell.y
     const randomLen =
       BALANCE.enemy.lengthBase +
-      Math.floor(Math.random() * BALANCE.enemy.lengthRandomRange) +
+      this.rng.nextInt(0, BALANCE.enemy.lengthRandomRange - 1) +
       Math.floor(gameState.floor / BALANCE.enemy.lengthFloorStep)
     const resolvedKind =
       kind === 'normal'
@@ -1944,7 +1752,9 @@ export class GameScene extends Phaser.Scene {
       const sa = a.x * Math.sign(dx) + a.y * Math.sign(dy)
       const sb = b.x * Math.sign(dx) + b.y * Math.sign(dy)
       const randomness =
-        enemy.kind === 'stalker' || enemy.kind === 'ambusher' ? 0 : (Math.random() - 0.5) * 0.5
+        enemy.kind === 'stalker' || enemy.kind === 'ambusher'
+          ? 0
+          : (this.rng.nextFloat() - 0.5) * 0.5
       return sb - sa + randomness
     })
 
@@ -2071,7 +1881,7 @@ export class GameScene extends Phaser.Scene {
     if (laneDistance < BALANCE.elite.ambusher.dashMinLaneDistance) {
       return false
     }
-    if (Math.random() >= BALANCE.elite.ambusher.dashChanceWhenAligned) {
+    if (this.rng.nextFloat() >= BALANCE.elite.ambusher.dashChanceWhenAligned) {
       return false
     }
 
@@ -2347,7 +2157,7 @@ export class GameScene extends Phaser.Scene {
       }
       this.spawnParticles(nx, ny, COLORS.food, 8)
       this.spawnFood()
-      if (Math.random() < BALANCE.spawn.powerupOnFoodChance) {
+      if (this.rng.nextFloat() < BALANCE.spawn.powerupOnFoodChance) {
         this.spawnPowerup()
       }
       this.spawnBiomeItem()
@@ -2363,7 +2173,7 @@ export class GameScene extends Phaser.Scene {
       if (this.isBossFloor) {
         this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
       }
-      if (Math.random() < BALANCE.spawn.powerupRespawnChance) {
+      if (this.rng.nextFloat() < BALANCE.spawn.powerupRespawnChance) {
         this.time.delayedCall(BALANCE.spawn.powerupRespawnDelayMs, () => {
           if (this.scene.isActive('Game')) {
             this.spawnPowerup()
@@ -2437,7 +2247,10 @@ export class GameScene extends Phaser.Scene {
           this.applyBossKnockback(head)
         }
         this.enemies = this.enemies.filter((enemy) => enemy.alive)
-        if (!this.isBossFloor && Math.random() < BALANCE.spawn.enemyRespawnOnShieldHitChance) {
+        if (
+          !this.isBossFloor &&
+          this.rng.nextFloat() < BALANCE.spawn.enemyRespawnOnShieldHitChance
+        ) {
           this.spawnEnemy()
         }
       } else {
@@ -2455,7 +2268,7 @@ export class GameScene extends Phaser.Scene {
       if (
         !this.isBossFloor &&
         this.enemies.length < this.enemyCount &&
-        Math.random() < BALANCE.spawn.enemyRespawnIdleChance
+        this.rng.nextFloat() < BALANCE.spawn.enemyRespawnIdleChance
       ) {
         this.spawnEnemy()
       }
@@ -2749,7 +2562,7 @@ export class GameScene extends Phaser.Scene {
     this.markerRift.setVisible(false)
     this.markerPowerup.setVisible(false)
     this.markerBiome.setVisible(false)
-    const globalJitter = 0.4 + ((this.cameras.main as any).shakeEffect.isRunning ? 0.8 : 0)
+    const globalJitter = 0.4 + (this.cameras.main.shakeEffect.isRunning ? 0.8 : 0)
 
     for (const refImg of this.referenceMarkerImages) {
       refImg.setVisible(false)
@@ -3027,8 +2840,6 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-
-    const dev = this as any
 
     for (const [i, segment] of this.snake.entries()) {
       if (i === 0) {

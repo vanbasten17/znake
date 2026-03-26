@@ -258,6 +258,7 @@ export class DeathScene extends Phaser.Scene {
     gameState.kills = 0
     gameState.eliteKills = 0
     gameState.floor = 1
+    gameState.currentRunSeed = null
     gameState.runObjectiveOffset = rollRunObjectiveOffset()
     gameState.persistentUpgrades = []
     gameState.selectedRelicId = null

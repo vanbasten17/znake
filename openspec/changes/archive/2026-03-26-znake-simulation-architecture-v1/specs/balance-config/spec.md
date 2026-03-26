@@ -1,8 +1,5 @@
-# balance-config Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change znake-data-driven-balance-v1. Update Purpose after archive.
-## Requirements
 ### Requirement: Central balance source
 
 The system SHALL keep gameplay content selection rules in centralized, data-driven configuration rather than scene-local hardcoded lists.
@@ -12,4 +9,3 @@ The system SHALL keep gameplay content selection rules in centralized, data-driv
 - **WHEN** gameplay resolves powerup/enemy variant selection policy
 - **THEN** selection pools and weights are read from config modules
 - **AND** scene code avoids inline hardcoded selection arrays for these systems
-
