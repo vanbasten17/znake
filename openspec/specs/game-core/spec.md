@@ -24,17 +24,19 @@ The system SHALL define immutable grid dimensions (20×16 cells, 20px per cell) 
 
 ### Requirement: Persistent game state
 
-The system SHALL separate run-scoped state from profile-scoped persistent state.
+The runtime SHALL capture replay-ready run metadata for deterministic debugging.
 
-#### Scenario: New run resets run state only
+#### Scenario: Run capture starts with seed
 
-- **WHEN** a new run starts
-- **THEN** run counters and temporary upgrades reset, while profile currency and unlocked talents remain unchanged
+- **WHEN** a run starts
+- **THEN** runtime initializes replay capture with the resolved run seed
+- **AND** capture timeline starts at run-begin
 
-#### Scenario: Profile survives app reload
+#### Scenario: Input intents are appended in order
 
-- **WHEN** the app is reloaded
-- **THEN** profile currency, unlocked talents, and lifetime stats are restored from persistence
+- **WHEN** gameplay accepts input intents (direction, turn, ability, pause)
+- **THEN** each accepted intent is appended to replay capture with relative timestamp
+- **AND** event ordering is preserved for reproducibility
 
 ### Requirement: Run configuration
 

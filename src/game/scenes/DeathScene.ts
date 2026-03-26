@@ -2,9 +2,10 @@ import Phaser from 'phaser'
 import styles from '../../styles/deathOverlay.module.css'
 import { STORAGE_KEYS } from '../core/constants'
 import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
-import { rollRunObjectiveOffset } from '../core/objectives'
+import { getRunObjectiveOffsetForSeed } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { Upgrade } from '../core/types'
+import { deriveRunSeed } from '../simulation/rng'
 import { getControlMode } from '../systems/controlScheme'
 import {
   getMoveHintText,
@@ -258,8 +259,9 @@ export class DeathScene extends Phaser.Scene {
     gameState.kills = 0
     gameState.eliteKills = 0
     gameState.floor = 1
-    gameState.currentRunSeed = null
-    gameState.runObjectiveOffset = rollRunObjectiveOffset()
+    const runSeed = deriveRunSeed([Date.now(), gameState.run, playerProfile.currency])
+    gameState.currentRunSeed = runSeed
+    gameState.runObjectiveOffset = getRunObjectiveOffsetForSeed(runSeed)
     gameState.persistentUpgrades = []
     gameState.selectedRelicId = null
     gameState.pendingFloorRoute = null

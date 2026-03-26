@@ -4,6 +4,7 @@ import { getFloorObjective } from '../core/objectives'
 import { gameState } from '../core/state'
 import type { Upgrade } from '../core/types'
 import { UPGRADE_POOL } from '../core/upgrades'
+import { createSeededRng, deriveRunSeed } from '../simulation/rng'
 import { getMoveHintText, getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
@@ -42,8 +43,16 @@ export class UpgradeScene extends Phaser.Scene {
 
     const pool = [...UPGRADE_POOL]
     const choices: Upgrade[] = []
+    const runSeed =
+      gameState.currentRunSeed ??
+      deriveRunSeed([Date.now(), gameState.run, gameState.floor, this.score])
+    gameState.currentRunSeed = runSeed
+    const draftRng = createSeededRng(deriveRunSeed([runSeed, gameState.floor, 0x55504752]))
     for (let i = 0; i < 3; i += 1) {
-      const idx = Math.floor(Math.random() * pool.length)
+      if (pool.length === 0) {
+        break
+      }
+      const idx = draftRng.nextInt(0, pool.length - 1)
       const upgrade = pool.splice(idx, 1)[0]
       if (upgrade) {
         choices.push(upgrade)

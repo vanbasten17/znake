@@ -69,69 +69,35 @@ The system SHALL support a biome-exclusive collectible item with score and growt
 
 ### Requirement: Enemy AI and collision
 
-The system SHALL provide explicit feedback for lethal collision outcomes.
+Enemy movement and collision rule resolution SHALL be delegated to pure simulation modules, while scene code applies side effects.
 
-#### Scenario: Lethal collision emits crash cue
+#### Scenario: Enemy movement is simulation-driven
 
-- **WHEN** player death reason is `wall`, `self`, or `enemy`
-- **THEN** feedback system emits a dedicated `crash` cue
-- **AND** the cue is distinct from generic success/confirm interactions
+- **WHEN** an enemy movement tick occurs
+- **THEN** movement decision logic is evaluated in pure simulation code
+- **AND** `GameScene` only applies resulting state and side effects
 
-#### Scenario: Non-collision lethal hazard preserves danger cue
+#### Scenario: Enemy collision detection is simulation-driven
 
-- **WHEN** player death reason is `rift`
-- **THEN** feedback system keeps using `danger` cue semantics
-
-#### Scenario: Boss impact with shield uses readable knockback response
-
-- **WHEN** player collides with boss while having at least one shield
-- **THEN** boss takes configured collision damage
-- **AND** player consumes shield and receives explicit knockback/impact feedback
-- **AND** resulting player position remains valid within current collision constraints
-
-#### Scenario: Boss impact without shield remains lethal
-
-- **WHEN** player collides with boss without shield
-- **THEN** run ends per existing lethal collision rules
-
-#### Scenario: Egg enemy hatches into active threat
-
-- **WHEN** Egg enemy hatch countdown reaches zero
-- **THEN** Egg transforms into a moving enemy archetype
-- **AND** subsequent movement follows existing enemy collision rules
-
-#### Scenario: Mirror enemy tracks delayed player path
-
-- **WHEN** Mirror enemy updates movement
-- **THEN** it follows a delayed snapshot of player head path
-- **AND** movement remains bounded by wall/self constraints
+- **WHEN** snake/enemy overlap checks are evaluated
+- **THEN** collision target and hit-part resolution come from pure simulation helpers
+- **AND** scene code handles feedback, score, and transition side effects
 
 ### Requirement: Floor progression
 
-The system SHALL support temporary hazard-pressure modulation through item interaction.
+Portal flow and core-pressure timing transitions SHALL be handled by pure objective state machine helpers.
 
-#### Scenario: Core pressure activates on eligible non-boss floors
+#### Scenario: Portal and squeeze transitions are state-machine driven
 
-- **WHEN** a floor starts and biome pressure config is enabled for that floor
-- **THEN** a pressure countdown starts
-- **AND** pressure state is represented in run status text
+- **WHEN** portal countdown/grace/squeeze updates run
+- **THEN** timer transitions are produced by pure objective simulation functions
+- **AND** scene code consumes emitted events for side effects (spawn portals, hints, feedback)
 
-#### Scenario: Food resets core pressure countdown
+#### Scenario: Core pressure transitions are state-machine driven
 
-- **WHEN** player consumes food while core pressure is active
-- **THEN** pressure countdown resets to configured interval
-
-#### Scenario: Timeout consumes coolant before degrading tail
-
-- **WHEN** core pressure countdown reaches zero and coolant charges are available
-- **THEN** one coolant charge is consumed
-- **AND** countdown resets without degrading snake length
-
-#### Scenario: Timeout degrades tail when no coolant is available
-
-- **WHEN** core pressure countdown reaches zero and coolant charges are not available
-- **THEN** snake length is reduced by configured pressure amount
-- **AND** countdown resets
+- **WHEN** core pressure timer reaches threshold
+- **THEN** pure objective simulation emits cooldown/decay outcomes
+- **AND** scene code applies concrete snake mutations and death checks
 
 ### Requirement: Snake body render continuity
 

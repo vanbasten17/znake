@@ -177,11 +177,18 @@ export const applyRelicEffect = (cfg: RunConfig, relicId: RelicId | null): void 
   relic.apply(cfg)
 }
 
-export const drawRelicDraft = (): RelicDefinition[] => {
+export const drawRelicDraft = (options?: {
+  nextIndex?: (poolLength: number) => number
+}): RelicDefinition[] => {
   const pool = [...RELIC_POOL]
   const picks: RelicDefinition[] = []
+  const nextIndex =
+    options?.nextIndex ??
+    (() => {
+      return 0
+    })
   while (picks.length < 3 && pool.length > 0) {
-    const idx = Math.floor(Math.random() * pool.length)
+    const idx = Math.max(0, Math.min(pool.length - 1, Math.floor(nextIndex(pool.length))))
     const relic = pool.splice(idx, 1)[0]
     if (relic) {
       picks.push(relic)

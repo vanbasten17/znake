@@ -25,16 +25,44 @@ import type {
   WorldItemType,
 } from '../core/types'
 import { setupRuntimeDevtools } from '../devtools/runtime'
-import { bindRestartWithSameSeed, getSlowMotionFactor, setDevRunSeed } from '../devtools/runtime'
+import {
+  bindReplayCaptureGetter,
+  bindRestartWithSameSeed,
+  getSlowMotionFactor,
+  setDevRunSeed,
+} from '../devtools/runtime'
 import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerHiRes'
 import { PAINT_BY_TONE, drawPremiumSegmentPhaser } from '../render/markerVectorArt'
 import { ArcadeEffectsPipeline } from '../render/shaders'
+import {
+  type EnemyCollisionMatch,
+  type EnemyCollisionPart,
+  applyStalkerExtraStep,
+  detectEnemyCollision,
+  resolveEnemyCollisionDamage,
+  tickEnemy,
+} from '../simulation/enemy'
 import {
   type RoomTemplateLayout,
   generateClassicWalls,
   generateRoomTemplateLayout,
   generateScatterTiles,
 } from '../simulation/layout'
+import {
+  addCorePressureCoolant,
+  applyPortalBeaconAcceleration,
+  initCorePressureState,
+  initPortalFlowState,
+  resetCorePressureTimer,
+  shouldCompleteObjective,
+  tickCorePressure,
+  tickPortalFlow,
+} from '../simulation/objectives'
+import {
+  type RunReplayCapture,
+  appendReplayInput,
+  createRunReplayCapture,
+} from '../simulation/replay'
 import { type GameRng, createSeededRng, deriveRunSeed } from '../simulation/rng'
 import { pickOpenCell } from '../simulation/spawn'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
@@ -63,7 +91,6 @@ type GameSceneData = {
 type DeathReason = 'wall' | 'self' | 'enemy' | 'rift'
 type PortalCell = Vec2 & { pulse: number; route: FloorRouteChoice }
 type BossPhase = 'alpha' | 'rage'
-type EnemyCollisionPart = 'head' | 'body'
 type EnemyCollision = {
   enemy: Enemy
   part: EnemyCollisionPart
@@ -116,6 +143,8 @@ export class GameScene extends Phaser.Scene {
   private floorTemplateFallbackUsed = false
   private runSeed = 0
   private rng: GameRng = createSeededRng(1)
+  private fxRng: GameRng = createSeededRng(2)
+  private replayCapture: RunReplayCapture | null = null
   private enemyCount = 0
   private pendingGrowth = 0
   private venomCharges = 0
@@ -218,7 +247,10 @@ export class GameScene extends Phaser.Scene {
       deriveRunSeed([Date.now(), gameState.run, gameState.floor, this.score])
     gameState.currentRunSeed = this.runSeed
     this.rng = createSeededRng(this.runSeed)
+    this.fxRng = createSeededRng(deriveRunSeed([this.runSeed, 0x9e3779b9]))
+    this.replayCapture = createRunReplayCapture(this.runSeed, this.time.now)
     setDevRunSeed(this.runSeed)
+    bindReplayCaptureGetter(() => this.replayCapture)
     bindRestartWithSameSeed(() => {
       transitionToScene(this, 'Game', {
         chrome: 'run',
@@ -363,10 +395,10 @@ export class GameScene extends Phaser.Scene {
       this.spawnPowerup('venom')
     }
     this.stars = Array.from({ length: BALANCE.biome.starCount }, () => ({
-      x: Math.floor(Math.random() * WIDTH),
-      y: Math.floor(Math.random() * HEIGHT),
-      size: Math.max(1, Math.floor(Math.random() * 2) + 1),
-      alpha: 0.15 + Math.random() * 0.4,
+      x: this.fxRng.nextInt(0, WIDTH - 1),
+      y: this.fxRng.nextInt(0, HEIGHT - 1),
+      size: this.fxRng.nextInt(1, 2),
+      alpha: 0.15 + this.fxRng.nextFloat() * 0.4,
     }))
     this.riftCell = this.pickOpenCell()
     if (debugScenario?.forceDarkness) {
@@ -381,18 +413,22 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       const dir = directionMap[event.code]
       if (dir) {
+        this.recordReplayInput('key', event.code)
         this.pushDirection(dir)
       }
       if (event.code === 'KeyE') {
+        this.recordReplayInput('ability', 'keyboard')
         window.virtualInput.ability = true
       }
       if (this.devMode && event.code === 'KeyR') {
+        this.recordReplayInput('key', event.code)
         transitionToScene(this, 'Game', {
           chrome: 'run',
           data: { score: 0, runSeed: this.runSeed },
         })
       }
       if (event.code === 'Space') {
+        this.recordReplayInput('pause', 'keyboard')
         this.togglePause()
       }
     })
@@ -425,6 +461,7 @@ export class GameScene extends Phaser.Scene {
 
     if (window.virtualInput.pause) {
       window.virtualInput.pause = false
+      this.recordReplayInput('pause', 'virtual')
       this.togglePause()
     }
 
@@ -442,6 +479,7 @@ export class GameScene extends Phaser.Scene {
       window.virtualInput.dir = null
     }
     if (window.virtualInput.turn) {
+      this.recordReplayInput('turn', window.virtualInput.turn)
       const turnDirection = this.resolveRelativeTurn(window.virtualInput.turn)
       if (turnDirection) {
         this.pushDirection(turnDirection)
@@ -449,6 +487,7 @@ export class GameScene extends Phaser.Scene {
       window.virtualInput.turn = null
     }
     if (window.virtualInput.ability) {
+      this.recordReplayInput('ability', 'virtual')
       this.tryFireVenom()
       window.virtualInput.ability = false
     }
@@ -556,6 +595,7 @@ export class GameScene extends Phaser.Scene {
     this.floorTemplate = 'classic'
     this.floorTemplateFallbackUsed = false
     this.pendingGrowth = 0
+    this.replayCapture = null
     this.venomCharges = 0
     this.venomCooldownMs = 0
     this.venomProjectiles = []
@@ -616,7 +656,30 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.moveQueue.length < 2) {
       this.moveQueue.push(next)
+      this.recordReplayInput('dir', this.vectorToInputLabel(next))
     }
+  }
+
+  private vectorToInputLabel(vec: Vec2): string {
+    if (vec.x === 1 && vec.y === 0) return 'right'
+    if (vec.x === -1 && vec.y === 0) return 'left'
+    if (vec.x === 0 && vec.y === 1) return 'down'
+    if (vec.x === 0 && vec.y === -1) return 'up'
+    return `${vec.x},${vec.y}`
+  }
+
+  private recordReplayInput(
+    type: 'dir' | 'turn' | 'ability' | 'pause' | 'key',
+    value: string,
+  ): void {
+    if (!this.replayCapture) {
+      return
+    }
+    this.replayCapture = appendReplayInput(this.replayCapture, {
+      nowMs: this.time.now,
+      type,
+      value,
+    })
   }
 
   private resolveRelativeTurn(turn: 'left' | 'right'): Vec2 | null {
@@ -662,8 +725,8 @@ export class GameScene extends Phaser.Scene {
       return
     }
     this.cameras.main.setScroll(
-      (Math.random() - 0.5) * this.shakeTimer * 5,
-      (Math.random() - 0.5) * this.shakeTimer * 5,
+      (this.fxRng.nextFloat() - 0.5) * this.shakeTimer * 5,
+      (this.fxRng.nextFloat() - 0.5) * this.shakeTimer * 5,
     )
     this.shakeTimer -= dt
     if (this.shakeTimer <= 0) {
@@ -677,15 +740,53 @@ export class GameScene extends Phaser.Scene {
       return
     }
     this.enemyMoveTimer = 0
-    for (const enemy of this.enemies) {
-      if (enemy.alive) {
-        this.moveEnemy(enemy)
-        if (
-          enemy.kind === 'stalker' &&
-          this.rng.nextFloat() < 1 - BALANCE.elite.stalker.speedMultiplier
-        ) {
-          this.moveEnemy(enemy)
+    for (let i = 0; i < this.enemies.length; i += 1) {
+      const enemy = this.enemies[i]
+      if (!enemy || !enemy.alive) {
+        continue
+      }
+      const playerHead = this.snake[0] ?? null
+      const runTick = (): { ateFood: boolean; hatched: boolean } => {
+        const current = this.enemies[i]
+        if (!current) {
+          return { ateFood: false, hatched: false }
         }
+        const result = tickEnemy(current, {
+          playerHead,
+          playerHeadHistory: this.playerHeadHistory,
+          isWall: (x, y) => this.isWall(x, y),
+          foodCell: this.food ? { x: this.food.x, y: this.food.y } : null,
+          rng: this.rng,
+          ambusher: {
+            dashMinLaneDistance: BALANCE.elite.ambusher.dashMinLaneDistance,
+            dashChanceWhenAligned: BALANCE.elite.ambusher.dashChanceWhenAligned,
+            dashSteps: BALANCE.elite.ambusher.dashSteps,
+            dashCooldownTurns: BALANCE.elite.ambusher.dashCooldownTurns,
+          },
+          stalkerSpeedMultiplier: BALANCE.elite.stalker.speedMultiplier,
+          egg: {
+            hatchLength: BALANCE.enemyVariants.egg.hatchLength,
+          },
+        })
+        this.enemies[i] = result.enemy
+        if (result.ateFood) {
+          this.spawnFood()
+        }
+        if (result.hatched) {
+          const hatchHead = result.enemy.body[0]
+          if (hatchHead) {
+            this.spawnParticles(hatchHead.x, hatchHead.y, COLORS.enemyHead, 8)
+          }
+        }
+        return { ateFood: result.ateFood, hatched: result.hatched }
+      }
+      runTick()
+      const nextEnemy = this.enemies[i]
+      if (
+        nextEnemy &&
+        applyStalkerExtraStep(nextEnemy.kind, this.rng, BALANCE.elite.stalker.speedMultiplier)
+      ) {
+        runTick()
       }
     }
   }
@@ -1423,79 +1524,82 @@ export class GameScene extends Phaser.Scene {
   }
 
   private setupPortalFlow(): void {
-    if (this.isBossFloor) {
-      this.portals = []
-      this.portalCountdownMs = 0
-      this.portalGraceMs = 0
-      this.portalGraceSecondCue = -1
-      this.squeezeStepTimerMs = 0
-      this.squeezeInset = 0
-      return
-    }
-    const floorOffset = Math.max(0, gameState.floor - 1)
-    const countdown =
-      BALANCE.portal.countdownBaseMs - floorOffset * BALANCE.portal.countdownPerFloorMs
-    this.portalCountdownMs = Math.max(BALANCE.portal.countdownMinMs, countdown)
-    this.portalGraceMs = BALANCE.portal.graceMs
-    this.portalGraceSecondCue = -1
+    const portalState = initPortalFlowState({
+      isBossFloor: this.isBossFloor,
+      floor: gameState.floor,
+      objectiveType: this.objectiveType,
+      countdownBaseMs: BALANCE.portal.countdownBaseMs,
+      countdownPerFloorMs: BALANCE.portal.countdownPerFloorMs,
+      countdownMinMs: BALANCE.portal.countdownMinMs,
+      graceMs: BALANCE.portal.graceMs,
+    })
     this.portals = []
-    this.squeezeStepTimerMs = 0
-    this.squeezeInset = 0
+    this.portalCountdownMs = portalState.countdownMs
+    this.portalGraceMs = portalState.graceMs
+    this.portalGraceSecondCue = portalState.graceSecondCue
+    this.squeezeStepTimerMs = portalState.squeezeStepTimerMs
+    this.squeezeInset = portalState.squeezeInset
   }
 
   private setupCorePressureFlow(): void {
-    const cfg = BALANCE.biome.pressure
-    if (!cfg.enabled || this.isBossFloor || gameState.floor < cfg.startFloor) {
-      this.corePressureActive = false
-      this.corePressureIntervalMs = 0
-      this.corePressureRemainingMs = 0
-      this.corePressureCoolantCharges = 0
-      return
-    }
-    const floorOffset = Math.max(0, gameState.floor - cfg.startFloor)
-    const interval = Math.max(
-      cfg.intervalMinMs,
-      cfg.intervalBaseMs - floorOffset * cfg.intervalPerFloorMs,
-    )
-    this.corePressureActive = true
-    this.corePressureIntervalMs = interval
-    this.corePressureRemainingMs = interval
-    this.corePressureCoolantCharges = 0
+    const pressure = initCorePressureState({
+      enabled: BALANCE.biome.pressure.enabled,
+      isBossFloor: this.isBossFloor,
+      floor: gameState.floor,
+      startFloor: BALANCE.biome.pressure.startFloor,
+      intervalBaseMs: BALANCE.biome.pressure.intervalBaseMs,
+      intervalPerFloorMs: BALANCE.biome.pressure.intervalPerFloorMs,
+      intervalMinMs: BALANCE.biome.pressure.intervalMinMs,
+    })
+    this.corePressureActive = pressure.active
+    this.corePressureIntervalMs = pressure.intervalMs
+    this.corePressureRemainingMs = pressure.remainingMs
+    this.corePressureCoolantCharges = pressure.coolantCharges
   }
 
   private updateCorePressure(delta: number): void {
     if (!this.corePressureActive || this.isDying) {
       return
     }
-    this.corePressureRemainingMs = Math.max(0, this.corePressureRemainingMs - delta)
-    if (this.corePressureRemainingMs > 0) {
-      return
-    }
-    if (this.corePressureCoolantCharges > 0) {
-      this.corePressureCoolantCharges -= 1
-      this.corePressureRemainingMs = this.corePressureIntervalMs
-      trackRetentionEvent('core_pressure_absorbed', {
-        floor: gameState.floor,
-        coolantRemaining: this.corePressureCoolantCharges,
-      })
-      emitFeedback('confirm')
-      return
-    }
-    const decaySegments = Math.max(1, BALANCE.biome.pressure.decaySegments)
-    let removed = 0
-    while (removed < decaySegments && this.snake.length > 2) {
-      this.snake.pop()
-      removed += 1
-    }
-    this.corePressureRemainingMs = this.corePressureIntervalMs
-    trackRetentionEvent('core_pressure_tick', {
-      floor: gameState.floor,
-      removedSegments: removed,
+    const step = tickCorePressure({
+      deltaMs: delta,
+      state: {
+        active: this.corePressureActive,
+        intervalMs: this.corePressureIntervalMs,
+        remainingMs: this.corePressureRemainingMs,
+        coolantCharges: this.corePressureCoolantCharges,
+      },
       snakeLength: this.snake.length,
+      decaySegments: BALANCE.biome.pressure.decaySegments,
     })
-    emitFeedback('urgent')
-    if (removed === 0) {
-      this.die('rift')
+    this.corePressureActive = step.state.active
+    this.corePressureIntervalMs = step.state.intervalMs
+    this.corePressureRemainingMs = step.state.remainingMs
+    this.corePressureCoolantCharges = step.state.coolantCharges
+    for (const event of step.events) {
+      if (event === 'consume_coolant') {
+        trackRetentionEvent('core_pressure_absorbed', {
+          floor: gameState.floor,
+          coolantRemaining: this.corePressureCoolantCharges,
+        })
+        emitFeedback('confirm')
+        continue
+      }
+      const decaySegments = Math.max(1, BALANCE.biome.pressure.decaySegments)
+      let removed = 0
+      while (removed < decaySegments && this.snake.length > 2) {
+        this.snake.pop()
+        removed += 1
+      }
+      trackRetentionEvent('core_pressure_tick', {
+        floor: gameState.floor,
+        removedSegments: removed,
+        snakeLength: this.snake.length,
+      })
+      emitFeedback('urgent')
+      if (event === 'fatal_decay' || removed === 0) {
+        this.die('rift')
+      }
     }
   }
 
@@ -1516,49 +1620,45 @@ export class GameScene extends Phaser.Scene {
     if (this.isBossFloor || this.isDying) {
       return
     }
-    const countdownWasRunning = this.portalCountdownMs > 0
-    if (countdownWasRunning) {
-      this.portalCountdownMs = Math.max(0, this.portalCountdownMs - delta)
-      if (this.portalCountdownMs <= 0 && this.objectiveType === 'portal') {
-        this.spawnPortals()
-      }
-      if (this.portalCountdownMs <= 0 && this.portalGraceSecondCue < 0) {
-        this.portalGraceSecondCue = Math.ceil(this.portalGraceMs / 1000) + 1
-      }
-    }
-    if (this.portalCountdownMs > 0) {
-      return
-    }
+    const step = tickPortalFlow({
+      state: {
+        countdownMs: this.portalCountdownMs,
+        graceMs: this.portalGraceMs,
+        graceSecondCue: this.portalGraceSecondCue,
+        squeezeStepTimerMs: this.squeezeStepTimerMs,
+        squeezeInset: this.squeezeInset,
+        active: this.objectiveType === 'portal',
+      },
+      deltaMs: delta,
+      objectiveType: this.objectiveType,
+      isBossFloor: this.isBossFloor,
+      squeezeStepMs: BALANCE.portal.squeezeStepMs,
+      squeezeMaxInset: BALANCE.portal.squeezeMaxInset,
+      isCellWall: (x, y) => this.isWall(x, y),
+      snakeHead: this.snake[0] ?? null,
+    })
+    this.portalCountdownMs = step.state.countdownMs
+    this.portalGraceMs = step.state.graceMs
+    this.portalGraceSecondCue = step.state.graceSecondCue
+    this.squeezeStepTimerMs = step.state.squeezeStepTimerMs
+    this.squeezeInset = step.state.squeezeInset
 
-    if (this.portalGraceMs > 0) {
-      const next = Math.max(0, this.portalGraceMs - delta)
-      const second = Math.ceil(next / 1000)
-      if (second > 0 && second < this.portalGraceSecondCue) {
-        this.portalGraceSecondCue = second
+    for (const event of step.events) {
+      if (event === 'spawn_portals') {
+        this.spawnPortals()
+      } else if (event === 'urgent_second_tick') {
         emitFeedback('urgent')
+      } else if (event === 'squeeze_step') {
+        for (const portal of this.portals) {
+          if (this.isWall(portal.x, portal.y)) {
+            const portalCell = this.pickOpenCell()
+            portal.x = portalCell.x
+            portal.y = portalCell.y
+          }
+        }
+      } else if (event === 'head_crushed') {
+        this.die('wall')
       }
-      this.portalGraceMs = next
-      return
-    }
-    this.squeezeStepTimerMs += delta
-    if (this.squeezeStepTimerMs < BALANCE.portal.squeezeStepMs) {
-      return
-    }
-    this.squeezeStepTimerMs = 0
-    if (this.squeezeInset >= BALANCE.portal.squeezeMaxInset) {
-      return
-    }
-    this.squeezeInset += 1
-    for (const portal of this.portals) {
-      if (this.isWall(portal.x, portal.y)) {
-        const portalCell = this.pickOpenCell()
-        portal.x = portalCell.x
-        portal.y = portalCell.y
-      }
-    }
-    const head = this.snake[0]
-    if (head && this.isWall(head.x, head.y)) {
-      this.die('wall')
     }
   }
 
@@ -1718,194 +1818,6 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  private moveEnemy(enemy: Enemy): void {
-    if (!enemy.alive) {
-      return
-    }
-    if (enemy.kind === 'egg') {
-      this.updateEggEnemy(enemy)
-      return
-    }
-    if (enemy.kind === 'mirror') {
-      this.moveMirrorEnemy(enemy)
-      return
-    }
-    const head = enemy.body[0]
-    const playerHead = this.snake[0]
-    if (!head || !playerHead) {
-      return
-    }
-    const dirs: Vec2[] = [
-      { x: 1, y: 0 },
-      { x: -1, y: 0 },
-      { x: 0, y: 1 },
-      { x: 0, y: -1 },
-    ]
-    const dx = playerHead.x - head.x
-    const dy = playerHead.y - head.y
-
-    if (enemy.kind === 'ambusher' && this.tryAmbusherDash(enemy, playerHead)) {
-      return
-    }
-
-    const preferred = [...dirs].sort((a, b) => {
-      const sa = a.x * Math.sign(dx) + a.y * Math.sign(dy)
-      const sb = b.x * Math.sign(dx) + b.y * Math.sign(dy)
-      const randomness =
-        enemy.kind === 'stalker' || enemy.kind === 'ambusher'
-          ? 0
-          : (this.rng.nextFloat() - 0.5) * 0.5
-      return sb - sa + randomness
-    })
-
-    for (const dir of preferred) {
-      if (dir.x === -enemy.dir.x && dir.y === -enemy.dir.y) {
-        continue
-      }
-      const nx = head.x + dir.x
-      const ny = head.y + dir.y
-      if (this.isWall(nx, ny)) {
-        continue
-      }
-
-      const hitsSelf = enemy.body
-        .slice(1, -1)
-        .some((segment) => segment.x === nx && segment.y === ny)
-      if (hitsSelf) {
-        continue
-      }
-      this.advanceEnemyStep(enemy, dir)
-      break
-    }
-  }
-
-  private updateEggEnemy(enemy: Enemy): void {
-    enemy.hatchTurnsRemaining = Math.max(0, enemy.hatchTurnsRemaining - 1)
-    if (enemy.hatchTurnsRemaining > 0) {
-      return
-    }
-    const head = enemy.body[0]
-    if (!head) {
-      return
-    }
-    enemy.kind = 'normal'
-    enemy.mirrorDelaySteps = 0
-    enemy.body = Array.from({ length: BALANCE.enemyVariants.egg.hatchLength }, (_, i) => ({
-      x: Math.max(0, head.x - i),
-      y: head.y,
-    }))
-    this.spawnParticles(head.x, head.y, COLORS.enemyHead, 8)
-  }
-
-  private moveMirrorEnemy(enemy: Enemy): void {
-    const head = enemy.body[0]
-    if (!head) {
-      return
-    }
-    const history = this.playerHeadHistory
-    const delay = Math.max(1, enemy.mirrorDelaySteps)
-    const targetIndex = history.length - 1 - delay
-    const target = targetIndex >= 0 ? history[targetIndex] : this.snake[0]
-    if (!target) {
-      return
-    }
-    const dx = Math.sign(target.x - head.x)
-    const dy = Math.sign(target.y - head.y)
-    const preferred: Vec2[] =
-      Math.abs(target.x - head.x) >= Math.abs(target.y - head.y)
-        ? [
-            { x: dx, y: 0 },
-            { x: 0, y: dy },
-            { x: -dx, y: 0 },
-            { x: 0, y: -dy },
-          ]
-        : [
-            { x: 0, y: dy },
-            { x: dx, y: 0 },
-            { x: 0, y: -dy },
-            { x: -dx, y: 0 },
-          ]
-    for (const dir of preferred) {
-      if (dir.x === 0 && dir.y === 0) {
-        continue
-      }
-      if (this.advanceEnemyStep(enemy, dir)) {
-        return
-      }
-    }
-  }
-
-  private advanceEnemyStep(enemy: Enemy, dir: Vec2): boolean {
-    const head = enemy.body[0]
-    if (!head) {
-      return false
-    }
-    const nx = head.x + dir.x
-    const ny = head.y + dir.y
-    if (this.isWall(nx, ny)) {
-      return false
-    }
-    const hitsSelf = enemy.body.slice(1, -1).some((segment) => segment.x === nx && segment.y === ny)
-    if (hitsSelf) {
-      return false
-    }
-    enemy.dir = dir
-    enemy.body.unshift({ x: nx, y: ny })
-    if (this.food && nx === this.food.x && ny === this.food.y) {
-      this.spawnFood()
-    } else {
-      enemy.body.pop()
-    }
-    return true
-  }
-
-  private tryAmbusherDash(enemy: Enemy, playerHead: SnakeSegment): boolean {
-    const head = enemy.body[0]
-    if (!head) {
-      return false
-    }
-    if (enemy.dashCooldown > 0) {
-      enemy.dashCooldown -= 1
-      return false
-    }
-
-    const alignedX = head.x === playerHead.x
-    const alignedY = head.y === playerHead.y
-    if (!alignedX && !alignedY) {
-      return false
-    }
-
-    const laneDistance = alignedX
-      ? Math.abs(head.y - playerHead.y)
-      : Math.abs(head.x - playerHead.x)
-    if (laneDistance < BALANCE.elite.ambusher.dashMinLaneDistance) {
-      return false
-    }
-    if (this.rng.nextFloat() >= BALANCE.elite.ambusher.dashChanceWhenAligned) {
-      return false
-    }
-
-    const dir: Vec2 = alignedX
-      ? { x: 0, y: Math.sign(playerHead.y - head.y) }
-      : { x: Math.sign(playerHead.x - head.x), y: 0 }
-    if (dir.x === -enemy.dir.x && dir.y === -enemy.dir.y) {
-      return false
-    }
-
-    let moved = false
-    for (let step = 0; step < BALANCE.elite.ambusher.dashSteps; step += 1) {
-      const advanced = this.advanceEnemyStep(enemy, dir)
-      if (!advanced) {
-        break
-      }
-      moved = true
-    }
-    if (moved) {
-      enemy.dashCooldown = BALANCE.elite.ambusher.dashCooldownTurns
-    }
-    return moved
-  }
-
   private ensureObjectiveEnemyAvailability(): void {
     if (
       this.isBossFloor ||
@@ -1923,25 +1835,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private checkEnemyCollision(): EnemyCollision | null {
-    const head = this.snake[0]
-    if (!head) {
+    const head = this.snake[0] ?? null
+    const collision: EnemyCollisionMatch | null = detectEnemyCollision(head, this.enemies)
+    if (!collision) {
       return null
     }
-    for (const enemy of this.enemies) {
-      if (!enemy.alive) {
-        continue
-      }
-      const enemyHead = enemy.body[0]
-      if (enemyHead && enemyHead.x === head.x && enemyHead.y === head.y) {
-        this.killEnemy(enemy)
-        return { enemy, part: 'head' }
-      }
-      if (enemy.body.slice(1).some((segment) => segment.x === head.x && segment.y === head.y)) {
-        this.killEnemy(enemy)
-        return { enemy, part: 'body' }
-      }
+    const enemy = this.enemies[collision.enemyIndex]
+    if (!enemy) {
+      return null
     }
-    return null
+    this.killEnemy(enemy)
+    return { enemy, part: collision.part }
   }
 
   private applyBossKnockback(previousHead: SnakeSegment): void {
@@ -1958,14 +1862,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getEnemyCollisionDamage(enemy: Enemy, part: EnemyCollisionPart): number {
-    if (enemy.kind === 'boss') {
-      return part === 'head'
-        ? BALANCE.enemyCollision.bossHeadDamageSegments
-        : BALANCE.enemyCollision.bossBodyDamageSegments
-    }
-    return part === 'head'
-      ? BALANCE.enemyCollision.headDamageSegments
-      : BALANCE.enemyCollision.bodyDamageSegments
+    return resolveEnemyCollisionDamage({
+      kind: enemy.kind,
+      part,
+      headDamageSegments: BALANCE.enemyCollision.headDamageSegments,
+      bodyDamageSegments: BALANCE.enemyCollision.bodyDamageSegments,
+      bossHeadDamageSegments: BALANCE.enemyCollision.bossHeadDamageSegments,
+      bossBodyDamageSegments: BALANCE.enemyCollision.bossBodyDamageSegments,
+    })
   }
 
   private applySnakeSegmentDamage(enemy: Enemy, part: EnemyCollisionPart): boolean {
@@ -2064,12 +1968,12 @@ export class GameScene extends Phaser.Scene {
       this.particles.push({
         x: cx * CELL + CELL / 2,
         y: cy * CELL + CELL / 2,
-        vx: (Math.random() - 0.5) * 14,
-        vy: (Math.random() - 0.5) * 14,
+        vx: (this.fxRng.nextFloat() - 0.5) * 14,
+        vy: (this.fxRng.nextFloat() - 0.5) * 14,
         life: 1,
-        maxLife: 0.6 + Math.random() * 0.6,
+        maxLife: 0.6 + this.fxRng.nextFloat() * 0.6,
         color,
-        size: 1.2 + Math.random() * 2.5,
+        size: 1.2 + this.fxRng.nextFloat() * 2.5,
       })
     }
   }
@@ -2153,7 +2057,13 @@ export class GameScene extends Phaser.Scene {
       this.score += Math.floor(BALANCE.food.scoreOnEat * this.cfg.scoreMult)
       this.pendingGrowth += 1
       if (this.corePressureActive) {
-        this.corePressureRemainingMs = this.corePressureIntervalMs
+        const nextPressure = resetCorePressureTimer({
+          active: this.corePressureActive,
+          intervalMs: this.corePressureIntervalMs,
+          remainingMs: this.corePressureRemainingMs,
+          coolantCharges: this.corePressureCoolantCharges,
+        })
+        this.corePressureRemainingMs = nextPressure.remainingMs
       }
       this.spawnParticles(nx, ny, COLORS.food, 8)
       this.spawnFood()
@@ -2193,10 +2103,18 @@ export class GameScene extends Phaser.Scene {
         this.spawnParticles(nx, ny, COLORS.slow, 12)
       } else if (this.biomeItem.type === 'portal_beacon') {
         if (this.objectiveType === 'portal') {
-          this.portalCountdownMs = Math.max(
-            0,
-            this.portalCountdownMs - BALANCE.item.effectDurations.portalAccelerateMs,
+          const accelerated = applyPortalBeaconAcceleration(
+            {
+              countdownMs: this.portalCountdownMs,
+              graceMs: this.portalGraceMs,
+              graceSecondCue: this.portalGraceSecondCue,
+              squeezeStepTimerMs: this.squeezeStepTimerMs,
+              squeezeInset: this.squeezeInset,
+              active: this.objectiveType === 'portal',
+            },
+            BALANCE.item.effectDurations.portalAccelerateMs,
           )
+          this.portalCountdownMs = accelerated.countdownMs
         }
         trackRetentionEvent('item_collected', {
           item: 'portal_beacon',
@@ -2217,8 +2135,17 @@ export class GameScene extends Phaser.Scene {
         this.score += Math.floor(BALANCE.biome.coreItem.scoreBonus * this.cfg.scoreMult)
         this.pendingGrowth += BALANCE.biome.coreItem.growthBonus
         if (this.corePressureActive) {
-          this.corePressureCoolantCharges += BALANCE.biome.pressure.coolantPerCoreItem
-          this.corePressureRemainingMs = this.corePressureIntervalMs
+          const nextPressure = addCorePressureCoolant(
+            {
+              active: this.corePressureActive,
+              intervalMs: this.corePressureIntervalMs,
+              remainingMs: this.corePressureRemainingMs,
+              coolantCharges: this.corePressureCoolantCharges,
+            },
+            BALANCE.biome.pressure.coolantPerCoreItem,
+          )
+          this.corePressureCoolantCharges = nextPressure.coolantCharges
+          this.corePressureRemainingMs = nextPressure.remainingMs
           trackRetentionEvent('core_pressure_coolant_gained', {
             floor: gameState.floor,
             coolantTotal: this.corePressureCoolantCharges,
@@ -2299,24 +2226,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private completeObjectiveIfReady(): boolean {
-    if (this.isBossFloor) {
-      return false
-    }
-    if (
-      this.objectiveType === 'score' &&
-      this.getObjectiveScoreProgress() >= this.objectiveScoreTarget
-    ) {
-      emitFeedback('confirm')
-      transitionToScene(this, 'Upgrade', {
-        chrome: 'run',
-        data: { score: this.score, floor: gameState.floor },
-      })
-      return true
-    }
-    if (
-      this.objectiveType === 'kills' &&
-      this.getObjectiveKillsProgress() >= this.objectiveKillsTarget
-    ) {
+    const completed = shouldCompleteObjective({
+      isBossFloor: this.isBossFloor,
+      objectiveType: this.objectiveType,
+      scoreProgress: this.getObjectiveScoreProgress(),
+      scoreTarget: this.objectiveScoreTarget,
+      killsProgress: this.getObjectiveKillsProgress(),
+      killsTarget: this.objectiveKillsTarget,
+    })
+    if (completed) {
       emitFeedback('confirm')
       transitionToScene(this, 'Upgrade', {
         chrome: 'run',

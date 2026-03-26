@@ -1,5 +1,4 @@
 import { loadProfile } from './meta'
-import { rollRunObjectiveOffset } from './objectives'
 import type { GameState } from './types'
 import type { PlayerProfile } from './types'
 
@@ -10,7 +9,7 @@ export const gameState: GameState = {
   eliteKills: 0,
   floor: 1,
   currentRunSeed: null,
-  runObjectiveOffset: rollRunObjectiveOffset(),
+  runObjectiveOffset: 0,
   persistentUpgrades: [],
   selectedRelicId: null,
   pendingFloorRoute: null,

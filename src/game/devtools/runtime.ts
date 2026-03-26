@@ -1,4 +1,5 @@
 import { isDevMode } from '../core/devScenarios'
+import type { RunReplayCapture } from '../simulation/replay'
 
 export type RuntimeDevtoolsState = {
   runSeed: number
@@ -7,6 +8,7 @@ export type RuntimeDevtoolsState = {
 
 export type RuntimeDevtoolsApi = {
   getState: () => RuntimeDevtoolsState
+  getReplayCapture: () => RunReplayCapture | null
   setSlowMotion: (factor: number) => void
   restartWithSameSeed: () => void
 }
@@ -17,6 +19,7 @@ let state: RuntimeDevtoolsState = {
 }
 
 let restartWithSameSeed: (() => void) | null = null
+let replayCaptureGetter: (() => RunReplayCapture | null) | null = null
 
 declare global {
   interface Window {
@@ -44,12 +47,17 @@ export const bindRestartWithSameSeed = (handler: () => void): void => {
   restartWithSameSeed = handler
 }
 
+export const bindReplayCaptureGetter = (getter: () => RunReplayCapture | null): void => {
+  replayCaptureGetter = getter
+}
+
 export const setupRuntimeDevtools = (): void => {
   if (!isDevMode()) {
     return
   }
   window.__znakeDevtools = {
     getState: () => ({ ...state }),
+    getReplayCapture: () => replayCaptureGetter?.() ?? null,
     setSlowMotion: (factor) => setSlowMotionFactor(factor),
     restartWithSameSeed: () => {
       restartWithSameSeed?.()

@@ -35,7 +35,15 @@ export const rollRunObjectiveOffset = (): number => {
   if (len <= 1) {
     return 0
   }
-  return Math.floor(Math.random() * len)
+  return 0
+}
+
+export const getRunObjectiveOffsetForSeed = (seed: number): number => {
+  const len = BALANCE.objectives.rotation.length
+  if (len <= 1) {
+    return 0
+  }
+  return (Math.floor(Math.abs(seed)) >>> 0) % len
 }
 
 export const getScoreObjectiveTarget = (floor: number): number => {

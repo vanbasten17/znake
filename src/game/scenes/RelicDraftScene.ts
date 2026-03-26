@@ -4,6 +4,7 @@ import { drawRelicDraft } from '../core/meta'
 import { getFloorObjective } from '../core/objectives'
 import { gameState } from '../core/state'
 import type { RelicDefinition } from '../core/types'
+import { createSeededRng, deriveRunSeed } from '../simulation/rng'
 import { getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
@@ -31,7 +32,14 @@ export class RelicDraftScene extends Phaser.Scene {
       this.input.keyboard?.removeAllListeners()
     })
 
-    this.choices = drawRelicDraft()
+    const runSeed =
+      gameState.currentRunSeed ??
+      deriveRunSeed([Date.now(), gameState.run, gameState.floor, gameState.totalScore])
+    gameState.currentRunSeed = runSeed
+    const draftRng = createSeededRng(deriveRunSeed([runSeed, 0x52454c49]))
+    this.choices = drawRelicDraft({
+      nextIndex: (poolLength) => draftRng.nextInt(0, Math.max(0, poolLength - 1)),
+    })
     this.mountOverlay()
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {

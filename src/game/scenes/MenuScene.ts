@@ -15,7 +15,7 @@ import {
   saveProfile,
   unlockTalent,
 } from '../core/meta'
-import { getFloorObjective, rollRunObjectiveOffset } from '../core/objectives'
+import { getFloorObjective, getRunObjectiveOffsetForSeed } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { GoalId } from '../core/types'
 import { drawMarkerSpriteCanvas } from '../render/markerBitmapDraw'
@@ -27,6 +27,7 @@ import {
   MARKER_EXPORT_LOGICAL_FRAME,
   MARKER_EXPORT_SCALE_DEFAULT,
 } from '../render/markerExportSpec'
+import { deriveRunSeed } from '../simulation/rng'
 import { getAccessibilitySettings, updateAccessibilitySettings } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import { setSceneChrome } from '../systems/domHud'
@@ -131,7 +132,7 @@ export class MenuScene extends Phaser.Scene {
     this.glossaryCategory = 'items'
     this.glossaryTabButtons = {}
     if (!Number.isFinite(gameState.runObjectiveOffset)) {
-      gameState.runObjectiveOffset = rollRunObjectiveOffset()
+      gameState.runObjectiveOffset = 0
     }
     setSceneChrome('menu')
     this.mountOverlay()
@@ -619,7 +620,9 @@ export class MenuScene extends Phaser.Scene {
     gameState.kills = 0
     gameState.eliteKills = 0
     gameState.floor = 1
-    gameState.currentRunSeed = null
+    const runSeed = deriveRunSeed([Date.now(), gameState.run, playerProfile.currency])
+    gameState.currentRunSeed = runSeed
+    gameState.runObjectiveOffset = getRunObjectiveOffsetForSeed(runSeed)
     gameState.persistentUpgrades = []
     gameState.selectedRelicId = null
     gameState.pendingFloorRoute = null
