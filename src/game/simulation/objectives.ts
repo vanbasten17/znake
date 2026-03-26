@@ -1,4 +1,10 @@
-import type { FloorObjectiveKind } from '../core/types'
+import type {
+  FloorObjectiveKind,
+  RewardOption,
+  RoomObjectiveDefinition,
+  RoomObjectiveState,
+} from '../core/types'
+import type { GameRng } from './rng'
 
 export type PortalFlowState = {
   countdownMs: number
@@ -23,6 +29,12 @@ export type CorePressureState = {
 }
 
 export type CorePressureEvent = 'consume_coolant' | 'decay' | 'fatal_decay'
+
+export type RoomObjectiveProgressEvent =
+  | { type: 'tick'; deltaMs: number }
+  | { type: 'core_collected'; amount?: number }
+  | { type: 'elite_defeated'; amount?: number }
+  | { type: 'terminal_activated'; amount?: number }
 
 export const initPortalFlowState = (params: {
   isBossFloor: boolean
@@ -222,4 +234,70 @@ export const shouldCompleteObjective = (params: {
     return params.killsProgress >= params.killsTarget
   }
   return false
+}
+
+export const initRoomObjectiveState = (
+  definition: RoomObjectiveDefinition,
+): RoomObjectiveState => ({
+  kind: definition.kind,
+  progress: 0,
+  target: Math.max(1, Math.floor(definition.target)),
+  completed: false,
+  rewardClaimed: false,
+})
+
+export const advanceRoomObjectiveState = (
+  state: RoomObjectiveState,
+  event: RoomObjectiveProgressEvent,
+): {
+  state: RoomObjectiveState
+  completedNow: boolean
+} => {
+  if (state.completed) {
+    return { state, completedNow: false }
+  }
+
+  let nextProgress = state.progress
+  if (state.kind === 'survive' && event.type === 'tick') {
+    nextProgress += Math.max(0, event.deltaMs)
+  } else if (state.kind === 'collect_cores' && event.type === 'core_collected') {
+    nextProgress += Math.max(1, Math.floor(event.amount ?? 1))
+  } else if (state.kind === 'defeat_elite' && event.type === 'elite_defeated') {
+    nextProgress += Math.max(1, Math.floor(event.amount ?? 1))
+  } else if (state.kind === 'activate_terminals' && event.type === 'terminal_activated') {
+    nextProgress += Math.max(1, Math.floor(event.amount ?? 1))
+  }
+
+  const completed = nextProgress >= state.target
+  return {
+    state: {
+      ...state,
+      progress: Math.min(nextProgress, state.target),
+      completed,
+    },
+    completedNow: completed,
+  }
+}
+
+export const markRoomObjectiveRewardClaimed = (state: RoomObjectiveState): RoomObjectiveState => ({
+  ...state,
+  rewardClaimed: true,
+})
+
+export const draftRewardOptions = (
+  pool: ReadonlyArray<RewardOption>,
+  draftSize: number,
+  rng: GameRng,
+): RewardOption[] => {
+  const remaining = [...pool]
+  const picks: RewardOption[] = []
+  const size = Math.max(1, Math.min(draftSize, remaining.length))
+  for (let index = 0; index < size; index += 1) {
+    const nextIndex = rng.nextInt(0, remaining.length - 1)
+    const choice = remaining.splice(nextIndex, 1)[0]
+    if (choice) {
+      picks.push(choice)
+    }
+  }
+  return picks
 }

@@ -11,13 +11,55 @@ export type PowerupType = 'shield' | 'slow' | 'ghost' | 'score' | 'venom'
 export type EnemyKind = 'normal' | 'stalker' | 'ambusher' | 'boss' | 'egg' | 'mirror'
 export type WorldItemType = 'core' | 'rift_battery' | 'portal_beacon'
 
+export type UpgradeFamily = 'aggro' | 'control' | 'survival'
+export type UpgradeTag =
+  | 'speed'
+  | 'routing'
+  | 'burst'
+  | 'zoning'
+  | 'pickup-control'
+  | 'body-control'
+  | 'shield'
+  | 'recovery'
+  | 'stability'
+
+export type UpgradeFamilyDefinition = {
+  id: UpgradeFamily
+  label: string
+  summary: string
+  color: number
+}
+
 export type Upgrade = {
   id: string
+  family: UpgradeFamily
   name: string
   desc: string
   icon: string
   color: number
+  gameplay: string
+  tradeoff: string
+  synergy: string
+  tags: UpgradeTag[]
   apply: (cfg: RunConfig) => void
+}
+
+export type RewardId = 'fortified_core' | 'volatile_fangs' | 'long_coil'
+
+export type RewardEffectSet = {
+  moveIntervalMultiplier?: number
+  enemySlowMultiplier?: number
+  bonusShields?: number
+  bonusLength?: number
+  venomCharges?: number
+  maxTurnQueue?: number
+}
+
+export type RewardOption = {
+  id: RewardId
+  icon: string
+  color: number
+  effects: RewardEffectSet
 }
 
 export type RunConfig = {
@@ -25,10 +67,15 @@ export type RunConfig = {
   bonusStartLength: number
   bonusShields: number
   hasMagnet: boolean
+  magnetRadius: number
   ghostCharges: number
   scoreMult: number
+  powerupScoreMult: number
+  powerupGrowth: number
   enemySlow: number
   hasRegen: boolean
+  regenIntervalMs: number
+  maxTurnQueue: number
 }
 
 export type Enemy = {
@@ -40,6 +87,13 @@ export type Enemy = {
   dashCooldown: number
   hatchTurnsRemaining: number
   mirrorDelaySteps: number
+  telegraph: EnemyTelegraph | null
+}
+
+export type EnemyTelegraph = {
+  kind: 'ambusher_dash'
+  dir: Vec2
+  ticksRemaining: number
 }
 
 export type Particle = {
@@ -82,6 +136,7 @@ export type GameState = {
   currentRunSeed: number | null
   runObjectiveOffset: number
   persistentUpgrades: Upgrade[]
+  persistentRewards: RewardOption[]
   selectedRelicId: RelicId | null
   pendingFloorRoute: FloorRouteChoice | null
 }
@@ -131,6 +186,21 @@ export type GoalDefinition = {
   id: GoalId
   target: number
   reward: number
+}
+
+export type RoomObjectiveKind = 'survive' | 'collect_cores' | 'defeat_elite' | 'activate_terminals'
+
+export type RoomObjectiveDefinition = {
+  kind: RoomObjectiveKind
+  target: number
+}
+
+export type RoomObjectiveState = {
+  kind: RoomObjectiveKind
+  progress: number
+  target: number
+  completed: boolean
+  rewardClaimed: boolean
 }
 
 export type NonBossObjectiveKind = 'portal' | 'score' | 'kills'

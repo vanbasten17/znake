@@ -1,5 +1,10 @@
 import { BALANCE } from './balance'
-import type { FloorObjectiveKind, NonBossObjectiveKind } from './types'
+import type {
+  FloorObjectiveKind,
+  NonBossObjectiveKind,
+  RoomObjectiveDefinition,
+  RoomObjectiveKind,
+} from './types'
 
 export type FloorObjective = {
   kind: FloorObjectiveKind
@@ -7,6 +12,8 @@ export type FloorObjective = {
   scoreTarget: number
   killsTarget: number
 }
+
+export type RoomObjective = RoomObjectiveDefinition
 
 const toPositiveInt = (value: number): number => Math.max(1, Math.floor(value))
 
@@ -59,6 +66,58 @@ export const getKillsObjectiveTarget = (floor: number): number => {
     BALANCE.objectives.killTargetBase +
     Math.floor((clampedFloor - 1) / BALANCE.objectives.killTargetPerFloorStep)
   return Math.min(BALANCE.objectives.killTargetCap, toPositiveInt(target))
+}
+
+export const getRoomObjectiveKind = (floor: number, runObjectiveOffset = 0): RoomObjectiveKind => {
+  const clampedFloor = Math.max(1, Math.floor(floor))
+  const len = BALANCE.roomObjectives.rotation.length
+  if (len <= 0) {
+    return 'survive'
+  }
+  const normalizedOffset = ((Math.floor(runObjectiveOffset) % len) + len) % len
+  return BALANCE.roomObjectives.rotation[(clampedFloor - 1 + normalizedOffset) % len] ?? 'survive'
+}
+
+export const getSurviveObjectiveTargetMs = (floor: number): number => {
+  const clampedFloor = Math.max(1, Math.floor(floor))
+  const target =
+    BALANCE.roomObjectives.surviveDurationBaseMs +
+    (clampedFloor - 1) * BALANCE.roomObjectives.surviveDurationPerFloorMs
+  return Math.min(BALANCE.roomObjectives.surviveDurationCapMs, toPositiveInt(target))
+}
+
+export const getCollectCoresObjectiveTarget = (floor: number): number => {
+  const clampedFloor = Math.max(1, Math.floor(floor))
+  const target =
+    BALANCE.roomObjectives.collectCoresBase +
+    Math.floor((clampedFloor - 1) / BALANCE.roomObjectives.collectCoresPerFloorStep)
+  return Math.min(BALANCE.roomObjectives.collectCoresCap, toPositiveInt(target))
+}
+
+export const getDefeatEliteObjectiveTarget = (floor: number): number => {
+  const clampedFloor = Math.max(1, Math.floor(floor))
+  const target = BALANCE.roomObjectives.defeatEliteBase + Math.floor((clampedFloor - 1) / 4)
+  return Math.min(BALANCE.roomObjectives.defeatEliteCap, toPositiveInt(target))
+}
+
+export const getActivateTerminalsObjectiveTarget = (floor: number): number => {
+  const clampedFloor = Math.max(1, Math.floor(floor))
+  const target = BALANCE.roomObjectives.activateTerminalsBase + Math.floor((clampedFloor - 1) / 5)
+  return Math.min(BALANCE.roomObjectives.activateTerminalsCap, toPositiveInt(target))
+}
+
+export const getRoomObjective = (floor: number, runObjectiveOffset = 0): RoomObjective => {
+  const kind = getRoomObjectiveKind(floor, runObjectiveOffset)
+  if (kind === 'collect_cores') {
+    return { kind, target: getCollectCoresObjectiveTarget(floor) }
+  }
+  if (kind === 'defeat_elite') {
+    return { kind, target: getDefeatEliteObjectiveTarget(floor) }
+  }
+  if (kind === 'activate_terminals') {
+    return { kind, target: getActivateTerminalsObjectiveTarget(floor) }
+  }
+  return { kind: 'survive', target: getSurviveObjectiveTargetMs(floor) }
 }
 
 export const getFloorObjective = (floor: number, runObjectiveOffset = 0): FloorObjective => {

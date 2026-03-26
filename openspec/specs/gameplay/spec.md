@@ -83,6 +83,54 @@ Enemy movement and collision rule resolution SHALL be delegated to pure simulati
 - **THEN** collision target and hit-part resolution come from pure simulation helpers
 - **AND** scene code handles feedback, score, and transition side effects
 
+### Requirement: Combat fairness windows
+
+The system SHALL provide short, tunable reaction windows around high-risk combat moments without pausing the simulation or granting broad invulnerability.
+
+#### Scenario: Room entry grants brief contact grace
+
+- **WHEN** a new floor begins and gameplay control starts
+- **THEN** player enemy-contact damage is suppressed for a short configured room-entry grace window
+- **AND** enemy movement and other board systems continue normally
+
+#### Scenario: Nonlethal damage grants brief recovery grace
+
+- **WHEN** the player survives enemy or hazard contact that removes shields or body segments
+- **THEN** the system starts a short configured post-hit grace window
+- **AND** repeated contact during that window does not immediately remove additional shields or segments
+
+### Requirement: Enemy telegraph readability
+
+The system SHALL surface imminent dangerous enemy actions before impact using deterministic, tunable telegraph timing.
+
+#### Scenario: Ambusher dash is telegraphed before execution
+
+- **WHEN** an ambusher becomes eligible to perform a dash attack
+- **THEN** it enters a telegraph state for a configured number of enemy movement ticks before the dash resolves
+- **AND** that telegraph state is available to presentation code for clear warning cues
+
+#### Scenario: Egg hatch warns before threat state changes
+
+- **WHEN** an egg enemy is close to hatching
+- **THEN** its remaining hatch time is available for readable pre-hatch presentation cues
+- **AND** the hatch still resolves deterministically from simulation state
+
+### Requirement: Enemy spawn fairness
+
+The system SHALL validate enemy spawn locations against localized fairness rules before committing a spawn.
+
+#### Scenario: Enemy spawn avoids immediate player pressure
+
+- **WHEN** a new enemy spawn cell is selected
+- **THEN** the chosen cell respects configured minimum distance and lane-pressure fairness rules relative to the player head
+- **AND** the spawn does not begin in an obviously near-instant-hit position
+
+#### Scenario: Enemy spawn avoids low-agency pockets when possible
+
+- **WHEN** enemy spawn candidates are evaluated
+- **THEN** candidates with insufficient local escape space are rejected while fair alternatives exist
+- **AND** the system falls back deterministically to general open-cell selection only if stricter fairness filters exhaust valid candidates
+
 ### Requirement: Floor progression
 
 Portal flow and core-pressure timing transitions SHALL be handled by pure objective state machine helpers.
@@ -98,6 +146,58 @@ Portal flow and core-pressure timing transitions SHALL be handled by pure object
 - **WHEN** core pressure timer reaches threshold
 - **THEN** pure objective simulation emits cooldown/decay outcomes
 - **AND** scene code applies concrete snake mutations and death checks
+
+#### Scenario: Room objective transitions are state-machine driven
+
+- **WHEN** room objective progress changes or completion is evaluated
+- **THEN** objective state updates are produced by pure simulation helpers
+- **AND** scene code handles runtime side effects such as HUD updates, feedback, and reward-overlay transitions
+
+#### Scenario: Reward selection gates non-boss progression
+
+- **WHEN** a non-boss segment objective is completed
+- **THEN** progression pauses for reward selection
+- **AND** the next segment begins only after the selected reward is applied
+
+### Requirement: Room objective progression loop
+
+The system SHALL use the active room objective as the short-term progression gate for non-boss run segments.
+
+#### Scenario: Non-boss segment starts with an active objective
+
+- **WHEN** a non-boss room or run segment begins
+- **THEN** gameplay starts with one active room objective
+- **AND** the player can make progress toward completion immediately
+
+#### Scenario: Objective completion gates reward before advancement
+
+- **WHEN** the player fulfills the active room objective
+- **THEN** gameplay triggers a reward choice
+- **AND** the next segment does not begin until one reward is selected
+
+### Requirement: Objective-specific progress events
+
+The system SHALL support first-pass objective progress from survival, core collection, elite defeat, and terminal activation events.
+
+#### Scenario: Survival objective completes on timer
+
+- **WHEN** the active objective kind is `survive`
+- **THEN** completion occurs after the configured survival duration elapses
+
+#### Scenario: Core collection objective completes on pickups
+
+- **WHEN** the active objective kind is `collect_cores`
+- **THEN** collecting the configured number of core items completes the objective
+
+#### Scenario: Elite defeat objective completes on elite kills
+
+- **WHEN** the active objective kind is `defeat_elite`
+- **THEN** defeating the configured number of elite enemies completes the objective
+
+#### Scenario: Terminal objective completes on activations
+
+- **WHEN** the active objective kind is `activate_terminals`
+- **THEN** activating the configured number of terminals completes the objective
 
 ### Requirement: Snake body render continuity
 
@@ -115,7 +215,7 @@ The system SHALL render snake head and all remaining body segments in every fram
 
 ### Requirement: Run modifiers from persistent meta
 
-The system SHALL apply persistent talent effects and selected relic effects before in-run upgrade effects when composing run behavior.
+The system SHALL apply persistent talent effects and selected relic effects before in-run upgrade effects when composing run behavior, and in-run upgrades SHALL be able to alter timing, routing, zoning, or recovery rules.
 
 #### Scenario: Talents affect run start
 
@@ -126,6 +226,12 @@ The system SHALL apply persistent talent effects and selected relic effects befo
 
 - **WHEN** gameplay initializes with a selected relic
 - **THEN** relic modifiers are applied before in-run upgrade modifiers
+
+#### Scenario: Identity upgrades affect space decisions
+
+- **WHEN** a run starts after one or more in-run upgrades have been selected
+- **THEN** the resulting run config can change movement pressure, map control, or recovery behavior
+- **AND** at least some upgrades influence routing, timing, or body-management decisions during play
 
 ### Requirement: Gameplay entity visual readability
 
@@ -306,4 +412,3 @@ The system SHALL support adding new entity types via data-driven semantic mappin
 - **WHEN** reference/guide visual previews are rendered
 - **THEN** they are sourced from the same semantic mapping used in gameplay
 - **AND** previews do not diverge from in-run meaning
-

@@ -1,0 +1,108 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  padding: clamp(48px, 9vh, 76px) var(--space-4) var(--space-8);
+  background: radial-gradient(circle at 22% 16%, rgba(106, 255, 213, 0.18), transparent 34%),
+    radial-gradient(circle at 82% 22%, rgba(255, 200, 109, 0.16), transparent 32%),
+    linear-gradient(rgba(7, 18, 34, 0.72), rgba(3, 8, 20, 0.93));
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(24px, 5vw, 34px);
+  color: #b7ffe8;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.subtitle {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(11px, 2.35vw, 14px);
+  color: var(--color-text-tertiary);
+  letter-spacing: 1px;
+}
+
+.objective {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(11px, 2.2vw, 14px);
+  color: #e8fff5;
+  letter-spacing: 0.8px;
+}
+
+.cards {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.card {
+  width: 100%;
+  border: 2px solid rgba(110, 176, 198, 0.6);
+  border-radius: 12px;
+  background: rgba(8, 16, 30, 0.96);
+  color: var(--color-text-primary);
+  display: grid;
+  grid-template-columns: 40px 1fr 28px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  min-height: 84px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: #9fffd5;
+  box-shadow: 0 0 0 1px rgba(159, 255, 213, 0.42);
+  outline: none;
+}
+
+.index,
+.hotkey {
+  font-family: var(--font-display);
+  font-size: clamp(16px, 3.4vw, 21px);
+  color: #d6fff0;
+}
+
+.hotkey {
+  justify-self: end;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: clamp(15px, 3vw, 19px);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.upside,
+.downside {
+  font-family: var(--font-ui);
+  font-size: clamp(11px, 2.2vw, 14px);
+  line-height: 1.2;
+}
+
+.upside {
+  color: #bfffe5;
+}
+
+.downside {
+  color: #ffd4a6;
+}

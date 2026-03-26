@@ -9,6 +9,7 @@ export type OccupancySnapshot = {
   food?: Vec2 | null
   powerup?: Vec2 | null
   biomeItem?: Vec2 | null
+  extra?: ReadonlyArray<Vec2>
 }
 
 export const cellKey = (x: number, y: number): string => `${x},${y}`
@@ -41,6 +42,9 @@ export const isOccupied = (x: number, y: number, occupancy: OccupancySnapshot): 
     return true
   }
   if (occupancy.biomeItem && occupancy.biomeItem.x === x && occupancy.biomeItem.y === y) {
+    return true
+  }
+  if (occupancy.extra?.some((cell) => cell.x === x && cell.y === y)) {
     return true
   }
   return false

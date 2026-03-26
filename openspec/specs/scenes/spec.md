@@ -96,7 +96,7 @@ The system SHALL render relic selection in a portrait-first polished composition
 
 ### Requirement: Upgrade selection polished composition
 
-The system SHALL render upgrade selection in a portrait-first polished composition aligned with the approved reference.
+The system SHALL render upgrade selection in a portrait-first polished composition aligned with the approved reference while clearly surfacing family identity and decision context.
 
 #### Scenario: Upgrade selection fits vertical layout
 
@@ -109,6 +109,12 @@ The system SHALL render upgrade selection in a portrait-first polished compositi
 - **WHEN** upgrade scene is active
 - **THEN** upgrade selection content is rendered via DOM overlay in the game area
 - **AND** scene behavior (pick flow, transitions, keyboard shortcuts) remains equivalent
+
+#### Scenario: Upgrade cards show family identity
+
+- **WHEN** upgrade choices are shown
+- **THEN** each card communicates the upgrade family and short gameplay purpose
+- **AND** tradeoff-oriented copy remains readable without inspecting external menus
 
 ### Requirement: Stable scene handoff for DOM shell
 

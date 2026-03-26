@@ -18,6 +18,7 @@ const baseEnemy = (partial?: Partial<Enemy>): Enemy => ({
   dashCooldown: 0,
   hatchTurnsRemaining: 0,
   mirrorDelaySteps: 0,
+  telegraph: null,
   ...partial,
 })
 
@@ -39,6 +40,7 @@ test('tickEnemy moves toward player in deterministic way', () => {
       dashChanceWhenAligned: 0.5,
       dashSteps: 2,
       dashCooldownTurns: 2,
+      telegraphTicks: 2,
     },
     stalkerSpeedMultiplier: 0.8,
     egg: {
@@ -66,6 +68,7 @@ test('egg enemy hatches into normal enemy with configured length', () => {
       dashChanceWhenAligned: 0.5,
       dashSteps: 2,
       dashCooldownTurns: 2,
+      telegraphTicks: 2,
     },
     stalkerSpeedMultiplier: 0.8,
     egg: {
@@ -97,6 +100,82 @@ test('detectEnemyCollision distinguishes head and body', () => {
 
   const bodyHit = detectEnemyCollision({ x: 10, y: 11 }, enemies)
   assert.deepEqual(bodyHit, { enemyIndex: 1, part: 'body' })
+})
+
+test('ambusher telegraphs before executing dash', () => {
+  const enemy = baseEnemy({
+    kind: 'ambusher',
+    body: [
+      { x: 5, y: 5 },
+      { x: 4, y: 5 },
+    ],
+    dir: { x: 1, y: 0 },
+  })
+  const telegraph = tickEnemy(enemy, {
+    playerHead: { x: 5, y: 10 },
+    playerHeadHistory: [],
+    isWall: () => false,
+    foodCell: null,
+    rng: createSeededRng(2),
+    ambusher: {
+      dashMinLaneDistance: 2,
+      dashChanceWhenAligned: 1,
+      dashSteps: 2,
+      dashCooldownTurns: 3,
+      telegraphTicks: 2,
+    },
+    stalkerSpeedMultiplier: 0.8,
+    egg: {
+      hatchLength: 3,
+    },
+  })
+  assert.equal(telegraph.enemy.body[0]?.x, 5)
+  assert.equal(telegraph.enemy.body[0]?.y, 5)
+  assert.equal(telegraph.enemy.telegraph?.kind, 'ambusher_dash')
+  assert.equal(telegraph.enemy.telegraph?.ticksRemaining, 2)
+
+  const charging = tickEnemy(telegraph.enemy, {
+    playerHead: { x: 5, y: 10 },
+    playerHeadHistory: [],
+    isWall: () => false,
+    foodCell: null,
+    rng: createSeededRng(2),
+    ambusher: {
+      dashMinLaneDistance: 2,
+      dashChanceWhenAligned: 1,
+      dashSteps: 2,
+      dashCooldownTurns: 3,
+      telegraphTicks: 2,
+    },
+    stalkerSpeedMultiplier: 0.8,
+    egg: {
+      hatchLength: 3,
+    },
+  })
+  assert.equal(charging.enemy.telegraph?.ticksRemaining, 1)
+
+  const dashed = tickEnemy(charging.enemy, {
+    playerHead: { x: 5, y: 10 },
+    playerHeadHistory: [],
+    isWall: () => false,
+    foodCell: null,
+    rng: createSeededRng(2),
+    ambusher: {
+      dashMinLaneDistance: 2,
+      dashChanceWhenAligned: 1,
+      dashSteps: 2,
+      dashCooldownTurns: 3,
+      telegraphTicks: 2,
+    },
+    stalkerSpeedMultiplier: 0.8,
+    egg: {
+      hatchLength: 3,
+    },
+  })
+  assert.equal(dashed.enemy.body[0]?.x, 5)
+  assert.equal(dashed.enemy.body[0]?.y, 7)
+  assert.equal(dashed.enemy.telegraph, null)
+  assert.equal(dashed.enemy.dashCooldown, 3)
 })
 
 test('collision damage resolver uses boss/body overrides', () => {

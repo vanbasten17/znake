@@ -263,6 +263,7 @@ export class DeathScene extends Phaser.Scene {
     gameState.currentRunSeed = runSeed
     gameState.runObjectiveOffset = getRunObjectiveOffsetForSeed(runSeed)
     gameState.persistentUpgrades = []
+    gameState.persistentRewards = []
     gameState.selectedRelicId = null
     gameState.pendingFloorRoute = null
     playerProfile.lifetimeStats.runsPlayed += 1

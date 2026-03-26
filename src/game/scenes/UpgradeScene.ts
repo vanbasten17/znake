@@ -1,10 +1,10 @@
 import Phaser from 'phaser'
 import styles from '../../styles/upgradeOverlay.module.css'
-import { getFloorObjective } from '../core/objectives'
+import { getRoomObjective } from '../core/objectives'
 import { gameState } from '../core/state'
 import type { Upgrade } from '../core/types'
-import { UPGRADE_POOL } from '../core/upgrades'
-import { createSeededRng, deriveRunSeed } from '../simulation/rng'
+import { UPGRADE_FAMILIES, drawUpgradeDraft } from '../core/upgrades'
+import { deriveRunSeed } from '../simulation/rng'
 import { getMoveHintText, getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
@@ -41,24 +41,16 @@ export class UpgradeScene extends Phaser.Scene {
       this.input.keyboard?.removeAllListeners()
     })
 
-    const pool = [...UPGRADE_POOL]
-    const choices: Upgrade[] = []
     const runSeed =
       gameState.currentRunSeed ??
       deriveRunSeed([Date.now(), gameState.run, gameState.floor, this.score])
     gameState.currentRunSeed = runSeed
-    const draftRng = createSeededRng(deriveRunSeed([runSeed, gameState.floor, 0x55504752]))
-    for (let i = 0; i < 3; i += 1) {
-      if (pool.length === 0) {
-        break
-      }
-      const idx = draftRng.nextInt(0, pool.length - 1)
-      const upgrade = pool.splice(idx, 1)[0]
-      if (upgrade) {
-        choices.push(upgrade)
-      }
-    }
-    this.choices = choices
+    this.choices = drawUpgradeDraft({
+      runSeed,
+      floor: gameState.floor,
+      ownedUpgradeIds: gameState.persistentUpgrades.map((upgrade) => upgrade.id),
+      count: 3,
+    })
     this.mountOverlay()
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
@@ -82,6 +74,26 @@ export class UpgradeScene extends Phaser.Scene {
 
   private getUpgradeDescription(upgrade: Upgrade): string {
     return t(`upgrade.${upgrade.id}_desc`, { defaultValue: upgrade.desc })
+  }
+
+  private getUpgradeFamilyLabel(upgrade: Upgrade): string {
+    return t(`upgrade.family.${upgrade.family}.label`, {
+      defaultValue: UPGRADE_FAMILIES[upgrade.family].label,
+    })
+  }
+
+  private getUpgradeFamilySummary(upgrade: Upgrade): string {
+    return t(`upgrade.family.${upgrade.family}.summary`, {
+      defaultValue: UPGRADE_FAMILIES[upgrade.family].summary,
+    })
+  }
+
+  private getUpgradeGameplay(upgrade: Upgrade): string {
+    return t(`upgrade.${upgrade.id}_gameplay`, { defaultValue: upgrade.gameplay })
+  }
+
+  private getUpgradeTradeoff(upgrade: Upgrade): string {
+    return t(`upgrade.${upgrade.id}_tradeoff`, { defaultValue: upgrade.tradeoff })
   }
 
   private pick(upgrade: Upgrade | undefined): void {
@@ -166,6 +178,12 @@ export class UpgradeScene extends Phaser.Scene {
     content.className = styles.content
     button.append(content)
 
+    const family = document.createElement('span')
+    family.className = styles.family
+    family.textContent = this.getUpgradeFamilyLabel(upgrade)
+    family.style.color = `#${UPGRADE_FAMILIES[upgrade.family].color.toString(16).padStart(6, '0')}`
+    content.append(family)
+
     const name = document.createElement('span')
     name.className = styles.name
     name.textContent = this.getUpgradeName(upgrade)
@@ -177,6 +195,16 @@ export class UpgradeScene extends Phaser.Scene {
     description.textContent = this.getUpgradeDescription(upgrade)
     content.append(description)
 
+    const gameplay = document.createElement('span')
+    gameplay.className = styles.gameplay
+    gameplay.textContent = this.getUpgradeGameplay(upgrade)
+    content.append(gameplay)
+
+    const tradeoff = document.createElement('span')
+    tradeoff.className = styles.tradeoff
+    tradeoff.textContent = `${this.getUpgradeFamilySummary(upgrade)} ${this.getUpgradeTradeoff(upgrade)}`
+    content.append(tradeoff)
+
     const hotkey = document.createElement('span')
     hotkey.className = styles.hotkey
     hotkey.textContent = String(index + 1)
@@ -186,17 +214,19 @@ export class UpgradeScene extends Phaser.Scene {
   }
 
   private getObjectivePreview(floor: number): string {
-    const objective = getFloorObjective(floor, gameState.runObjectiveOffset)
-    if (objective.kind === 'boss') {
-      return t('game.objectiveBossPreview')
+    const objective = getRoomObjective(floor, gameState.runObjectiveOffset)
+    if (objective.kind === 'collect_cores') {
+      return t('game.roomObjectiveCollectCoresPreview', { target: objective.target })
     }
-    if (objective.kind === 'score') {
-      return t('game.objectiveScorePreview', { target: objective.scoreTarget })
+    if (objective.kind === 'defeat_elite') {
+      return t('game.roomObjectiveDefeatElitePreview', { target: objective.target })
     }
-    if (objective.kind === 'kills') {
-      return t('game.objectiveKillsPreview', { target: objective.killsTarget })
+    if (objective.kind === 'activate_terminals') {
+      return t('game.roomObjectiveActivateTerminalsPreview', { target: objective.target })
     }
-    return t('game.objectivePortalPreview')
+    return t('game.roomObjectiveSurvivePreview', {
+      seconds: Math.ceil(objective.target / 1000),
+    })
   }
 
   private teardownOverlay(): void {

@@ -15,7 +15,7 @@ import {
   saveProfile,
   unlockTalent,
 } from '../core/meta'
-import { getFloorObjective, getRunObjectiveOffsetForSeed } from '../core/objectives'
+import { getRoomObjective, getRunObjectiveOffsetForSeed } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { GoalId } from '../core/types'
 import { drawMarkerSpriteCanvas } from '../render/markerBitmapDraw'
@@ -545,17 +545,19 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private getObjectivePreview(floor: number): string {
-    const objective = getFloorObjective(floor, gameState.runObjectiveOffset)
-    if (objective.kind === 'boss') {
-      return t('game.objectiveBossPreview')
+    const objective = getRoomObjective(floor, gameState.runObjectiveOffset)
+    if (objective.kind === 'collect_cores') {
+      return t('game.roomObjectiveCollectCoresPreview', { target: objective.target })
     }
-    if (objective.kind === 'score') {
-      return t('game.objectiveScorePreview', { target: objective.scoreTarget })
+    if (objective.kind === 'defeat_elite') {
+      return t('game.roomObjectiveDefeatElitePreview', { target: objective.target })
     }
-    if (objective.kind === 'kills') {
-      return t('game.objectiveKillsPreview', { target: objective.killsTarget })
+    if (objective.kind === 'activate_terminals') {
+      return t('game.roomObjectiveActivateTerminalsPreview', { target: objective.target })
     }
-    return t('game.objectivePortalPreview')
+    return t('game.roomObjectiveSurvivePreview', {
+      seconds: Math.ceil(objective.target / 1000),
+    })
   }
 
   private getVoiceStatusLabel(status: VoiceRuntimeStatus): string {
@@ -624,6 +626,7 @@ export class MenuScene extends Phaser.Scene {
     gameState.currentRunSeed = runSeed
     gameState.runObjectiveOffset = getRunObjectiveOffsetForSeed(runSeed)
     gameState.persistentUpgrades = []
+    gameState.persistentRewards = []
     gameState.selectedRelicId = null
     gameState.pendingFloorRoute = null
     playerProfile.lifetimeStats.runsPlayed += 1

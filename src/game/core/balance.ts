@@ -1,4 +1,11 @@
-import type { FloorTemplate, NonBossObjectiveKind, RunConfig, TalentId } from './types'
+import type {
+  FloorTemplate,
+  NonBossObjectiveKind,
+  RewardOption,
+  RoomObjectiveKind,
+  RunConfig,
+  TalentId,
+} from './types'
 
 export const BALANCE = {
   run: {
@@ -7,10 +14,14 @@ export const BALANCE = {
     bonusStartLength: 0,
     bonusShields: 0,
     hasMagnet: false,
+    magnetRadius: 4,
     ghostCharges: 0,
     scoreMult: 1,
+    powerupScoreMult: 1,
+    powerupGrowth: 0,
     enemySlow: 1,
     hasRegen: false,
+    regenIntervalMs: 5000,
   },
   floor: {
     wallBase: 2,
@@ -100,6 +111,103 @@ export const BALANCE = {
     killTargetPerFloorStep: 2,
     killTargetCap: 4,
   },
+  roomObjectives: {
+    rotation: [
+      'survive',
+      'collect_cores',
+      'defeat_elite',
+      'activate_terminals',
+    ] satisfies ReadonlyArray<RoomObjectiveKind>,
+    surviveDurationBaseMs: 18000,
+    surviveDurationPerFloorMs: 1000,
+    surviveDurationCapMs: 26000,
+    collectCoresBase: 2,
+    collectCoresPerFloorStep: 2,
+    collectCoresCap: 4,
+    defeatEliteBase: 1,
+    defeatEliteCap: 2,
+    activateTerminalsBase: 2,
+    activateTerminalsCap: 3,
+  },
+  rewards: {
+    draftSize: 3,
+    pool: [
+      {
+        id: 'fortified_core',
+        icon: 'H',
+        color: 0x6affd5,
+        effects: {
+          bonusShields: 1,
+          moveIntervalMultiplier: 1.12,
+        },
+      },
+      {
+        id: 'volatile_fangs',
+        icon: 'V',
+        color: 0x8cff78,
+        effects: {
+          venomCharges: 2,
+          enemySlowMultiplier: 0.88,
+        },
+      },
+      {
+        id: 'long_coil',
+        icon: 'L',
+        color: 0xffc86d,
+        effects: {
+          bonusLength: 2,
+          maxTurnQueue: 1,
+        },
+      },
+    ] satisfies ReadonlyArray<RewardOption>,
+  },
+  feedback: {
+    hudPulseMs: 520,
+    damage: {
+      flashSeconds: 0.16,
+      shakeSeconds: 0.22,
+      hitStopMs: 55,
+      pulseSeconds: 0.26,
+      pulseRadiusCells: 1.2,
+    },
+    shieldDamage: {
+      flashSeconds: 0.14,
+      shakeSeconds: 0.18,
+      hitStopMs: 34,
+      pulseSeconds: 0.22,
+      pulseRadiusCells: 1.02,
+    },
+    pickupMinor: {
+      flashSeconds: 0.08,
+      shakeSeconds: 0.04,
+      hitStopMs: 16,
+      pulseSeconds: 0.2,
+      pulseRadiusCells: 0.92,
+    },
+    pickupMajor: {
+      flashSeconds: 0.11,
+      shakeSeconds: 0.06,
+      hitStopMs: 24,
+      pulseSeconds: 0.24,
+      pulseRadiusCells: 1.08,
+    },
+    objectiveReady: {
+      flashSeconds: 0.18,
+      shakeSeconds: 0.12,
+      hitStopMs: 46,
+      pulseSeconds: 0.42,
+      pulseRadiusCells: 2.5,
+      hudPulseMs: 980,
+    },
+    objectiveComplete: {
+      flashSeconds: 0.14,
+      shakeSeconds: 0.1,
+      hitStopMs: 28,
+      pulseSeconds: 0.34,
+      pulseRadiusCells: 1.8,
+      hudPulseMs: 760,
+    },
+  },
   spawn: {
     powerupAtFloorStartChance: 0.4,
     powerupOnFoodChance: 0.3,
@@ -107,6 +215,21 @@ export const BALANCE = {
     powerupRespawnDelayMs: 5000,
     enemyRespawnOnShieldHitChance: 0.3,
     enemyRespawnIdleChance: 0.05,
+  },
+  combatFairness: {
+    grace: {
+      roomEntryMs: 900,
+      postHitMs: 700,
+    },
+    telegraph: {
+      ambusherDashTicks: 2,
+      eggHatchWarningTurns: 1,
+    },
+    spawn: {
+      enemyMinDistanceFromPlayer: 7,
+      avoidPlayerForwardLaneSteps: 3,
+      minOpenNeighborCount: 2,
+    },
   },
   enemy: {
     scoreOnKill: 20,
@@ -275,10 +398,15 @@ export const createBaseRunConfig = (): RunConfig => ({
   bonusStartLength: BALANCE.run.bonusStartLength,
   bonusShields: BALANCE.run.bonusShields,
   hasMagnet: BALANCE.run.hasMagnet,
+  magnetRadius: BALANCE.run.magnetRadius,
   ghostCharges: BALANCE.run.ghostCharges,
   scoreMult: BALANCE.run.scoreMult,
+  powerupScoreMult: BALANCE.run.powerupScoreMult,
+  powerupGrowth: BALANCE.run.powerupGrowth,
   enemySlow: BALANCE.run.enemySlow,
   hasRegen: BALANCE.run.hasRegen,
+  regenIntervalMs: BALANCE.run.regenIntervalMs,
+  maxTurnQueue: 2,
 })
 
 export type FloorSetup = {

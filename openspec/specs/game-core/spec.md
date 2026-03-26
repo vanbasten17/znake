@@ -54,16 +54,17 @@ The system SHALL provide deterministic randomness primitives for gameplay system
 - **THEN** extracted simulation functions produce equivalent random decisions and outputs
 
 ### Requirement: Upgrade definitions
+The system SHALL define an upgrade pool with id, family, name, desc, icon, color, gameplay-purpose metadata, and apply function for each upgrade.
 
-The system SHALL define an upgrade pool with id, name, desc, icon, color, and apply function for each upgrade.
-
-#### Scenario: Eight upgrades available
+#### Scenario: Family-based upgrade catalog is available
 
 - **WHEN** upgrade pool is loaded
-- **THEN** OVERCLOCK, BIOMASS, VOID SHIELD, ATTRACTOR, PHASE SHIFT, ECHO HARVEST, TIME RIFT, CELL REGEN are defined
+- **THEN** it contains an initial family-based pool for Aggro, Control, and Survival
+- **AND** each family has 2 to 4 upgrades with distinct behavioral purpose
 
 #### Scenario: Upgrade apply mutates run config
 
 - **WHEN** upgrade.apply(config) is called
-- **THEN** the config is mutated (e.g., moveInterval reduced, bonusShields increased)
+- **THEN** the config is mutated through centralized run-config fields
+- **AND** family-specific effects remain independent from rendering code
 

@@ -71,7 +71,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-4);
-  min-height: 78px;
+  min-height: 132px;
   text-align: left;
   cursor: pointer;
 }
@@ -93,7 +93,15 @@
 .content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 6px;
+}
+
+.family {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: #cce6ff;
 }
 
 .name {
@@ -111,6 +119,20 @@
   font-size: clamp(11px, 2.2vw, 14px);
   color: var(--color-text-secondary);
   line-height: 1.22;
+}
+
+.gameplay {
+  font-family: var(--font-ui);
+  font-size: clamp(11px, 2.1vw, 13px);
+  color: #eefcff;
+  line-height: 1.28;
+}
+
+.tradeoff {
+  font-family: var(--font-ui);
+  font-size: clamp(10px, 2vw, 12px);
+  color: #9fd5ff;
+  line-height: 1.3;
 }
 
 .hotkey {

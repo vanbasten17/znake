@@ -2,6 +2,8 @@ type FeedbackKind =
   | 'tap'
   | 'confirm'
   | 'success'
+  | 'pickup'
+  | 'reward'
   | 'danger'
   | 'pause'
   | 'crash'
@@ -15,6 +17,8 @@ const vibrationForKind = (kind: FeedbackKind): number | number[] => {
   if (kind === 'tap') return 8
   if (kind === 'confirm') return [10, 20, 10]
   if (kind === 'success') return [12, 18, 18]
+  if (kind === 'pickup') return [8, 14, 12]
+  if (kind === 'reward') return [10, 14, 18, 20, 20]
   if (kind === 'danger') return [25, 20, 25]
   if (kind === 'crash') return [35, 25, 35, 25, 50]
   if (kind === 'portal') return [16, 12, 24]
@@ -26,6 +30,8 @@ const toneForKind = (kind: FeedbackKind): { freq: number; durationMs: number; ga
   if (kind === 'tap') return { freq: 420, durationMs: 40, gain: 0.012 }
   if (kind === 'confirm') return { freq: 600, durationMs: 70, gain: 0.016 }
   if (kind === 'success') return { freq: 740, durationMs: 85, gain: 0.017 }
+  if (kind === 'pickup') return { freq: 820, durationMs: 65, gain: 0.014 }
+  if (kind === 'reward') return { freq: 920, durationMs: 150, gain: 0.018 }
   if (kind === 'danger') return { freq: 220, durationMs: 120, gain: 0.02 }
   if (kind === 'crash') return { freq: 130, durationMs: 190, gain: 0.028 }
   if (kind === 'portal') return { freq: 860, durationMs: 180, gain: 0.02 }
@@ -69,12 +75,15 @@ const playTone = (kind: FeedbackKind): void => {
   const now = ctx.currentTime
   const oscillator = ctx.createOscillator()
   const gainNode = ctx.createGain()
-  oscillator.type = kind === 'crash' ? 'sawtooth' : kind === 'portal' ? 'triangle' : 'square'
+  oscillator.type =
+    kind === 'crash' ? 'sawtooth' : kind === 'portal' || kind === 'reward' ? 'triangle' : 'square'
   oscillator.frequency.value = tone.freq
   if (kind === 'crash') {
     oscillator.frequency.exponentialRampToValueAtTime(85, now + tone.durationMs / 1000)
   } else if (kind === 'portal') {
     oscillator.frequency.exponentialRampToValueAtTime(640, now + tone.durationMs / 1000)
+  } else if (kind === 'reward') {
+    oscillator.frequency.exponentialRampToValueAtTime(1180, now + tone.durationMs / 1000)
   }
   gainNode.gain.value = 0
   gainNode.gain.setValueAtTime(0, now)

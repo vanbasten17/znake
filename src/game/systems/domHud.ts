@@ -15,11 +15,14 @@ type HudNodes = {
   floorDisp: HTMLSpanElement
   killsDisp: HTMLSpanElement
   runNum: HTMLSpanElement
+  objectiveStatus: HTMLDivElement
   hintBar: HTMLDivElement | null
   runStatus: HTMLDivElement
 }
 
 let hudNodes: HudNodes | null = null
+let runPulseTimer: number | null = null
+let objectivePulseTimer: number | null = null
 
 const resolveHudNodes = (): HudNodes => {
   if (hudNodes) {
@@ -30,6 +33,7 @@ const resolveHudNodes = (): HudNodes => {
     floorDisp: byId<HTMLSpanElement>('floor-disp'),
     killsDisp: byId<HTMLSpanElement>('kills-disp'),
     runNum: byId<HTMLSpanElement>('run-num'),
+    objectiveStatus: byId<HTMLDivElement>('objective-status'),
     hintBar: document.getElementById('hint-bar') as HTMLDivElement | null,
     runStatus: byId<HTMLDivElement>('run-status'),
   }
@@ -85,6 +89,41 @@ export const setRunStatusText = (value: string): void => {
   resolveHudNodes().runStatus.textContent = value
 }
 
+export const setObjectiveStatusText = (value: string): void => {
+  resolveHudNodes().objectiveStatus.textContent = value
+}
+
+export type HudPulseKind = 'danger' | 'pickup' | 'reward'
+
+export const pulseHudNode = (
+  target: 'run' | 'objective',
+  kind: HudPulseKind,
+  durationMs: number,
+): void => {
+  const nodes = resolveHudNodes()
+  const node = target === 'run' ? nodes.runStatus : nodes.objectiveStatus
+  const activeTimer = target === 'run' ? runPulseTimer : objectivePulseTimer
+  if (activeTimer !== null) {
+    window.clearTimeout(activeTimer)
+  }
+  node.dataset.juice = kind
+  const timeoutId = window.setTimeout(() => {
+    if (node.dataset.juice === kind) {
+      delete node.dataset.juice
+    }
+    if (target === 'run') {
+      runPulseTimer = null
+    } else {
+      objectivePulseTimer = null
+    }
+  }, durationMs)
+  if (target === 'run') {
+    runPulseTimer = timeoutId
+  } else {
+    objectivePulseTimer = timeoutId
+  }
+}
+
 export const getMoveHintText = (): string =>
   isKeyboardMode() ? t('hint.moveKeyboard') : t('hint.moveTouch')
 
@@ -96,6 +135,9 @@ export const getRestartHintText = (): string =>
 
 export const getUpgradeHintText = (): string =>
   isKeyboardMode() ? t('hint.upgradeKeyboard') : t('hint.upgradeTouch')
+
+export const getRewardHintText = (): string =>
+  isKeyboardMode() ? t('hint.rewardKeyboard') : t('hint.rewardTouch')
 
 export const updateHud = (score: number): void => {
   const { scoreDisp, floorDisp, killsDisp, runNum } = resolveHudNodes()

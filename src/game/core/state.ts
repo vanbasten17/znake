@@ -11,6 +11,7 @@ export const gameState: GameState = {
   currentRunSeed: null,
   runObjectiveOffset: 0,
   persistentUpgrades: [],
+  persistentRewards: [],
   selectedRelicId: null,
   pendingFloorRoute: null,
 }

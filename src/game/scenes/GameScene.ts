@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import rewardStyles from '../../styles/rewardOverlay.module.css'
 import { pickEliteKind, pickPowerupType, pickSpecialEnemyKind } from '../config/content'
 import { BALANCE, createBaseRunConfig, getFloorSetup } from '../core/balance'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
@@ -6,7 +7,12 @@ import { getDevScenario, isDevMode } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
 import type { GlossaryMarkerTone } from '../core/glossary'
 import { applyRelicEffect, applyTalentEffects } from '../core/meta'
-import { getFloorObjective } from '../core/objectives'
+import { getFloorObjective, getRoomObjective } from '../core/objectives'
+import {
+  applyRewardEffectsToConfig,
+  formatRewardTranslationKey,
+  getRewardPool,
+} from '../core/rewards'
 import { gameState, playerProfile } from '../core/state'
 import type {
   BiomeItem,
@@ -19,6 +25,8 @@ import type {
   Particle,
   Powerup,
   PowerupType,
+  RewardOption,
+  RoomObjectiveState,
   RunConfig,
   SnakeSegment,
   Vec2,
@@ -50,9 +58,13 @@ import {
 } from '../simulation/layout'
 import {
   addCorePressureCoolant,
+  advanceRoomObjectiveState,
   applyPortalBeaconAcceleration,
+  draftRewardOptions,
   initCorePressureState,
   initPortalFlowState,
+  initRoomObjectiveState,
+  markRoomObjectiveRewardClaimed,
   resetCorePressureTimer,
   shouldCompleteObjective,
   tickCorePressure,
@@ -70,7 +82,10 @@ import { getControlMode } from '../systems/controlScheme'
 import {
   getMoveHintText,
   getRestartHintText,
+  getRewardHintText,
+  pulseHudNode,
   setHintText,
+  setObjectiveStatusText,
   setRunStatusText,
   setSceneChrome,
   updateHud,
@@ -103,6 +118,20 @@ type VenomProjectile = {
   stepsRemaining: number
 }
 
+type FeedbackPulse = {
+  x: number
+  y: number
+  color: number
+  elapsed: number
+  duration: number
+  maxRadius: number
+}
+
+type ObjectiveTerminal = Vec2 & {
+  activated: boolean
+  pulse: number
+}
+
 type ReferenceMarker = {
   x: number
   y: number
@@ -129,9 +158,11 @@ export class GameScene extends Phaser.Scene {
   private currentDir: Vec2 = { x: 1, y: 0 }
   private moveTimer = 0
   private particles: Particle[] = []
+  private feedbackPulses: FeedbackPulse[] = []
   private shakeTimer = 0
   private flashTimer = 0
   private flashColor = 0xffffff
+  private hitStopMsRemaining = 0
 
   private cfg: RunConfig = createBaseRunConfig()
 
@@ -155,6 +186,11 @@ export class GameScene extends Phaser.Scene {
   private objectiveScoreTarget = 0
   private objectiveKillsStart = 0
   private objectiveKillsTarget = 0
+  private roomObjective: RoomObjectiveState | null = null
+  private objectiveTerminals: ObjectiveTerminal[] = []
+  private rewardChoices: RewardOption[] = []
+  private rewardPending = false
+  private rewardOverlayRoot: HTMLDivElement | null = null
   private portals: PortalCell[] = []
   private portalCountdownMs = 0
   private portalGraceMs = 0
@@ -171,6 +207,7 @@ export class GameScene extends Phaser.Scene {
   private powerup: Powerup | null = null
   private biomeItem: BiomeItem | null = null
   private bossSupportShieldRespawnMs = 0
+  private contactGraceMsRemaining = 0
   private enemyMoveTimer = 0
   private enemyInterval = 400
   private riftTimer = 0
@@ -264,6 +301,9 @@ export class GameScene extends Phaser.Scene {
     for (const upgrade of gameState.persistentUpgrades) {
       upgrade.apply(this.cfg)
     }
+    for (const reward of gameState.persistentRewards) {
+      applyRewardEffectsToConfig(this.cfg, reward.effects)
+    }
     this.shields = this.cfg.bonusShields
     this.ghostCharges = this.cfg.ghostCharges
     if (debugScenario?.forceMagnet) {
@@ -312,6 +352,9 @@ export class GameScene extends Phaser.Scene {
     this.objectiveKillsStart = gameState.kills
     this.objectiveScoreTarget = floorObjective.scoreTarget
     this.objectiveKillsTarget = floorObjective.killsTarget
+    this.roomObjective = initRoomObjectiveState(
+      getRoomObjective(gameState.floor, gameState.runObjectiveOffset),
+    )
 
     this.bgGraphics = this.add.graphics()
     this.wallGraphics = this.add.graphics()
@@ -369,6 +412,7 @@ export class GameScene extends Phaser.Scene {
         this.spawnEnemy('mirror')
       }
     }
+    this.setupRoomObjectiveActors()
 
     this.spawnFood()
     if (debugScenario?.placeFoodNearHead) {
@@ -394,6 +438,7 @@ export class GameScene extends Phaser.Scene {
     if (this.objectiveType === 'kills' && !this.isBossFloor) {
       this.spawnPowerup('venom')
     }
+    this.startContactGrace(BALANCE.combatFairness.grace.roomEntryMs)
     this.stars = Array.from({ length: BALANCE.biome.starCount }, () => ({
       x: this.fxRng.nextInt(0, WIDTH - 1),
       y: this.fxRng.nextInt(0, HEIGHT - 1),
@@ -411,6 +456,18 @@ export class GameScene extends Phaser.Scene {
     })
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      if (this.rewardPending) {
+        if (event.code === 'Digit1' || event.code === 'Numpad1') {
+          this.pickRewardChoice(0)
+        }
+        if (event.code === 'Digit2' || event.code === 'Numpad2') {
+          this.pickRewardChoice(1)
+        }
+        if (event.code === 'Digit3' || event.code === 'Numpad3') {
+          this.pickRewardChoice(2)
+        }
+        return
+      }
       const dir = directionMap[event.code]
       if (dir) {
         this.recordReplayInput('key', event.code)
@@ -438,6 +495,8 @@ export class GameScene extends Phaser.Scene {
         this.pauseText.destroy()
         this.pauseText = undefined
       }
+      this.teardownRewardOverlay()
+      setObjectiveStatusText('')
       setRunStatusText('')
     })
 
@@ -445,6 +504,7 @@ export class GameScene extends Phaser.Scene {
     this.drawWalls()
     this.redrawTerrainGraphics()
     updateHud(this.score)
+    this.refreshObjectiveHud()
     setHintText(`${getMoveHintText()} · ${t('hint.itemLegend')}`)
 
     if (debugScenario?.referenceBoard) {
@@ -492,6 +552,8 @@ export class GameScene extends Phaser.Scene {
       window.virtualInput.ability = false
     }
 
+    this.updateFeedbackPulses(delta / 1000)
+
     if (this.paused) {
       return
     }
@@ -507,17 +569,33 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
+    this.updateCameraShake(delta / 1000)
+    if (this.hitStopMsRemaining > 0) {
+      this.hitStopMsRemaining = Math.max(0, this.hitStopMsRemaining - delta)
+      this.drawBackground()
+      this.drawFrame()
+      return
+    }
+
     const simDelta = delta * getSlowMotionFactor()
     const dt = simDelta / 1000
+    this.updateRoomObjectiveByTime(simDelta)
+    this.refreshObjectiveHud()
+    if (this.rewardPending) {
+      this.drawBackground()
+      this.drawFrame()
+      return
+    }
     this.drawBackground()
-    this.updateCameraShake(dt)
     this.updateEnemyMovement(simDelta)
     this.ensureObjectiveEnemyAvailability()
+    this.ensureRoomObjectiveAvailability()
     this.updateVoidRift(simDelta)
     this.updatePortalFlow(simDelta)
     this.updateCorePressure(simDelta)
     this.updateBossSupport(simDelta)
     this.updateVenomState(simDelta)
+    this.updateContactGrace(simDelta)
     this.updateRegen(simDelta)
     this.updateSnakeMovement(simDelta)
     this.updateMagnetFood()
@@ -531,6 +609,11 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.biomeItem) {
       this.biomeItem.pulse += dt * 4.5
+    }
+    for (const terminal of this.objectiveTerminals) {
+      if (!terminal.activated) {
+        terminal.pulse += dt * 3.1
+      }
     }
     for (const portal of this.portals) {
       portal.pulse += dt * 4.2
@@ -585,9 +668,11 @@ export class GameScene extends Phaser.Scene {
     this.currentDir = { x: 1, y: 0 }
     this.moveTimer = 0
     this.particles = []
+    this.feedbackPulses = []
     this.shakeTimer = 0
     this.flashTimer = 0
     this.flashColor = 0xffffff
+    this.hitStopMsRemaining = 0
     this.cfg = createBaseRunConfig()
     this.shields = 0
     this.ghostCharges = 0
@@ -604,6 +689,11 @@ export class GameScene extends Phaser.Scene {
     this.objectiveScoreTarget = 0
     this.objectiveKillsStart = 0
     this.objectiveKillsTarget = 0
+    this.roomObjective = null
+    this.objectiveTerminals = []
+    this.rewardChoices = []
+    this.rewardPending = false
+    this.teardownRewardOverlay()
     this.portals = []
     this.portalCountdownMs = 0
     this.portalGraceMs = 0
@@ -623,6 +713,7 @@ export class GameScene extends Phaser.Scene {
     this.corePressureCoolantCharges = 0
     this.biomeItem = null
     this.bossSupportShieldRespawnMs = 0
+    this.contactGraceMsRemaining = 0
     this.stars = []
     this.isBossFloor = false
     this.bossPhase = 'alpha'
@@ -654,7 +745,7 @@ export class GameScene extends Phaser.Scene {
     if (next.x === -last.x && next.y === -last.y) {
       return
     }
-    if (this.moveQueue.length < 2) {
+    if (this.moveQueue.length < this.cfg.maxTurnQueue) {
       this.moveQueue.push(next)
       this.recordReplayInput('dir', this.vectorToInputLabel(next))
     }
@@ -762,6 +853,7 @@ export class GameScene extends Phaser.Scene {
             dashChanceWhenAligned: BALANCE.elite.ambusher.dashChanceWhenAligned,
             dashSteps: BALANCE.elite.ambusher.dashSteps,
             dashCooldownTurns: BALANCE.elite.ambusher.dashCooldownTurns,
+            telegraphTicks: BALANCE.combatFairness.telegraph.ambusherDashTicks,
           },
           stalkerSpeedMultiplier: BALANCE.elite.stalker.speedMultiplier,
           egg: {
@@ -789,6 +881,18 @@ export class GameScene extends Phaser.Scene {
         runTick()
       }
     }
+  }
+
+  private updateContactGrace(delta: number): void {
+    this.contactGraceMsRemaining = Math.max(0, this.contactGraceMsRemaining - delta)
+  }
+
+  private startContactGrace(durationMs: number): void {
+    this.contactGraceMsRemaining = Math.max(this.contactGraceMsRemaining, durationMs)
+  }
+
+  private hasContactGrace(): boolean {
+    return this.contactGraceMsRemaining > 0
   }
 
   private updateVoidRift(delta: number): void {
@@ -826,9 +930,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.shields > 0) {
       this.shields -= 1
-      this.flashColor = COLORS.shield
-      this.flashTimer = 0.15
-      this.shakeTimer = 0.2
+      this.triggerDamageFeedback(head.x, head.y, COLORS.shield, true)
       return
     }
     this.die('rift')
@@ -840,7 +942,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.regenTimer += delta
     if (
-      this.regenTimer > BALANCE.regen.intervalMs &&
+      this.regenTimer > this.cfg.regenIntervalMs &&
       this.snake.length > BALANCE.run.baseSnakeLength
     ) {
       this.snake.pop()
@@ -906,7 +1008,7 @@ export class GameScene extends Phaser.Scene {
 
     const dx = head.x - this.food.x
     const dy = head.y - this.food.y
-    if (Math.abs(dx) + Math.abs(dy) > 4) {
+    if (Math.abs(dx) + Math.abs(dy) > this.cfg.magnetRadius) {
       return
     }
     const candidates: Array<{ x: number; y: number }> = []
@@ -948,6 +1050,92 @@ export class GameScene extends Phaser.Scene {
       p.life -= dt / p.maxLife
       return p.life > 0
     })
+  }
+
+  private updateFeedbackPulses(dt: number): void {
+    this.feedbackPulses = this.feedbackPulses.filter((pulse) => {
+      pulse.elapsed += dt
+      return pulse.elapsed < pulse.duration
+    })
+  }
+
+  private queueHitStop(durationMs: number): void {
+    if (isReducedEffectsEnabled()) {
+      return
+    }
+    this.hitStopMsRemaining = Math.max(this.hitStopMsRemaining, durationMs)
+  }
+
+  private addFeedbackPulse(
+    x: number,
+    y: number,
+    color: number,
+    duration: number,
+    radiusCells: number,
+  ): void {
+    this.feedbackPulses.push({
+      x,
+      y,
+      color,
+      elapsed: 0,
+      duration,
+      maxRadius: CELL * radiusCells,
+    })
+  }
+
+  private triggerDamageFeedback(x: number, y: number, color: number, shieldOnly = false): void {
+    const profile = shieldOnly ? BALANCE.feedback.shieldDamage : BALANCE.feedback.damage
+    this.flashColor = color
+    this.flashTimer = Math.max(this.flashTimer, profile.flashSeconds)
+    this.shakeTimer = Math.max(this.shakeTimer, profile.shakeSeconds)
+    this.queueHitStop(profile.hitStopMs)
+    this.addFeedbackPulse(
+      x * CELL + CELL / 2,
+      y * CELL + CELL / 2,
+      color,
+      profile.pulseSeconds,
+      profile.pulseRadiusCells,
+    )
+    pulseHudNode('run', 'danger', BALANCE.feedback.hudPulseMs)
+    pulseHudNode('objective', 'danger', BALANCE.feedback.hudPulseMs)
+    emitFeedback('danger')
+  }
+
+  private triggerPickupFeedback(x: number, y: number, color: number, major = false): void {
+    const profile = major ? BALANCE.feedback.pickupMajor : BALANCE.feedback.pickupMinor
+    this.flashColor = color
+    this.flashTimer = Math.max(this.flashTimer, profile.flashSeconds)
+    this.shakeTimer = Math.max(this.shakeTimer, profile.shakeSeconds)
+    this.queueHitStop(profile.hitStopMs)
+    this.addFeedbackPulse(
+      x * CELL + CELL / 2,
+      y * CELL + CELL / 2,
+      color,
+      profile.pulseSeconds,
+      profile.pulseRadiusCells,
+    )
+    pulseHudNode('run', 'pickup', BALANCE.feedback.hudPulseMs)
+    emitFeedback(major ? 'success' : 'pickup')
+  }
+
+  private triggerObjectiveFeedback(completedFloorObjective = false): void {
+    const profile = completedFloorObjective
+      ? BALANCE.feedback.objectiveComplete
+      : BALANCE.feedback.objectiveReady
+    this.flashColor = COLORS.beacon
+    this.flashTimer = Math.max(this.flashTimer, profile.flashSeconds)
+    this.shakeTimer = Math.max(this.shakeTimer, profile.shakeSeconds)
+    this.queueHitStop(profile.hitStopMs)
+    this.addFeedbackPulse(
+      WIDTH / 2,
+      HEIGHT / 2,
+      COLORS.beacon,
+      profile.pulseSeconds,
+      profile.pulseRadiusCells,
+    )
+    pulseHudNode('objective', 'reward', profile.hudPulseMs)
+    pulseHudNode('run', 'reward', profile.hudPulseMs)
+    emitFeedback('reward')
   }
 
   private cellKey(x: number, y: number): string {
@@ -1047,6 +1235,7 @@ export class GameScene extends Phaser.Scene {
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        telegraph: null,
       },
       {
         body: [{ x: 3, y: 13 }],
@@ -1057,6 +1246,7 @@ export class GameScene extends Phaser.Scene {
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        telegraph: null,
       },
       {
         body: [{ x: 5, y: 13 }],
@@ -1067,6 +1257,7 @@ export class GameScene extends Phaser.Scene {
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        telegraph: null,
       },
       {
         body: [{ x: 15, y: 13 }],
@@ -1077,6 +1268,7 @@ export class GameScene extends Phaser.Scene {
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        telegraph: null,
       },
       {
         body: [{ x: 17, y: 13 }],
@@ -1087,6 +1279,7 @@ export class GameScene extends Phaser.Scene {
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        telegraph: null,
       },
       {
         body: [
@@ -1102,6 +1295,7 @@ export class GameScene extends Phaser.Scene {
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        telegraph: null,
       },
     ]
     this.markReferenceLabel(1, 13, 'Enemy · Normal')
@@ -1340,6 +1534,244 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  private getRoomObjectiveStatusText(): string {
+    if (!this.roomObjective) {
+      return ''
+    }
+    if (this.roomObjective.completed) {
+      return t('game.roomObjectiveComplete')
+    }
+    if (this.roomObjective.kind === 'collect_cores') {
+      return t('game.roomObjectiveCollectCoresStatus', {
+        progress: this.roomObjective.progress,
+        target: this.roomObjective.target,
+      })
+    }
+    if (this.roomObjective.kind === 'defeat_elite') {
+      return t('game.roomObjectiveDefeatEliteStatus', {
+        progress: this.roomObjective.progress,
+        target: this.roomObjective.target,
+      })
+    }
+    if (this.roomObjective.kind === 'activate_terminals') {
+      return t('game.roomObjectiveActivateTerminalsStatus', {
+        progress: this.roomObjective.progress,
+        target: this.roomObjective.target,
+      })
+    }
+    const remainingMs = Math.max(0, this.roomObjective.target - this.roomObjective.progress)
+    return t('game.roomObjectiveSurviveStatus', {
+      seconds: Math.ceil(remainingMs / 1000),
+    })
+  }
+
+  private refreshObjectiveHud(): void {
+    setObjectiveStatusText(this.getRoomObjectiveStatusText())
+  }
+
+  private setupRoomObjectiveActors(): void {
+    if (!this.roomObjective || this.isBossFloor) {
+      this.objectiveTerminals = []
+      return
+    }
+    if (this.roomObjective.kind === 'activate_terminals') {
+      this.objectiveTerminals = []
+      for (let index = 0; index < this.roomObjective.target; index += 1) {
+        const cell = this.pickOpenCell({
+          preferredZone: this.floorTemplate === 'rooms_v1' ? 'room' : null,
+        })
+        this.objectiveTerminals.push({ ...cell, activated: false, pulse: 0 })
+      }
+      return
+    }
+    this.objectiveTerminals = []
+  }
+
+  private updateRoomObjectiveByTime(deltaMs: number): void {
+    if (!this.roomObjective || this.rewardPending || this.isDying || this.isBossFloor) {
+      return
+    }
+    if (this.roomObjective.kind !== 'survive' || this.roomObjective.completed) {
+      return
+    }
+    const next = advanceRoomObjectiveState(this.roomObjective, { type: 'tick', deltaMs })
+    this.roomObjective = next.state
+    if (next.completedNow) {
+      this.triggerRewardDraft()
+    }
+  }
+
+  private advanceRoomObjective(
+    event:
+      | { type: 'core_collected'; amount?: number }
+      | { type: 'elite_defeated'; amount?: number }
+      | { type: 'terminal_activated'; amount?: number },
+  ): void {
+    if (!this.roomObjective || this.rewardPending || this.isBossFloor) {
+      return
+    }
+    const next = advanceRoomObjectiveState(this.roomObjective, event)
+    this.roomObjective = next.state
+    if (next.completedNow) {
+      this.triggerRewardDraft()
+    }
+  }
+
+  private ensureRoomObjectiveAvailability(): void {
+    if (!this.roomObjective || this.roomObjective.completed || this.isBossFloor) {
+      return
+    }
+    if (this.roomObjective.kind === 'collect_cores') {
+      if (!this.biomeItem) {
+        this.biomeItem = { ...this.pickOpenCell(), pulse: 0, type: 'core' }
+      }
+      return
+    }
+    if (this.roomObjective.kind === 'defeat_elite') {
+      const hasAliveElite = this.enemies.some(
+        (enemy) => enemy.alive && (enemy.kind === 'stalker' || enemy.kind === 'ambusher'),
+      )
+      if (!hasAliveElite) {
+        this.spawnEnemy(this.rng.nextFloat() < 0.5 ? 'stalker' : 'ambusher')
+      }
+    }
+  }
+
+  private triggerRewardDraft(): void {
+    if (
+      !this.roomObjective ||
+      this.roomObjective.rewardClaimed ||
+      this.rewardPending ||
+      this.isBossFloor
+    ) {
+      return
+    }
+    this.rewardChoices = draftRewardOptions(getRewardPool(), BALANCE.rewards.draftSize, this.rng)
+    this.rewardPending = true
+    this.triggerObjectiveFeedback(false)
+    this.mountRewardOverlay()
+    setHintText(getRewardHintText())
+  }
+
+  private pickRewardChoice(index: number): void {
+    if (!this.rewardPending) {
+      return
+    }
+    const reward = this.rewardChoices[index]
+    if (!reward) {
+      return
+    }
+    this.applyRewardChoice(reward)
+    this.rewardPending = false
+    this.rewardChoices = []
+    if (this.roomObjective) {
+      this.roomObjective = markRoomObjectiveRewardClaimed(this.roomObjective)
+    }
+    this.teardownRewardOverlay()
+    this.refreshObjectiveHud()
+    setHintText(`${getMoveHintText()} · ${t('hint.itemLegend')}`)
+    emitFeedback('reward')
+  }
+
+  private applyRewardChoice(reward: RewardOption): void {
+    gameState.persistentRewards.push(reward)
+    applyRewardEffectsToConfig(this.cfg, reward.effects)
+    if (reward.effects.bonusShields !== undefined) {
+      this.shields = Math.max(0, this.shields + reward.effects.bonusShields)
+    }
+    if (reward.effects.bonusLength !== undefined) {
+      this.pendingGrowth += Math.max(0, reward.effects.bonusLength)
+    }
+    if (reward.effects.venomCharges !== undefined) {
+      this.venomCharges += reward.effects.venomCharges
+    }
+    if (reward.effects.enemySlowMultiplier !== undefined) {
+      this.enemyInterval = Math.max(180, this.enemyInterval * reward.effects.enemySlowMultiplier)
+    }
+  }
+
+  private mountRewardOverlay(): void {
+    this.teardownRewardOverlay()
+    const gameArea = document.getElementById('game-area')
+    if (!gameArea) {
+      return
+    }
+    const root = document.createElement('div')
+    root.className = rewardStyles.overlay
+
+    const title = document.createElement('h2')
+    title.className = rewardStyles.title
+    title.textContent = t('reward.objectiveComplete')
+    root.append(title)
+
+    const subtitle = document.createElement('p')
+    subtitle.className = rewardStyles.subtitle
+    subtitle.textContent = t('reward.chooseOne')
+    root.append(subtitle)
+
+    const objective = document.createElement('p')
+    objective.className = rewardStyles.objective
+    objective.textContent = this.getRoomObjectiveStatusText()
+    root.append(objective)
+
+    const cards = document.createElement('div')
+    cards.className = rewardStyles.cards
+    root.append(cards)
+
+    for (const [index, reward] of this.rewardChoices.entries()) {
+      cards.append(this.createRewardCard(reward, index))
+    }
+
+    gameArea.append(root)
+    this.rewardOverlayRoot = root
+  }
+
+  private createRewardCard(reward: RewardOption, index: number): HTMLButtonElement {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = rewardStyles.card
+    button.addEventListener('click', () => this.pickRewardChoice(index))
+
+    const icon = document.createElement('span')
+    icon.className = rewardStyles.index
+    icon.textContent = reward.icon
+    button.append(icon)
+
+    const content = document.createElement('span')
+    content.className = rewardStyles.content
+    button.append(content)
+
+    const name = document.createElement('span')
+    name.className = rewardStyles.name
+    name.textContent = t(formatRewardTranslationKey(reward.id, 'name'))
+    name.style.color = `#${reward.color.toString(16).padStart(6, '0')}`
+    content.append(name)
+
+    const upside = document.createElement('span')
+    upside.className = rewardStyles.upside
+    upside.textContent = t(formatRewardTranslationKey(reward.id, 'upside'))
+    content.append(upside)
+
+    const downside = document.createElement('span')
+    downside.className = rewardStyles.downside
+    downside.textContent = t(formatRewardTranslationKey(reward.id, 'downside'))
+    content.append(downside)
+
+    const hotkey = document.createElement('span')
+    hotkey.className = rewardStyles.hotkey
+    hotkey.textContent = String(index + 1)
+    button.append(hotkey)
+
+    return button
+  }
+
+  private teardownRewardOverlay(): void {
+    if (this.rewardOverlayRoot) {
+      this.rewardOverlayRoot.remove()
+      this.rewardOverlayRoot = null
+    }
+  }
+
   private applyPendingFloorRoute(): void {
     const route = gameState.pendingFloorRoute
     if (!route) {
@@ -1518,6 +1950,9 @@ export class GameScene extends Phaser.Scene {
     if (this.portals.some((portal) => portal.x === x && portal.y === y)) {
       return false
     }
+    if (this.objectiveTerminals.some((terminal) => terminal.x === x && terminal.y === y)) {
+      return false
+    }
     return !this.enemies.some((enemy) =>
       enemy.body.some((segment) => segment.x === x && segment.y === y),
     )
@@ -1687,6 +2122,14 @@ export class GameScene extends Phaser.Scene {
   private pickOpenCell(options?: {
     preferredZone?: 'room' | 'corridor' | null
     minDistanceFromCenter?: number
+    fairness?: {
+      playerHead?: Vec2 | null
+      playerDir?: Vec2 | null
+      minManhattanDistance?: number
+      avoidForwardLaneSteps?: number
+      minOpenNeighborCount?: number
+      bodyLength?: number
+    }
   }): Vec2 {
     const zoneCells =
       options?.preferredZone === 'room'
@@ -1699,6 +2142,7 @@ export class GameScene extends Phaser.Scene {
       rows: BASE_ROWS,
       preferredZoneCells: zoneCells,
       minDistanceFromCenter: options?.minDistanceFromCenter ?? 0,
+      fairness: options?.fairness,
       rng: this.rng,
       occupancy: {
         walls: this.walls,
@@ -1709,6 +2153,7 @@ export class GameScene extends Phaser.Scene {
         food: this.food,
         powerup: this.powerup,
         biomeItem: this.biomeItem,
+        extra: this.objectiveTerminals.map((terminal) => ({ x: terminal.x, y: terminal.y })),
       },
     })
   }
@@ -1745,6 +2190,14 @@ export class GameScene extends Phaser.Scene {
       return
     }
     const cell = this.pickOpenCell()
+    if (
+      this.roomObjective &&
+      !this.roomObjective.completed &&
+      this.roomObjective.kind === 'collect_cores'
+    ) {
+      this.biomeItem = { x: cell.x, y: cell.y, pulse: 0, type: 'core' }
+      return
+    }
     const floorItemConfig = this.getItemSpawnConfig()
     const portalBeaconRoll =
       this.objectiveType === 'portal' &&
@@ -1766,25 +2219,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy(kind: Enemy['kind'] = 'normal'): void {
-    const cx = Math.floor(BASE_COLS / 2)
-    const cy = Math.floor(BASE_ROWS / 2)
-    let seedCell = this.pickOpenCell({
-      preferredZone: this.floorTemplate === 'rooms_v1' ? 'corridor' : null,
-      minDistanceFromCenter: 6,
-    })
-    if (Math.abs(seedCell.x - cx) <= 3 && Math.abs(seedCell.y - cy) <= 3) {
-      seedCell = this.pickOpenCell({ minDistanceFromCenter: 6 })
-    }
-    const x = seedCell.x
-    const y = seedCell.y
-    const randomLen =
-      BALANCE.enemy.lengthBase +
-      this.rng.nextInt(0, BALANCE.enemy.lengthRandomRange - 1) +
-      Math.floor(gameState.floor / BALANCE.enemy.lengthFloorStep)
     const resolvedKind =
       kind === 'normal'
         ? (this.resolveSpecialEnemyKind() ?? this.resolveEliteKind() ?? 'normal')
         : kind
+    const randomLen =
+      BALANCE.enemy.lengthBase +
+      this.rng.nextInt(0, BALANCE.enemy.lengthRandomRange - 1) +
+      Math.floor(gameState.floor / BALANCE.enemy.lengthFloorStep)
     const len =
       resolvedKind === 'boss'
         ? Math.max(2, BALANCE.biome.boss.health + 1)
@@ -1798,6 +2240,20 @@ export class GameScene extends Phaser.Scene {
                   ? randomLen + 1
                   : randomLen,
               )
+    const seedCell = this.pickOpenCell({
+      preferredZone: this.floorTemplate === 'rooms_v1' ? 'corridor' : null,
+      minDistanceFromCenter: 6,
+      fairness: {
+        playerHead: this.snake[0] ?? null,
+        playerDir: this.currentDir,
+        minManhattanDistance: BALANCE.combatFairness.spawn.enemyMinDistanceFromPlayer,
+        avoidForwardLaneSteps: BALANCE.combatFairness.spawn.avoidPlayerForwardLaneSteps,
+        minOpenNeighborCount: BALANCE.combatFairness.spawn.minOpenNeighborCount,
+        bodyLength: len,
+      },
+    })
+    const x = seedCell.x
+    const y = seedCell.y
     const body = Array.from({ length: len }, (_, i) => ({ x: Math.max(0, x - i), y }))
     if (resolvedKind !== 'normal') {
       trackRetentionEvent('elite_spawned', {
@@ -1815,6 +2271,7 @@ export class GameScene extends Phaser.Scene {
       dashCooldown: 0,
       hatchTurnsRemaining: resolvedKind === 'egg' ? BALANCE.enemyVariants.egg.hatchTurns : 0,
       mirrorDelaySteps: resolvedKind === 'mirror' ? BALANCE.enemyVariants.mirror.delaySteps : 0,
+      telegraph: null,
     })
   }
 
@@ -1853,11 +2310,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.snake[0]) {
       this.snake.unshift({ x: previousHead.x, y: previousHead.y })
     }
-    this.flashColor = COLORS.enemyHead
-    this.flashTimer = 0.18
-    this.shakeTimer = 0.28
     this.spawnParticles(previousHead.x, previousHead.y, COLORS.enemyHead, 8)
-    emitFeedback('danger')
+    this.triggerDamageFeedback(previousHead.x, previousHead.y, COLORS.enemyHead)
     setHintText(t('game.bossKnockback'))
   }
 
@@ -1883,11 +2337,11 @@ export class GameScene extends Phaser.Scene {
       this.die('enemy')
       return false
     }
-    this.flashColor = COLORS.enemyHead
-    this.flashTimer = 0.14
-    this.shakeTimer = 0.18
+    const head = this.snake[0]
+    if (head) {
+      this.triggerDamageFeedback(head.x, head.y, COLORS.enemyHead)
+    }
     setHintText(t('game.tailDamaged', { lost: removed }))
-    emitFeedback('danger')
     return true
   }
 
@@ -1904,10 +2358,7 @@ export class GameScene extends Phaser.Scene {
       if (enemy.kind === 'boss' && enemy.health <= 1 && this.bossPhase !== 'rage') {
         this.bossPhase = 'rage'
         setHintText(t('game.bossPhaseRageHint'))
-        this.flashColor = COLORS.enemyHead
-        this.flashTimer = 0.2
-        this.shakeTimer = 0.2
-        emitFeedback('danger')
+        this.triggerDamageFeedback(head.x, head.y, COLORS.enemyHead)
       }
       return
     }
@@ -1957,6 +2408,9 @@ export class GameScene extends Phaser.Scene {
       this.score += Math.floor(BALANCE.enemy.scoreOnKill * this.cfg.scoreMult)
     }
     updateHud(this.score)
+    if (enemy.kind === 'stalker' || enemy.kind === 'ambusher') {
+      this.advanceRoomObjective({ type: 'elite_defeated' })
+    }
   }
 
   private spawnParticles(cx: number, cy: number, color: number, count: number): void {
@@ -2014,14 +2468,26 @@ export class GameScene extends Phaser.Scene {
     }
     const landedOnIce = this.isIce(nx, ny)
     if (this.riftCell && nx === this.riftCell.x && ny === this.riftCell.y) {
-      if (this.shields > 0) {
+      if (this.hasContactGrace()) {
+        // Grace windows suppress repeated contact damage while the board keeps moving.
+      } else if (this.shields > 0) {
         this.shields -= 1
-        this.flashTimer = 0.15
-        this.flashColor = COLORS.shield
+        this.triggerDamageFeedback(nx, ny, COLORS.shield, true)
+        this.startContactGrace(BALANCE.combatFairness.grace.postHitMs)
       } else {
         this.die('rift')
         return
       }
+    }
+
+    const touchedTerminal = this.objectiveTerminals.find(
+      (terminal) => !terminal.activated && terminal.x === nx && terminal.y === ny,
+    )
+    if (touchedTerminal) {
+      touchedTerminal.activated = true
+      this.spawnParticles(nx, ny, COLORS.beacon, 10)
+      this.triggerPickupFeedback(nx, ny, COLORS.beacon)
+      this.advanceRoomObjective({ type: 'terminal_activated' })
     }
 
     if (
@@ -2053,7 +2519,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.food && nx === this.food.x && ny === this.food.y) {
-      emitFeedback('success')
+      this.triggerPickupFeedback(nx, ny, COLORS.food)
       this.score += Math.floor(BALANCE.food.scoreOnEat * this.cfg.scoreMult)
       this.pendingGrowth += 1
       if (this.corePressureActive) {
@@ -2075,11 +2541,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.powerup && nx === this.powerup.x && ny === this.powerup.y) {
-      emitFeedback('confirm')
       const collectedType = this.powerup.type
       this.powerup = null
       this.applyPowerup(collectedType)
       this.spawnParticles(nx, ny, COLORS.powerup, 10)
+      this.triggerPickupFeedback(nx, ny, COLORS.powerup, true)
       if (this.isBossFloor) {
         this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
       }
@@ -2092,7 +2558,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (this.biomeItem && nx === this.biomeItem.x && ny === this.biomeItem.y) {
-      emitFeedback('success')
       if (this.biomeItem.type === 'rift_battery') {
         this.activateRiftSuppression('rift_battery')
         trackRetentionEvent('item_collected', {
@@ -2101,6 +2566,7 @@ export class GameScene extends Phaser.Scene {
           score: this.score,
         })
         this.spawnParticles(nx, ny, COLORS.slow, 12)
+        this.triggerPickupFeedback(nx, ny, COLORS.slow, true)
       } else if (this.biomeItem.type === 'portal_beacon') {
         if (this.objectiveType === 'portal') {
           const accelerated = applyPortalBeaconAcceleration(
@@ -2122,6 +2588,7 @@ export class GameScene extends Phaser.Scene {
           score: this.score,
         })
         this.spawnParticles(nx, ny, COLORS.beacon, 12)
+        this.triggerPickupFeedback(nx, ny, COLORS.beacon, true)
         if (
           this.objectiveType === 'portal' &&
           this.portals.length === 0 &&
@@ -2157,19 +2624,20 @@ export class GameScene extends Phaser.Scene {
           score: this.score,
         })
         this.spawnParticles(nx, ny, COLORS.snakeHead, 12)
+        this.triggerPickupFeedback(nx, ny, COLORS.snakeHead, true)
+        this.advanceRoomObjective({ type: 'core_collected' })
         updateHud(this.score)
       }
       this.biomeItem = null
     }
 
-    const enemyCollision = this.checkEnemyCollision()
+    const enemyCollision = this.hasContactGrace() ? null : this.checkEnemyCollision()
     if (enemyCollision) {
       const collidedEnemy = enemyCollision.enemy
       if (this.shields > 0) {
         this.shields = Math.max(0, this.shields - 1)
-        this.shakeTimer = 0.2
-        this.flashTimer = 0.15
-        this.flashColor = COLORS.shield
+        this.triggerDamageFeedback(nx, ny, COLORS.shield, true)
+        this.startContactGrace(BALANCE.combatFairness.grace.postHitMs)
         if (collidedEnemy.kind === 'boss' && collidedEnemy.alive) {
           this.applyBossKnockback(head)
         }
@@ -2185,6 +2653,7 @@ export class GameScene extends Phaser.Scene {
         if (!survived) {
           return
         }
+        this.startContactGrace(BALANCE.combatFairness.grace.postHitMs)
         if (collidedEnemy.kind === 'boss' && collidedEnemy.alive) {
           this.applyBossKnockback(head)
         }
@@ -2199,6 +2668,10 @@ export class GameScene extends Phaser.Scene {
       ) {
         this.spawnEnemy()
       }
+    }
+
+    if (this.rewardPending) {
+      return
     }
 
     if (this.completeObjectiveIfReady()) {
@@ -2235,7 +2708,7 @@ export class GameScene extends Phaser.Scene {
       killsTarget: this.objectiveKillsTarget,
     })
     if (completed) {
-      emitFeedback('confirm')
+      this.triggerObjectiveFeedback(true)
       transitionToScene(this, 'Upgrade', {
         chrome: 'run',
         data: { score: this.score, floor: gameState.floor },
@@ -2246,6 +2719,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyPowerup(type: PowerupType): void {
+    if (this.cfg.powerupGrowth > 0) {
+      this.pendingGrowth += this.cfg.powerupGrowth
+    }
+    this.score += Math.floor(
+      BALANCE.powerup.scoreBonus * this.cfg.scoreMult * this.cfg.powerupScoreMult,
+    )
+    updateHud(this.score)
+
     if (type === 'shield') {
       this.shields += 1
       return
@@ -2262,8 +2743,6 @@ export class GameScene extends Phaser.Scene {
       this.ghostCharges += 1
       return
     }
-    this.score += Math.floor(BALANCE.powerup.scoreBonus * this.cfg.scoreMult)
-    updateHud(this.score)
   }
 
   private die(reason: DeathReason): void {
@@ -2607,6 +3086,29 @@ export class GameScene extends Phaser.Scene {
       this.markerBiome.setAlpha(0.9)
       this.markerBiome.setVisible(true)
     }
+    if (this.objectiveTerminals.length > 0) {
+      for (const terminal of this.objectiveTerminals) {
+        const tx = terminal.x * CELL
+        const ty = terminal.y * CELL
+        const cx = tx + CELL / 2
+        const cy = ty + CELL / 2
+        const pulse = Math.sin(terminal.pulse) * 0.18 + 0.75
+        const glowColor = terminal.activated ? COLORS.snakeHead : COLORS.beacon
+        g.fillStyle(glowColor, terminal.activated ? 0.18 : 0.14 * pulse)
+        g.fillCircle(cx, cy, CELL * 0.78)
+        g.fillStyle(terminal.activated ? 0x86ffd9 : 0xffef9e, 0.92)
+        g.fillRect(tx + cellPx(5), ty + cellPx(5), CELL - cellPx(10), CELL - cellPx(10))
+        g.fillStyle(terminal.activated ? 0x093225 : 0x4c2d00, 0.9)
+        g.fillRect(tx + cellPx(8), ty + cellPx(8), CELL - cellPx(16), CELL - cellPx(16))
+        g.lineStyle(cellPx(2), terminal.activated ? 0x86ffd9 : 0xffef9e, 0.9)
+        g.beginPath()
+        g.moveTo(cx, ty + cellPx(9))
+        g.lineTo(cx, ty + CELL - cellPx(9))
+        g.moveTo(tx + cellPx(9), cy)
+        g.lineTo(tx + CELL - cellPx(9), cy)
+        g.strokePath()
+      }
+    }
     if (this.referenceBoardMode && this.referenceMarkers.length > 0) {
       const markerSize = Math.round(CELL * 0.9)
       const parseHexColor = (hex: string): number => Number.parseInt(hex.replace('#', ''), 16)
@@ -2687,9 +3189,29 @@ export class GameScene extends Phaser.Scene {
                     : normalHead
 
         if (i === 0) {
+          const cx = segment.x * CELL + CELL / 2
+          const cy = segment.y * CELL + CELL / 2
+          if (enemy.kind === 'ambusher' && enemy.telegraph?.kind === 'ambusher_dash') {
+            const telegraphPulse = Math.sin(this.time.now * 0.012) * cellPx(2)
+            g.lineStyle(cellPx(2), 0xfff0b3, 0.8)
+            g.strokeCircle(cx, cy, CELL * 0.58 + telegraphPulse)
+            g.lineStyle(cellPx(3), 0xffd37a, 0.5)
+            g.beginPath()
+            g.moveTo(cx, cy)
+            g.lineTo(
+              cx + enemy.telegraph.dir.x * CELL * 1.7,
+              cy + enemy.telegraph.dir.y * CELL * 1.7,
+            )
+            g.strokePath()
+          }
+          if (
+            enemy.kind === 'egg' &&
+            enemy.hatchTurnsRemaining <= BALANCE.combatFairness.telegraph.eggHatchWarningTurns
+          ) {
+            g.fillStyle(0xfff4b0, 0.18 + Math.sin(this.time.now * 0.01) * 0.08)
+            g.fillCircle(cx, cy, CELL * 0.62)
+          }
           if (enemy.kind === 'egg') {
-            const cx = segment.x * CELL + CELL / 2
-            const cy = segment.y * CELL + CELL / 2
             g.fillStyle(eggHead, 0.2)
             g.fillCircle(cx, cy, CELL * 0.5)
             g.fillStyle(eggHead, 0.95)
@@ -2798,6 +3320,15 @@ export class GameScene extends Phaser.Scene {
             radBase + pulse - cellPx(2.5),
           )
         }
+        if (this.hasContactGrace()) {
+          const pulse = Math.sin(this.time.now * 0.012) * cellPx(1.5)
+          g.lineStyle(cellPx(2), 0xffffff, 0.6)
+          g.strokeCircle(
+            segment.x * CELL + CELL / 2,
+            segment.y * CELL + CELL / 2,
+            CELL * 0.52 + pulse,
+          )
+        }
         continue
       }
       const alpha = Math.max(0.3, 1 - i * 0.025)
@@ -2852,6 +3383,17 @@ export class GameScene extends Phaser.Scene {
       if (head) {
         this.drawDarknessOverlay(g, head)
       }
+    }
+
+    for (const pulse of this.feedbackPulses) {
+      const progress = Math.min(1, pulse.elapsed / pulse.duration)
+      const radius = cellPx(6) + (pulse.maxRadius - cellPx(6)) * progress
+      const alpha = (1 - progress) * (isReducedEffectsEnabled() ? 0.22 : 0.36)
+      const lineWidth = Math.max(1, cellPx(2.4) * (1 - progress * 0.45))
+      g.lineStyle(lineWidth, pulse.color, alpha)
+      g.strokeCircle(pulse.x, pulse.y, radius)
+      g.lineStyle(Math.max(1, lineWidth * 0.45), 0xffffff, alpha * 0.45)
+      g.strokeCircle(pulse.x, pulse.y, radius * 0.72)
     }
 
     for (let i = 0; i < this.shields; i += 1) {

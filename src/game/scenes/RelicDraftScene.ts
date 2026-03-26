@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import styles from '../../styles/relicDraftOverlay.module.css'
 import { drawRelicDraft } from '../core/meta'
-import { getFloorObjective } from '../core/objectives'
+import { getRoomObjective } from '../core/objectives'
 import { gameState } from '../core/state'
 import type { RelicDefinition } from '../core/types'
 import { createSeededRng, deriveRunSeed } from '../simulation/rng'
@@ -98,17 +98,19 @@ export class RelicDraftScene extends Phaser.Scene {
   }
 
   private getObjectivePreview(floor: number): string {
-    const objective = getFloorObjective(floor, gameState.runObjectiveOffset)
-    if (objective.kind === 'boss') {
-      return t('game.objectiveBossPreview')
+    const objective = getRoomObjective(floor, gameState.runObjectiveOffset)
+    if (objective.kind === 'collect_cores') {
+      return t('game.roomObjectiveCollectCoresPreview', { target: objective.target })
     }
-    if (objective.kind === 'score') {
-      return t('game.objectiveScorePreview', { target: objective.scoreTarget })
+    if (objective.kind === 'defeat_elite') {
+      return t('game.roomObjectiveDefeatElitePreview', { target: objective.target })
     }
-    if (objective.kind === 'kills') {
-      return t('game.objectiveKillsPreview', { target: objective.killsTarget })
+    if (objective.kind === 'activate_terminals') {
+      return t('game.roomObjectiveActivateTerminalsPreview', { target: objective.target })
     }
-    return t('game.objectivePortalPreview')
+    return t('game.roomObjectiveSurvivePreview', {
+      seconds: Math.ceil(objective.target / 1000),
+    })
   }
 
   private createRelicCard(relic: RelicDefinition, index: number): HTMLButtonElement {

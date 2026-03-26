@@ -19,6 +19,7 @@ type TickEnemyContext = {
     dashChanceWhenAligned: number
     dashSteps: number
     dashCooldownTurns: number
+    telegraphTicks: number
   }
   stalkerSpeedMultiplier: number
   egg: {
@@ -36,6 +37,12 @@ const cloneEnemy = (enemy: Enemy): Enemy => ({
   ...enemy,
   dir: { ...enemy.dir },
   body: enemy.body.map((segment) => ({ ...segment })),
+  telegraph: enemy.telegraph
+    ? {
+        ...enemy.telegraph,
+        dir: { ...enemy.telegraph.dir },
+      }
+    : null,
 })
 
 const advanceEnemyStep = (
@@ -127,13 +134,43 @@ const tickMirrorEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickResu
   return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false }
 }
 
-const tryAmbusherDash = (
-  enemy: Enemy,
-  playerHead: SnakeSegment,
-  context: TickEnemyContext,
-): EnemyTickResult | null => {
+const tryAmbusherDash = (enemy: Enemy, context: TickEnemyContext): EnemyTickResult | null => {
   const head = enemy.body[0]
   if (!head) {
+    return null
+  }
+  if (enemy.telegraph?.kind === 'ambusher_dash') {
+    const pending = cloneEnemy(enemy)
+    const telegraph = pending.telegraph
+    if (!telegraph) {
+      return { enemy: pending, ateFood: false, hatched: false }
+    }
+    if (telegraph.ticksRemaining > 1) {
+      telegraph.ticksRemaining -= 1
+      return { enemy: pending, ateFood: false, hatched: false }
+    }
+    const dir = { ...telegraph.dir }
+    pending.telegraph = null
+    let current = pending
+    let moved = false
+    let ateFood = false
+    for (let step = 0; step < context.ambusher.dashSteps; step += 1) {
+      const advanced = advanceEnemyStep(current, dir, context.isWall, context.foodCell)
+      if (!advanced.moved) {
+        break
+      }
+      current = advanced.enemy
+      ateFood = ateFood || advanced.ateFood
+      moved = true
+    }
+    if (moved) {
+      current.dashCooldown = context.ambusher.dashCooldownTurns
+      return { enemy: current, ateFood, hatched: false }
+    }
+    return { enemy: current, ateFood: false, hatched: false }
+  }
+  const playerHead = context.playerHead
+  if (!playerHead) {
     return null
   }
   if (enemy.dashCooldown > 0) {
@@ -159,23 +196,13 @@ const tryAmbusherDash = (
   if (dir.x === -enemy.dir.x && dir.y === -enemy.dir.y) {
     return null
   }
-  let current = cloneEnemy(enemy)
-  let moved = false
-  let ateFood = false
-  for (let step = 0; step < context.ambusher.dashSteps; step += 1) {
-    const advanced = advanceEnemyStep(current, dir, context.isWall, context.foodCell)
-    if (!advanced.moved) {
-      break
-    }
-    current = advanced.enemy
-    ateFood = ateFood || advanced.ateFood
-    moved = true
+  const telegraphEnemy = cloneEnemy(enemy)
+  telegraphEnemy.telegraph = {
+    kind: 'ambusher_dash',
+    dir,
+    ticksRemaining: Math.max(1, context.ambusher.telegraphTicks),
   }
-  if (moved) {
-    current.dashCooldown = context.ambusher.dashCooldownTurns
-    return { enemy: current, ateFood, hatched: false }
-  }
-  return null
+  return { enemy: telegraphEnemy, ateFood: false, hatched: false }
 }
 
 export const tickEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickResult => {
@@ -195,7 +222,7 @@ export const tickEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickRes
   }
 
   if (enemy.kind === 'ambusher') {
-    const dash = tryAmbusherDash(enemy, playerHead, context)
+    const dash = tryAmbusherDash(enemy, context)
     if (dash) {
       return dash
     }
@@ -225,7 +252,9 @@ export const tickEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickRes
     }
     const advanced = advanceEnemyStep(enemy, dir, context.isWall, context.foodCell)
     if (advanced.moved) {
-      return { enemy: advanced.enemy, ateFood: advanced.ateFood, hatched: false }
+      const nextEnemy = advanced.enemy
+      nextEnemy.telegraph = null
+      return { enemy: nextEnemy, ateFood: advanced.ateFood, hatched: false }
     }
   }
   return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false }
