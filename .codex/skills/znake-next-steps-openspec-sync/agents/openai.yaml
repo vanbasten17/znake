@@ -1,0 +1,3 @@
+display_name: Znake Next Steps OpenSpec Sync
+short_description: Compare `NEXT_STEPS.md` with Znake's OpenSpec history and base specs, mark what is already covered, and produce conflict-aware proposal/apply prompts for parallel threads.
+default_prompt: Review NEXT_STEPS.md against the current OpenSpec specs and archived changes, update the match-status section, pick the next highest-priority unmatched items, and generate conflict-aware proposal/apply prompts.
