@@ -1,0 +1,3 @@
+- [x] 1. Update the UI foundation change artifacts to describe centered desktop shells that still use the full available viewport height.
+- [x] 2. Patch desktop shell CSS so the run/menu shell regains full-height behavior while preserving desktop centering.
+- [x] 3. Verify with `pnpm build` and `pnpm check`.

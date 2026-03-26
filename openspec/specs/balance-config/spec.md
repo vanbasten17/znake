@@ -44,3 +44,20 @@ The system SHALL define combat fairness timings and spawn-safety thresholds in c
 - **WHEN** room-entry grace, post-hit grace, minimum spawn distance, lane exclusion, or escape-space thresholds are evaluated
 - **THEN** the values come from centralized balance config
 - **AND** fairness rules can be tuned without editing multiple gameplay call sites
+
+### Requirement: Central feedback tuning
+
+The system SHALL keep first-pass feedback timing and intensity values in centralized configuration.
+
+#### Scenario: Damage and pickup feedback are config-driven
+
+- **WHEN** flash duration, shake duration, hit-stop window, or related pickup/damage emphasis values are evaluated
+- **THEN** the values come from centralized balance config
+- **AND** scene code does not duplicate those timing constants inline
+
+#### Scenario: Objective celebration feedback is config-driven
+
+- **WHEN** reward-ready or objective-complete emphasis values are evaluated
+- **THEN** the values come from centralized balance config
+- **AND** celebration tuning can be iterated without editing multiple call sites
+

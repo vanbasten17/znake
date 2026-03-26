@@ -11,6 +11,7 @@ The system SHALL provide a shared design-token and shell-primitive layer for non
 
 - **WHEN** the app is rendered on desktop-class viewports
 - **THEN** the shell block (`hud`, gameplay area, controls if visible) is centered in the viewport
+- **AND** the gameplay/overlay region still uses the full available desktop height instead of a reduced fixed-height panel
 - **AND** mobile-first layout behavior remains unchanged on touch/phone viewports
 
 ### Requirement: Runtime UI shell mount
@@ -98,4 +99,3 @@ The system SHALL maintain a consistent gameplay attention hierarchy with strong 
 - **WHEN** overlays, HUD, and gameplay entities coexist
 - **THEN** foreground/background contrast remains sufficient for quick recognition on mobile and desktop
 - **AND** readability is maintained without requiring users to disable non-essential visuals
-
