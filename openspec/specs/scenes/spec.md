@@ -35,12 +35,24 @@ The system SHALL support a reference-driven polished menu visual identity withou
 
 ### Requirement: Game scene
 
-The system SHALL render gameplay UI text in the active locale.
+The system SHALL render gameplay UI text in the active locale and orchestrate local run-map route presentation without taking ownership of progression rules.
 
 #### Scenario: Biome name localized in-game
 
 - **WHEN** game scene updates floor progress label
 - **THEN** biome name is rendered in the selected locale
+
+#### Scenario: Route choices are scene-orchestrated from run-map state
+
+- **WHEN** the player reaches a route-decision point
+- **THEN** `GameScene` reads the reachable room choices from shared run-map state
+- **AND** presents them through existing HUD or DOM overlay patterns without generating branch rules inline
+
+#### Scenario: Scene enters selected room through room-type contract
+
+- **WHEN** the player selects an available next room
+- **THEN** `GameScene` starts the resolved room using the selected node type and metadata
+- **AND** room-specific logic remains delegated to shared gameplay or future room-resolution helpers
 
 ### Requirement: Dev reference board marker preview
 
@@ -179,4 +191,36 @@ The system SHALL communicate elimination-floor combat status in run HUD text.
 - **WHEN** a reward-ready or completion celebration is shown
 - **THEN** the scene keeps the emphasis short and localized
 - **AND** hazards, reward prompts, and player position remain readable during the cue
+
+#### Scenario: Event-choice moments follow orchestrator boundary
+
+- **WHEN** an event-choice draft is presented or resolved
+- **THEN** `GameScene` orchestrates overlay presentation and feedback timing only
+- **AND** option drafting and effect resolution remain in deterministic simulation/config helpers
+
+### Requirement: Event-choice overlay readability
+
+The system SHALL present event options in a concise readable overlay that communicates risk and reward before confirmation.
+
+#### Scenario: Event options stay concise and legible
+
+- **WHEN** an event-choice overlay is shown
+- **THEN** it presents two to three options with clear labels and short risk/reward copy
+- **AND** option content remains readable within supported desktop and mobile layouts
+
+#### Scenario: Confirmation prevents accidental irreversible picks
+
+- **WHEN** a player selects an irreversible high-impact event option
+- **THEN** the overlay requires explicit confirmation before resolution
+- **AND** cancellation returns focus to option selection without applying effects
+
+### Requirement: Event-choice resolution feedback
+
+The system SHALL provide short deterministic feedback cues after event resolution.
+
+#### Scenario: Resolution summary reflects selected payload
+
+- **WHEN** an event option resolves
+- **THEN** the overlay or HUD shows a short summary of applied costs and benefits
+- **AND** the summary text matches the configured deterministic outcome payload
 

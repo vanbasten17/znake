@@ -61,3 +61,37 @@ The system SHALL keep first-pass feedback timing and intensity values in central
 - **THEN** the values come from centralized balance config
 - **AND** celebration tuning can be iterated without editing multiple call sites
 
+### Requirement: Central run-map tuning tables
+
+The system SHALL keep room-type templates, branch rules, and route-preview tuning in centralized balance configuration.
+
+#### Scenario: Room-type distributions are centrally tuned
+
+- **WHEN** gameplay resolves which room types can appear at a given run depth or branch point
+- **THEN** those distributions come from centralized balance data
+- **AND** scene code does not hardcode room-type sequencing inline
+
+#### Scenario: Preview horizon and branch cadence are centrally tuned
+
+- **WHEN** gameplay resolves how many future choices to expose or how often branches appear
+- **THEN** those values come from centralized balance data
+- **AND** route readability can be tuned without editing multiple presentation call sites
+
+### Requirement: Central body economy tuning
+The system SHALL define first-pass body economy costs, cooldowns, and gating thresholds in centralized balance configuration.
+
+#### Scenario: Body pulse tuning is config-driven
+- **WHEN** gameplay evaluates body pulse segment cost, cooldown, and effect duration
+- **THEN** each value comes from centralized balance config
+- **AND** scene/gameplay call sites do not duplicate inline constants
+
+#### Scenario: Reward overclock tuning is config-driven
+- **WHEN** gameplay evaluates reward overclock segment cost and per-objective usage limit
+- **THEN** values come from centralized balance config
+- **AND** reward flow code does not hardcode spend magnitudes
+
+#### Scenario: Minimum spendable floor is config-driven
+- **WHEN** gameplay validates any body spend request
+- **THEN** minimum spendable length floor is read from centralized balance config
+- **AND** all body sinks use the same shared floor policy
+

@@ -159,21 +159,27 @@ Portal flow and core-pressure timing transitions SHALL be handled by pure object
 - **THEN** progression pauses for reward selection
 - **AND** the next segment begins only after the selected reward is applied
 
+#### Scenario: Event-choice selection can gate non-boss progression
+
+- **WHEN** a non-boss progression step enters an event-choice decision point
+- **THEN** progression pauses for event-choice selection
+- **AND** the next progression step begins only after the selected event outcome is applied
+
 ### Requirement: Room objective progression loop
 
-The system SHALL use the active room objective as the short-term progression gate for non-boss run segments.
+The system SHALL use the active room objective as the short-term progression gate for combat-oriented non-boss run segments.
 
-#### Scenario: Non-boss segment starts with an active objective
+#### Scenario: Combat segment starts with an active objective
 
-- **WHEN** a non-boss room or run segment begins
+- **WHEN** a `combat` or `elite` room segment begins
 - **THEN** gameplay starts with one active room objective
 - **AND** the player can make progress toward completion immediately
 
 #### Scenario: Objective completion gates reward before advancement
 
-- **WHEN** the player fulfills the active room objective
+- **WHEN** the player fulfills the active objective in a `combat` or `elite` room
 - **THEN** gameplay triggers a reward choice
-- **AND** the next segment does not begin until one reward is selected
+- **AND** the next route decision or segment does not begin until one reward is selected
 
 ### Requirement: Objective-specific progress events
 
@@ -434,4 +440,54 @@ The system SHALL provide immediate, lightweight feedback for meaningful gameplay
 - **WHEN** a room objective becomes reward-ready or a floor objective completes
 - **THEN** presentation triggers a short celebration/emphasis response
 - **AND** the response communicates success before the next reward or transition step begins
+
+### Requirement: Event-choice progression points
+
+The system SHALL support deterministic event-choice decision points in non-boss progression.
+
+#### Scenario: Event-choice point enters pending state
+
+- **WHEN** progression reaches an event-choice trigger for the current segment flow
+- **THEN** gameplay enters an event-choice-pending state
+- **AND** normal advancement pauses until one option is resolved
+
+#### Scenario: Event-choice completion resumes progression
+
+- **WHEN** an event option is resolved
+- **THEN** progression updates run state using the selected deterministic payload
+- **AND** segment advancement resumes from the post-event progression state
+
+### Requirement: Body pulse gameplay sink
+The system SHALL support a player-triggered `body_pulse` sink that spends body segments for short-range space relief under deterministic gating.
+
+#### Scenario: Valid pulse spend applies cost and effect
+- **WHEN** body pulse input is triggered, cooldown is ready, and spend floor rules pass
+- **THEN** the configured segment spend is applied
+- **AND** pulse effect gameplay state is activated for configured duration
+
+#### Scenario: Pulse spend is blocked at low length
+- **WHEN** body pulse input is triggered but spend would cross minimum spendable length
+- **THEN** no segment spend occurs
+- **AND** gameplay returns a deterministic blocked outcome
+
+### Requirement: Reward overclock gameplay sink
+The system SHALL support a `reward_overclock` sink during reward selection that trades body segments for one deterministic reward reroll per completed objective.
+
+#### Scenario: Overclock rerolls reward options once
+- **WHEN** reward selection is active and reward overclock is triggered with valid spend state
+- **THEN** the configured segment spend is applied
+- **AND** reward draft options are rerolled once for that objective completion
+
+#### Scenario: Overclock cannot be repeated in same reward window
+- **WHEN** reward overclock has already been consumed for the active reward window
+- **THEN** additional overclock requests in that window are rejected
+- **AND** existing drafted options remain unchanged
+
+### Requirement: Tail-health coexistence with body spending
+The system SHALL preserve tail-as-health semantics while allowing voluntary spend, using explicit deterministic attribution for segment-loss sources.
+
+#### Scenario: Segment loss attribution remains readable
+- **WHEN** segments are removed by combat damage or by voluntary spending
+- **THEN** gameplay emits source-attributed outcomes for each loss event
+- **AND** scene feedback can distinguish damage loss from spend loss without changing simulation rules
 
