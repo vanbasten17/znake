@@ -42,6 +42,10 @@ This skill is repo-specific. Assume:
 6. Choose a small sample of next working items by priority.
 7. Return copy-paste prompts for parallel Cursor threads.
 8. Explicitly state the safest execution order.
+9. Prefer the shortest practical execution plan:
+   - pair each selected item as `Create spec` then `Apply`
+   - minimize separate planning-only queues unless a dependency requires waiting
+   - present the order as one global numbered list, not just thread labels
 
 ## Matching Rules
 
@@ -94,12 +98,38 @@ After generating prompts, always include:
 - which prompts should wait
 - the exact recommended order
 - a one-line reason for each dependency or conflict
+- a default `Shortest Practical Version` that uses `propose` then `apply` for each item in sequence
+- an expanded numbered execution list that explicitly says `Create spec for ...` and `Apply ...`
 
 Use this order style:
 
-1. Thread A
-2. Thread B
-3. Thread C after A
+1. Create spec for `<change-a>`
+2. Apply `<change-a>`
+3. Create spec for `<change-b>` in parallel with step 1 or 2
+4. Apply `<change-b>`
+
+Then, if helpful, add a shorter thread summary underneath.
+
+## Execution Order Default
+
+Unless the user asks for a different breakdown, prefer this output pattern:
+
+1. `Shortest Practical Version`
+   - a compact numbered list using `propose + apply` pairs
+2. `Detailed Execution Order`
+   - a second numbered list that expands each pair into:
+     1. create spec
+     2. apply spec
+3. `Parallel Notes`
+   - one line per item describing what can overlap safely
+
+Default sequencing rules:
+
+1. Put foundational changes first.
+2. For each selected item, prefer `Create spec` immediately followed by `Apply` once its dependencies are satisfied.
+3. Only delay `Apply` if the item depends on an earlier applied change.
+4. Low-overlap UI or recap work may run in parallel with foundational proposal/apply work.
+5. If an item depends on another item's structure, propose and apply the dependency first.
 
 ## Suggested Prompt Template
 
@@ -178,6 +208,8 @@ Always return:
 3. `Selected next items`
 4. `Proposal prompts`
 5. `Apply prompts`
-6. `Execution order`
+6. `Shortest Practical Version`
+7. `Detailed Execution Order`
+8. `Parallel Notes`
 
 Keep it concise and operational.
