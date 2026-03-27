@@ -35,6 +35,28 @@ export const gameState: GameState = {
       stacked_pressure: 0,
     },
   },
+  predatorPreyPacingSummary: {
+    transitionEvents: 0,
+    transitionsByPhase: {
+      hunt: 0,
+      escape: 0,
+      reset: 0,
+    },
+    guardrailInterventions: 0,
+    guardrailReasonCounts: {
+      overlap_budget_exceeded: 0,
+      cadence_gap_enforced: 0,
+      phase_escape_window: 0,
+    },
+  },
+  routeMasterySummary: {
+    routeDecisions: 0,
+    branchDecisions: 0,
+    eliteChoices: 0,
+    nonCombatChoices: 0,
+    biomePivotChoices: 0,
+    previewEliteSeen: 0,
+  },
   runCleanPlaySummary: {
     completedObjectives: 0,
     cleanClears: 0,

@@ -133,3 +133,49 @@ The system SHALL include bounded biome-impact summary fields in run-end telemetr
 - **THEN** run-end telemetry includes active-biome coverage summary and bounded impact metrics tied to rule domains
 - **AND** summary fields align with activation and guardrail telemetry taxonomies used during the run
 
+### Requirement: Route-mastery decision telemetry
+
+The system SHALL emit stable telemetry for committed route decisions with mastery context.
+
+#### Scenario: Route decision event includes mastery capture context
+
+- **WHEN** a route choice is committed
+- **THEN** telemetry includes chosen room type, local preview context, and updated route-mastery counters
+- **AND** payload shape remains stable for cross-run comparison
+
+### Requirement: Run-end route-mastery summary telemetry
+
+The system SHALL include bounded route-mastery summary fields in `run_end` payload.
+
+#### Scenario: Run end reports route-mastery summary
+
+- **WHEN** run summary telemetry is emitted
+- **THEN** payload includes route-mastery totals and trend context fields
+- **AND** fields align with route decision telemetry taxonomy
+
+### Requirement: Predator-prey pacing lifecycle telemetry
+
+The system SHALL emit stable telemetry for pacing phase transitions and guardrail interventions.
+
+#### Scenario: Phase transitions emit bounded context
+
+- **WHEN** pacing transitions between `hunt`, `escape`, and `reset`
+- **THEN** telemetry includes prior phase, next phase, and bounded transition reason code
+- **AND** payload shape remains stable for cross-run pacing analysis
+
+#### Scenario: Guardrail interventions emit bounded intervention context
+
+- **WHEN** anti-overlap guardrails defer or downgrade pressure actions
+- **THEN** telemetry includes intervention action, reason code, and overlap context
+- **AND** events distinguish strict-filter application from fallback resolution
+
+### Requirement: Run-end pacing impact summary telemetry
+
+The system SHALL include bounded pacing-impact summary fields in run-end context.
+
+#### Scenario: Run end reports pacing summary fields
+
+- **WHEN** a run ends after one or more pacing-phase transitions
+- **THEN** run-end telemetry includes transition counts by phase and guardrail intervention totals
+- **AND** summary fields align with pacing lifecycle taxonomy used during the run
+

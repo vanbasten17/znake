@@ -8,6 +8,7 @@ import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { UpgradeFamily } from '../core/types'
 import { UPGRADE_FAMILIES } from '../core/upgrades'
 import { deriveRunSeed } from '../simulation/rng'
+import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
 import { getControlMode } from '../systems/controlScheme'
 import {
   getMoveHintText,
@@ -57,6 +58,7 @@ export class DeathScene extends Phaser.Scene {
     const recap = buildDeathRecap({
       deathReason,
       upgrades: gameState.persistentUpgrades,
+      routeMastery: gameState.routeMasterySummary,
       cleanPlay: {
         completedObjectives: gameState.runCleanPlaySummary.completedObjectives,
         cleanClears: gameState.runCleanPlaySummary.cleanClears,
@@ -136,6 +138,24 @@ export class DeathScene extends Phaser.Scene {
         gameState.eliteMinibossReadability.failureReasonCounts.telegraph_missed,
       eliteMinibossReasonStackedPressure:
         gameState.eliteMinibossReadability.failureReasonCounts.stacked_pressure,
+      predatorPreyTransitionEvents: gameState.predatorPreyPacingSummary.transitionEvents,
+      predatorPreyTransitionsHunt: gameState.predatorPreyPacingSummary.transitionsByPhase.hunt,
+      predatorPreyTransitionsEscape: gameState.predatorPreyPacingSummary.transitionsByPhase.escape,
+      predatorPreyTransitionsReset: gameState.predatorPreyPacingSummary.transitionsByPhase.reset,
+      predatorPreyGuardrailInterventions:
+        gameState.predatorPreyPacingSummary.guardrailInterventions,
+      predatorPreyGuardrailOverlapBudget:
+        gameState.predatorPreyPacingSummary.guardrailReasonCounts.overlap_budget_exceeded,
+      predatorPreyGuardrailCadenceGap:
+        gameState.predatorPreyPacingSummary.guardrailReasonCounts.cadence_gap_enforced,
+      predatorPreyGuardrailEscapeWindow:
+        gameState.predatorPreyPacingSummary.guardrailReasonCounts.phase_escape_window,
+      routeMasteryDecisions: gameState.routeMasterySummary.routeDecisions,
+      routeMasteryBranchDecisions: gameState.routeMasterySummary.branchDecisions,
+      routeMasteryEliteChoices: gameState.routeMasterySummary.eliteChoices,
+      routeMasteryNonCombatChoices: gameState.routeMasterySummary.nonCombatChoices,
+      routeMasteryBiomePivots: gameState.routeMasterySummary.biomePivotChoices,
+      routeMasteryPreviewEliteSeen: gameState.routeMasterySummary.previewEliteSeen,
     })
 
     const best = Math.max(
@@ -327,6 +347,13 @@ export class DeathScene extends Phaser.Scene {
     section.append(
       this.createRecapBlock(t('death.recap.cleanPlayLabel'), cleanPlayValue, cleanPlayDetail),
     )
+    section.append(
+      this.createRecapBlock(
+        t('death.recap.routeMasteryLabel', { defaultValue: 'Route Mastery' }),
+        recap.routeMastery.label,
+        recap.routeMastery.detail,
+      ),
+    )
 
     const choices = document.createElement('div')
     choices.className = styles.recapBlock
@@ -427,6 +454,21 @@ export class DeathScene extends Phaser.Scene {
         stacked_pressure: 0,
       },
     }
+    gameState.predatorPreyPacingSummary = {
+      transitionEvents: 0,
+      transitionsByPhase: {
+        hunt: 0,
+        escape: 0,
+        reset: 0,
+      },
+      guardrailInterventions: 0,
+      guardrailReasonCounts: {
+        overlap_budget_exceeded: 0,
+        cadence_gap_enforced: 0,
+        phase_escape_window: 0,
+      },
+    }
+    gameState.routeMasterySummary = createEmptyRouteMasterySummary()
     gameState.runCleanPlaySummary = {
       completedObjectives: 0,
       cleanClears: 0,

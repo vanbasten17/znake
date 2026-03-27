@@ -17,6 +17,17 @@ export type EliteMinibossFailureReason =
   | 'trapped_path'
   | 'telegraph_missed'
   | 'stacked_pressure'
+export type PredatorPreyPacingPhase = 'hunt' | 'escape' | 'reset'
+export type PredatorPreyPacingTransitionReason =
+  | 'encounter_start'
+  | 'window_elapsed'
+  | 'overlap_guardrail'
+export type PredatorPreyPacingGuardrailReason =
+  | 'overlap_budget_exceeded'
+  | 'cadence_gap_enforced'
+  | 'phase_escape_window'
+export type PredatorPreyPacingGuardrailAction = 'defer'
+export type BodyTerrainGuardrailReason = 'low_safe_pocket_under_pressure'
 
 export type UpgradeFamily = 'aggro' | 'control' | 'survival'
 export type UpgradeTag =
@@ -315,6 +326,13 @@ export type EnemyReadabilityState = {
   counterplayTicksRemaining: number
 }
 
+export type BodyTerrainSnapshot = {
+  laneControlSegments: number
+  zoneControlSegments: number
+  safePocketNeighbors: number
+  trapRisk: boolean
+}
+
 export type Particle = {
   x: number
   y: number
@@ -362,6 +380,8 @@ export type GameState = {
   pendingRunMapNodeId: string | null
   runCleanPlaySummary: RunCleanPlaySummary
   eliteMinibossReadability: EliteMinibossReadabilitySummary
+  predatorPreyPacingSummary: PredatorPreyPacingSummary
+  routeMasterySummary: RouteMasterySummary
   currentRunMutators: ChallengeMutatorRuntime[]
   biomeRuleSummary: BiomeRuleRunSummary
 }
@@ -469,6 +489,22 @@ export type EliteMinibossReadabilitySummary = {
   phaseWindowEvents: number
   damageEvents: number
   failureReasonCounts: Record<EliteMinibossFailureReason, number>
+}
+
+export type PredatorPreyPacingSummary = {
+  transitionEvents: number
+  transitionsByPhase: Record<PredatorPreyPacingPhase, number>
+  guardrailInterventions: number
+  guardrailReasonCounts: Record<PredatorPreyPacingGuardrailReason, number>
+}
+
+export type RouteMasterySummary = {
+  routeDecisions: number
+  branchDecisions: number
+  eliteChoices: number
+  nonCombatChoices: number
+  biomePivotChoices: number
+  previewEliteSeen: number
 }
 
 export type BiomeRuleRunSummary = {

@@ -21,6 +21,8 @@ import type {
   BiomeRuleRuntime,
   BodyEconomyRuntimeState,
   BodySpendBlockedReason,
+  BodyTerrainGuardrailReason,
+  BodyTerrainSnapshot,
   ChallengeMutatorRuntime,
   CleanPlayObjectiveResult,
   EliteMinibossPatternPhase,
@@ -35,6 +37,9 @@ import type {
   Particle,
   Powerup,
   PowerupType,
+  PredatorPreyPacingGuardrailAction,
+  PredatorPreyPacingGuardrailReason,
+  PredatorPreyPacingPhase,
   RewardOption,
   RoomObjectiveKind,
   RoomObjectiveState,
@@ -68,6 +73,11 @@ import {
   resolveRewardOverclockSpend,
   tickBodyEconomyRuntimeState,
 } from '../simulation/bodyEconomy'
+import {
+  createEmptyBodyTerrainSnapshot,
+  shouldBlockBodySpendForTerrain,
+  summarizeBodyTerrain,
+} from '../simulation/bodyTerrain'
 import {
   applyChallengeMutatorsToEnemyInterval,
   applyChallengeMutatorsToRoomObjectiveTarget,
@@ -134,11 +144,18 @@ import {
   tickPortalFlow,
 } from '../simulation/objectives'
 import {
+  type PredatorPreyPacingState,
+  advancePredatorPreyPacingState,
+  createInitialPredatorPreyPacingState,
+  shouldAllowPredatorPreyPressureAction,
+} from '../simulation/predatorPreyPacing'
+import {
   type RunReplayCapture,
   appendReplayInput,
   createRunReplayCapture,
 } from '../simulation/replay'
 import { type GameRng, createSeededRng, deriveRunSeed } from '../simulation/rng'
+import { getRouteMasteryReadout, recordRouteMasteryDecision } from '../simulation/routeMastery'
 import {
   createDefaultRunMapNodeIdForFloor,
   getRunMapPreview,
@@ -251,6 +268,7 @@ export class GameScene extends Phaser.Scene {
   private venomCooldownMs = 0
   private venomProjectiles: VenomProjectile[] = []
   private bodyEconomyState: BodyEconomyRuntimeState = createInitialBodyEconomyRuntimeState()
+  private bodyTerrainSnapshot: BodyTerrainSnapshot = createEmptyBodyTerrainSnapshot()
   private challengeMutators: ChallengeMutatorRuntime[] = []
   private objectiveType: FloorObjectiveKind = 'portal'
   private objectiveScoreStart = 0
@@ -289,6 +307,11 @@ export class GameScene extends Phaser.Scene {
   private enemies: Enemy[] = []
   private nextEnemyId = 1
   private eliteMinibossPhaseByEnemyId = new Map<number, EliteMinibossPatternPhase>()
+  private predatorPreyPacingState: PredatorPreyPacingState = createInitialPredatorPreyPacingState(
+    BALANCE.predatorPreyPacing,
+  )
+  private predatorPreyTick = 0
+  private lastPredatorPreyPressureTick = -9999
   private food: Food | null = null
   private powerup: Powerup | null = null
   private biomeItem: BiomeItem | null = null
@@ -382,6 +405,32 @@ export class GameScene extends Phaser.Scene {
           telegraph_missed: 0,
           stacked_pressure: 0,
         },
+      }
+    }
+    if (!gameState.predatorPreyPacingSummary) {
+      gameState.predatorPreyPacingSummary = {
+        transitionEvents: 0,
+        transitionsByPhase: {
+          hunt: 0,
+          escape: 0,
+          reset: 0,
+        },
+        guardrailInterventions: 0,
+        guardrailReasonCounts: {
+          overlap_budget_exceeded: 0,
+          cadence_gap_enforced: 0,
+          phase_escape_window: 0,
+        },
+      }
+    }
+    if (!gameState.routeMasterySummary) {
+      gameState.routeMasterySummary = {
+        routeDecisions: 0,
+        branchDecisions: 0,
+        eliteChoices: 0,
+        nonCombatChoices: 0,
+        biomePivotChoices: 0,
+        previewEliteSeen: 0,
       }
     }
     if (!gameState.biomeRuleSummary) {
@@ -744,6 +793,7 @@ export class GameScene extends Phaser.Scene {
     this.drawBackground()
     this.drawWalls()
     this.redrawTerrainGraphics()
+    this.refreshBodyTerrainSnapshot()
     updateHud(this.score)
     this.refreshObjectiveHud()
     this.refreshRunMapHud()
@@ -830,6 +880,7 @@ export class GameScene extends Phaser.Scene {
     const simDelta = delta * getSlowMotionFactor()
     const dt = simDelta / 1000
     this.updateRoomObjectiveByTime(simDelta)
+    this.refreshBodyTerrainSnapshot()
     this.refreshObjectiveHud()
     this.refreshRunMapHud()
     if (this.rewardPending) {
@@ -946,6 +997,7 @@ export class GameScene extends Phaser.Scene {
     this.venomCooldownMs = 0
     this.venomProjectiles = []
     this.bodyEconomyState = createInitialBodyEconomyRuntimeState()
+    this.bodyTerrainSnapshot = createEmptyBodyTerrainSnapshot()
     this.challengeMutators = []
     this.objectiveType = 'portal'
     this.objectiveScoreStart = 0
@@ -981,6 +1033,9 @@ export class GameScene extends Phaser.Scene {
     this.corridorCells = new Set<string>()
     this.nextEnemyId = 1
     this.eliteMinibossPhaseByEnemyId.clear()
+    this.predatorPreyPacingState = createInitialPredatorPreyPacingState(BALANCE.predatorPreyPacing)
+    this.predatorPreyTick = 0
+    this.lastPredatorPreyPressureTick = -9999
     this.enemyMoveTimer = 0
     this.roleSpawnCadence = createInitialRoleSpawnCadenceState()
     this.riftTimer = 0
@@ -1111,6 +1166,8 @@ export class GameScene extends Phaser.Scene {
       return
     }
     this.enemyMoveTimer = 0
+    this.predatorPreyTick += 1
+    this.advancePredatorPreyPacing(false)
     for (let i = 0; i < this.enemies.length; i += 1) {
       const enemy = this.enemies[i]
       if (!enemy || !enemy.alive) {
@@ -1745,6 +1802,41 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  private refreshBodyTerrainSnapshot(): void {
+    this.bodyTerrainSnapshot = summarizeBodyTerrain({
+      head: this.snake[0] ?? null,
+      snake: this.snake,
+      enemies: this.enemies,
+      isWall: (x, y) => this.isWall(x, y),
+      config: BALANCE.bodyTerrain,
+    })
+  }
+
+  private getBodyTerrainCueText(): string {
+    const safe = this.bodyTerrainSnapshot.safePocketNeighbors
+    if (this.bodyTerrainSnapshot.trapRisk) {
+      return `TERRAIN TIGHT ${safe}`
+    }
+    return `TERRAIN SAFE ${safe}`
+  }
+
+  private emitBodyTerrainGuardrailTelemetry(
+    action: 'body_pulse' | 'reward_overclock',
+    reason: BodyTerrainGuardrailReason,
+  ): void {
+    trackRetentionEvent('body_terrain_guardrail', {
+      action,
+      reason,
+      floor: gameState.floor,
+      roomType: this.currentRoomType,
+      safePocketNeighbors: this.bodyTerrainSnapshot.safePocketNeighbors,
+      laneControlSegments: this.bodyTerrainSnapshot.laneControlSegments,
+      zoneControlSegments: this.bodyTerrainSnapshot.zoneControlSegments,
+      trapRisk: this.bodyTerrainSnapshot.trapRisk,
+      pressureSources: this.getActivePredatorPreyPressureSources(),
+    })
+  }
+
   private updateVenomState(delta: number): void {
     this.venomCooldownMs = Math.max(0, this.venomCooldownMs - delta)
     if (this.venomProjectiles.length === 0) {
@@ -1861,6 +1953,18 @@ export class GameScene extends Phaser.Scene {
     if (this.paused || this.isDying) {
       return
     }
+    this.refreshBodyTerrainSnapshot()
+    const terrainGuard = shouldBlockBodySpendForTerrain({
+      snapshot: this.bodyTerrainSnapshot,
+      activePressureSources: this.getActivePredatorPreyPressureSources(),
+      config: BALANCE.bodyTerrain,
+    })
+    if (!terrainGuard.allow) {
+      setHintText('Body terrain unsafe for spend')
+      emitFeedback('danger')
+      this.emitBodyTerrainGuardrailTelemetry('body_pulse', terrainGuard.reason)
+      return
+    }
     const resolved = resolveBodyPulseSpend({
       snakeLength: this.snake.length,
       state: this.bodyEconomyState,
@@ -1896,6 +2000,17 @@ export class GameScene extends Phaser.Scene {
     }
     this.enemies = this.enemies.filter((enemy) => enemy.alive)
     this.cleanupEliteMinibossPhaseState()
+    this.refreshBodyTerrainSnapshot()
+    trackRetentionEvent('body_terrain_snapshot', {
+      trigger: 'body_pulse',
+      floor: gameState.floor,
+      roomType: this.currentRoomType,
+      safePocketNeighbors: this.bodyTerrainSnapshot.safePocketNeighbors,
+      laneControlSegments: this.bodyTerrainSnapshot.laneControlSegments,
+      zoneControlSegments: this.bodyTerrainSnapshot.zoneControlSegments,
+      trapRisk: this.bodyTerrainSnapshot.trapRisk,
+      hitCount,
+    })
     emitFeedback(hitCount > 0 ? 'success' : 'confirm')
   }
 
@@ -1927,6 +2042,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   private tryRewardOverclock(): void {
+    this.refreshBodyTerrainSnapshot()
+    const terrainGuard = shouldBlockBodySpendForTerrain({
+      snapshot: this.bodyTerrainSnapshot,
+      activePressureSources: this.getActivePredatorPreyPressureSources(),
+      config: BALANCE.bodyTerrain,
+    })
+    if (!terrainGuard.allow) {
+      setHintText('Body terrain unsafe for overclock')
+      emitFeedback('danger')
+      this.emitBodyTerrainGuardrailTelemetry('reward_overclock', terrainGuard.reason)
+      this.refreshRewardOverclockButton()
+      return
+    }
     const resolved = resolveRewardOverclockSpend({
       snakeLength: this.snake.length,
       state: this.bodyEconomyState,
@@ -1949,6 +2077,16 @@ export class GameScene extends Phaser.Scene {
     this.mountRewardOverlay()
     this.refreshHintText()
     this.refreshRewardOverclockButton()
+    this.refreshBodyTerrainSnapshot()
+    trackRetentionEvent('body_terrain_snapshot', {
+      trigger: 'reward_overclock',
+      floor: gameState.floor,
+      roomType: this.currentRoomType,
+      safePocketNeighbors: this.bodyTerrainSnapshot.safePocketNeighbors,
+      laneControlSegments: this.bodyTerrainSnapshot.laneControlSegments,
+      zoneControlSegments: this.bodyTerrainSnapshot.zoneControlSegments,
+      trapRisk: this.bodyTerrainSnapshot.trapRisk,
+    })
     emitFeedback('reward')
   }
 
@@ -2136,10 +2274,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private refreshRunMapHud(): void {
+    const mastery = getRouteMasteryReadout(gameState.routeMasterySummary)
     const currentRoom = t('game.routeCurrentRoom', {
       room: this.getRoomTypeLabel(this.currentRoomType),
     })
-    const current = `${currentRoom} · ${this.getBiomeLabel(this.currentBiomeId)}`
+    const current = `${currentRoom} · ${this.getBiomeLabel(this.currentBiomeId)} · ${mastery.short}`
     if (this.routeChoices.length <= 0) {
       setRouteStatusText(current)
       return
@@ -2205,13 +2344,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getPressureStatusText(): string {
+    let base = t('game.squeezeActive')
     if (this.portalCountdownMs > 0) {
-      return t('game.pressureIn', { seconds: Math.ceil(this.portalCountdownMs / 1000) })
+      base = t('game.pressureIn', { seconds: Math.ceil(this.portalCountdownMs / 1000) })
+    } else if (this.portalGraceMs > 0) {
+      base = t('game.squeezeIn', { seconds: Math.ceil(this.portalGraceMs / 1000) })
     }
-    if (this.portalGraceMs > 0) {
-      return t('game.squeezeIn', { seconds: Math.ceil(this.portalGraceMs / 1000) })
+    if (!this.usesCombatRoomFlow() || this.isBossFloor) {
+      return base
     }
-    return t('game.squeezeActive')
+    return `${base} · ${this.getPredatorPreyPhaseCueText()}`
   }
 
   private getCorePressureStatusText(): string | null {
@@ -2305,7 +2447,12 @@ export class GameScene extends Phaser.Scene {
   private refreshObjectiveHud(): void {
     const base = this.getRoomObjectiveStatusText()
     const cue = this.getEliteMinibossCueText()
-    setObjectiveStatusText(cue ? `${base} · ${cue}` : base)
+    const pacing =
+      this.usesCombatRoomFlow() && !this.isBossFloor ? this.getPredatorPreyPhaseCueText() : null
+    const terrain =
+      this.usesCombatRoomFlow() && !this.isBossFloor ? this.getBodyTerrainCueText() : null
+    const parts = [base, cue, pacing, terrain].filter((part) => Boolean(part))
+    setObjectiveStatusText(parts.join(' · '))
   }
 
   private setupRoomObjectiveActors(): void {
@@ -2709,6 +2856,27 @@ export class GameScene extends Phaser.Scene {
     if (!choice) {
       return
     }
+    gameState.routeMasterySummary = recordRouteMasteryDecision({
+      summary: gameState.routeMasterySummary,
+      currentBiomeId: this.currentBiomeId,
+      availableChoices: this.routeChoices.length,
+      choice: {
+        roomType: choice.roomType,
+        biomeId: choice.biomeId,
+        previewRoomTypes: choice.previewRoomTypes,
+      },
+    })
+    trackRetentionEvent('route_mastery_decision', {
+      floor: gameState.floor,
+      roomType: choice.roomType,
+      biomeId: choice.biomeId,
+      previewEliteSeen: choice.previewRoomTypes.filter((room) => room === 'elite').length,
+      routeDecisions: gameState.routeMasterySummary.routeDecisions,
+      branchDecisions: gameState.routeMasterySummary.branchDecisions,
+      eliteChoices: gameState.routeMasterySummary.eliteChoices,
+      nonCombatChoices: gameState.routeMasterySummary.nonCombatChoices,
+      biomePivotChoices: gameState.routeMasterySummary.biomePivotChoices,
+    })
     emitFeedback('confirm')
     gameState.pendingRunMapNodeId = choice.nodeId
     this.teardownRouteOverlay()
@@ -3470,6 +3638,85 @@ export class GameScene extends Phaser.Scene {
     return pickSpecialEnemyKind({ floor: gameState.floor, rng: this.rng })
   }
 
+  private getPredatorPreyPhaseCueText(): string {
+    const ticks = Math.max(0, this.predatorPreyPacingState.phaseTicksRemaining)
+    if (this.predatorPreyPacingState.phase === 'hunt') {
+      return `PACE HUNT ${ticks}`
+    }
+    if (this.predatorPreyPacingState.phase === 'escape') {
+      return `PACE ESCAPE ${ticks}`
+    }
+    return `PACE RESET ${ticks}`
+  }
+
+  private registerPredatorPreyTransition(params: {
+    from: PredatorPreyPacingPhase
+    to: PredatorPreyPacingPhase
+    reason: string
+  }): void {
+    gameState.predatorPreyPacingSummary.transitionEvents += 1
+    gameState.predatorPreyPacingSummary.transitionsByPhase[params.to] += 1
+    trackRetentionEvent('predator_prey_pacing_transition', {
+      from: params.from,
+      to: params.to,
+      reason: params.reason,
+      floor: gameState.floor,
+      roomType: this.currentRoomType,
+      phaseTicksRemaining: this.predatorPreyPacingState.phaseTicksRemaining,
+    })
+  }
+
+  private advancePredatorPreyPacing(guardrailIntervened: boolean): void {
+    const next = advancePredatorPreyPacingState({
+      state: this.predatorPreyPacingState,
+      config: BALANCE.predatorPreyPacing,
+      guardrailIntervened,
+    })
+    this.predatorPreyPacingState = next.state
+    if (!next.transitioned || !next.previousPhase || !next.reason) {
+      return
+    }
+    this.registerPredatorPreyTransition({
+      from: next.previousPhase,
+      to: next.state.phase,
+      reason: next.reason,
+    })
+  }
+
+  private registerPredatorPreyGuardrailIntervention(
+    reason: PredatorPreyPacingGuardrailReason,
+    action: PredatorPreyPacingGuardrailAction,
+  ): void {
+    gameState.predatorPreyPacingSummary.guardrailInterventions += 1
+    gameState.predatorPreyPacingSummary.guardrailReasonCounts[reason] += 1
+    trackRetentionEvent('predator_prey_pacing_guardrail', {
+      reason,
+      action,
+      phase: this.predatorPreyPacingState.phase,
+      floor: gameState.floor,
+      roomType: this.currentRoomType,
+    })
+    this.advancePredatorPreyPacing(true)
+  }
+
+  private getActivePredatorPreyPressureSources(): number {
+    let count = 0
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) {
+        continue
+      }
+      if (
+        isEliteMinibossKind(enemy.kind) ||
+        enemy.role === 'sniper' ||
+        enemy.role === 'charger' ||
+        enemy.role === 'summoner'
+      ) {
+        count += 1
+      }
+    }
+    return count
+  }
+
   private getEliteMinibossCueText(): string | null {
     let bestPhase: EliteMinibossPatternPhase | null = null
     for (const enemy of this.enemies) {
@@ -3677,7 +3924,27 @@ export class GameScene extends Phaser.Scene {
     ) {
       resolvedKind = 'normal'
     }
-    const role = getEnemyRoleFromKind(resolvedKind, BALANCE.enemyRoles.byKind)
+    let role = getEnemyRoleFromKind(resolvedKind, BALANCE.enemyRoles.byKind)
+    const isHighPressureCandidate =
+      isEliteMinibossKind(resolvedKind) ||
+      role === 'sniper' ||
+      role === 'charger' ||
+      role === 'summoner'
+    if (kind === 'normal' && isHighPressureCandidate) {
+      const guardrail = shouldAllowPredatorPreyPressureAction({
+        state: this.predatorPreyPacingState,
+        currentPressureSources: this.getActivePredatorPreyPressureSources(),
+        ticksSinceLastPressureAction: this.predatorPreyTick - this.lastPredatorPreyPressureTick,
+        config: BALANCE.predatorPreyPacing,
+      })
+      if (!guardrail.allow && BALANCE.predatorPreyPacing.guardrails.fallbackAction === 'defer') {
+        this.registerPredatorPreyGuardrailIntervention(guardrail.reason, 'defer')
+        resolvedKind = 'normal'
+        role = getEnemyRoleFromKind(resolvedKind, BALANCE.enemyRoles.byKind)
+      } else if (guardrail.allow) {
+        this.lastPredatorPreyPressureTick = this.predatorPreyTick
+      }
+    }
     const randomLen =
       BALANCE.enemy.lengthBase +
       this.rng.nextInt(0, BALANCE.enemy.lengthRandomRange - 1) +

@@ -28,6 +28,7 @@ import {
   MARKER_EXPORT_SCALE_DEFAULT,
 } from '../render/markerExportSpec'
 import { deriveRunSeed } from '../simulation/rng'
+import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
 import { getAccessibilitySettings, updateAccessibilitySettings } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import { setSceneChrome } from '../systems/domHud'
@@ -650,6 +651,21 @@ export class MenuScene extends Phaser.Scene {
         stacked_pressure: 0,
       },
     }
+    gameState.predatorPreyPacingSummary = {
+      transitionEvents: 0,
+      transitionsByPhase: {
+        hunt: 0,
+        escape: 0,
+        reset: 0,
+      },
+      guardrailInterventions: 0,
+      guardrailReasonCounts: {
+        overlap_budget_exceeded: 0,
+        cadence_gap_enforced: 0,
+        phase_escape_window: 0,
+      },
+    }
+    gameState.routeMasterySummary = createEmptyRouteMasterySummary()
     gameState.runCleanPlaySummary = {
       completedObjectives: 0,
       cleanClears: 0,

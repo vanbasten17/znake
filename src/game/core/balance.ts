@@ -630,6 +630,19 @@ export const BALANCE = {
       minOpenNeighborCount: 2,
     },
   },
+  predatorPreyPacing: {
+    phaseTicks: {
+      openingHunt: 4,
+      hunt: 4,
+      escape: 3,
+      reset: 2,
+    },
+    guardrails: {
+      maxConcurrentPressureSources: 2,
+      minTicksBetweenPressureActions: 2,
+      fallbackAction: 'defer',
+    },
+  },
   enemyRoles: {
     byKind: {
       normal: 'blocker',
@@ -709,6 +722,14 @@ export const BALANCE = {
     bodyPulseRadius: 1,
     rewardOverclockCost: 1,
     rewardOverclockUsesPerObjective: 1,
+  },
+  bodyTerrain: {
+    zoneRadius: 2,
+    laneDistance: 4,
+    guardrails: {
+      minSafePocketNeighbors: 1,
+      pressureSourceThreshold: 1,
+    },
   },
   enemyVariants: {
     egg: {
