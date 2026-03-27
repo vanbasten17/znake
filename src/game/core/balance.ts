@@ -621,17 +621,17 @@ export const BALANCE = {
   },
   combatFairness: {
     grace: {
-      roomEntryMs: 900,
-      postHitMs: 700,
+      roomEntryMs: 1150,
+      postHitMs: 850,
     },
     telegraph: {
-      ambusherDashTicks: 2,
-      eggHatchWarningTurns: 1,
+      ambusherDashTicks: 3,
+      eggHatchWarningTurns: 2,
     },
     spawn: {
-      enemyMinDistanceFromPlayer: 7,
-      avoidPlayerForwardLaneSteps: 3,
-      minOpenNeighborCount: 2,
+      enemyMinDistanceFromPlayer: 8,
+      avoidPlayerForwardLaneSteps: 4,
+      minOpenNeighborCount: 3,
     },
   },
   predatorPreyPacing: {
@@ -658,20 +658,20 @@ export const BALANCE = {
     } satisfies Record<'normal' | 'stalker' | 'ambusher' | 'boss' | 'egg' | 'mirror', EnemyRole>,
     roleKnobs: {
       sniper: {
-        telegraphTicks: 2,
+        telegraphTicks: 3,
         cooldownTurns: 2,
       },
       blocker: {
         pressureWeight: 1,
       },
       summoner: {
-        hatchWarningTurns: 1,
+        hatchWarningTurns: 2,
       },
       charger: {
-        telegraphTicks: 2,
+        telegraphTicks: 3,
       },
       leech: {
-        feedTelegraphTicks: 1,
+        feedTelegraphTicks: 2,
         scoreDrainOnFoodSteal: 4,
       },
     },
@@ -799,15 +799,15 @@ export const BALANCE = {
   },
   eliteMiniboss: {
     patternWindows: {
-      telegraphMinTicks: 2,
+      telegraphMinTicks: 3,
       commitMinTicks: 1,
       recoveryTicks: 2,
-      warningLeadTicks: 2,
+      warningLeadTicks: 3,
     },
     fairness: {
-      reactionWindowTicksMin: 2,
-      spawnMinManhattanDistance: 7,
-      minEscapeNeighbors: 2,
+      reactionWindowTicksMin: 3,
+      spawnMinManhattanDistance: 8,
+      minEscapeNeighbors: 3,
       maxSimultaneousPressureSources: 2,
       minCadenceGapTicks: 1,
     },

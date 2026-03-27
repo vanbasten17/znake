@@ -2459,6 +2459,13 @@ export class GameScene extends Phaser.Scene {
 
   private refreshObjectiveHud(): void {
     const base = this.getRoomObjectiveStatusText()
+    const prioritizeObjectiveOnly =
+      this.rewardPending ||
+      (this.roomObjective?.completed === true && !this.roomObjective.rewardClaimed)
+    if (prioritizeObjectiveOnly) {
+      setObjectiveStatusText(base)
+      return
+    }
     const cue = this.getEliteMinibossCueText()
     const pacing =
       this.usesCombatRoomFlow() && !this.isBossFloor ? this.getPredatorPreyPhaseCueText() : null
@@ -2573,7 +2580,7 @@ export class GameScene extends Phaser.Scene {
     this.roomObjective = cleanPlayResolution.state
     gameState.runCleanPlaySummary = cleanPlayResolution.runSummary
     this.lastCleanPlayResult = cleanPlayResolution.result
-    const objectiveWindowId = `${gameState.run}-${gameState.floor}-${gameState.runCleanPlaySummary.completedObjectives}`
+    const objectiveWindowId = this.getCurrentObjectiveWindowId()
     trackRetentionEvent('objective_clean_play_resolved', {
       objectiveKind: cleanPlayResolution.result.objectiveKind,
       eligible: cleanPlayResolution.result.eligible,
@@ -2606,9 +2613,20 @@ export class GameScene extends Phaser.Scene {
     }
     this.bodyEconomyState = resetRewardOverclockWindow(this.bodyEconomyState)
     this.rewardChoices = draftRewardOptions(getRewardPool(), BALANCE.rewards.draftSize, this.rng)
+    trackRetentionEvent('objective_completed', {
+      objectiveKind: this.roomObjective.kind,
+      objectiveWindowId,
+      floor: gameState.floor,
+      score: this.score,
+      rewardOptionIds: this.rewardChoices.map((choice) => choice.id).join(','),
+      cleanPlayEligible: cleanPlayResolution.result.eligible,
+      cleanPlayAwarded: cleanPlayResolution.result.awarded,
+      cleanPlayRewardAmount: cleanPlayResolution.result.rewardAmount,
+    })
     this.rewardPending = true
     this.triggerObjectiveFeedback(false)
     this.mountRewardOverlay()
+    setRunStatusText(t('game.rewardDecisionPending'))
     this.refreshHintText()
   }
 
@@ -2620,6 +2638,17 @@ export class GameScene extends Phaser.Scene {
     if (!reward) {
       return
     }
+    const objectiveWindowId = this.getCurrentObjectiveWindowId()
+    trackRetentionEvent('reward_picked', {
+      rewardId: reward.id,
+      rewardIndex: index,
+      objectiveKind: this.roomObjective?.kind ?? 'unknown',
+      objectiveWindowId,
+      floor: gameState.floor,
+      scoreBeforePick: this.score,
+      cleanPlayEligible: this.lastCleanPlayResult?.eligible ?? false,
+      cleanPlayAwarded: this.lastCleanPlayResult?.awarded ?? false,
+    })
     this.applyRewardChoice(reward)
     this.rewardPending = false
     this.rewardChoices = []
@@ -2667,6 +2696,11 @@ export class GameScene extends Phaser.Scene {
     subtitle.className = rewardStyles.subtitle
     subtitle.textContent = t('reward.chooseOne')
     root.append(subtitle)
+
+    const framing = document.createElement('p')
+    framing.className = rewardStyles.framing
+    framing.textContent = t('reward.decisionFrame')
+    root.append(framing)
 
     if (this.lastCleanPlayResult) {
       const cleanPlay = document.createElement('p')
@@ -2730,13 +2764,25 @@ export class GameScene extends Phaser.Scene {
     content.append(name)
 
     const upside = document.createElement('span')
-    upside.className = rewardStyles.upside
-    upside.textContent = t(formatRewardTranslationKey(reward.id, 'upside'))
+    upside.className = rewardStyles.effectLine
+    const upsideTag = document.createElement('span')
+    upsideTag.className = rewardStyles.upsideTag
+    upsideTag.textContent = t('reward.upsideTag')
+    const upsideText = document.createElement('span')
+    upsideText.className = rewardStyles.upsideText
+    upsideText.textContent = t(formatRewardTranslationKey(reward.id, 'upside'))
+    upside.append(upsideTag, upsideText)
     content.append(upside)
 
     const downside = document.createElement('span')
-    downside.className = rewardStyles.downside
-    downside.textContent = t(formatRewardTranslationKey(reward.id, 'downside'))
+    downside.className = rewardStyles.effectLine
+    const downsideTag = document.createElement('span')
+    downsideTag.className = rewardStyles.downsideTag
+    downsideTag.textContent = t('reward.downsideTag')
+    const downsideText = document.createElement('span')
+    downsideText.className = rewardStyles.downsideText
+    downsideText.textContent = t(formatRewardTranslationKey(reward.id, 'downside'))
+    downside.append(downsideTag, downsideText)
     content.append(downside)
 
     const hotkey = document.createElement('span')
@@ -2753,6 +2799,10 @@ export class GameScene extends Phaser.Scene {
       this.rewardOverlayRoot = null
     }
     this.rewardOverclockButton = null
+  }
+
+  private getCurrentObjectiveWindowId(): string {
+    return `${gameState.run}-${gameState.floor}-${gameState.runCleanPlaySummary.completedObjectives}`
   }
 
   private refreshRewardOverclockButton(): void {

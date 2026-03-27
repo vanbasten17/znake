@@ -110,6 +110,13 @@
   color: var(--color-sem-control);
 }
 
+.identity {
+  font-family: var(--font-ui);
+  font-size: clamp(10px, 2vw, 12px);
+  color: var(--color-sem-control);
+  line-height: 1.25;
+}
+
 .name {
   font-family: var(--font-display);
   font-weight: 700;
@@ -129,7 +136,7 @@
 
 .gameplay {
   font-family: var(--font-ui);
-  font-size: clamp(11px, 2.1vw, 13px);
+  font-size: clamp(10px, 2.1vw, 13px);
   color: #eefcff;
   line-height: 1.28;
 }
@@ -139,6 +146,15 @@
   font-size: clamp(10px, 2vw, 12px);
   color: var(--color-sem-danger);
   line-height: 1.3;
+}
+
+.familyTradeoff {
+  font-family: var(--font-ui);
+  font-size: clamp(10px, 2vw, 12px);
+  color: var(--color-text-secondary);
+  line-height: 1.28;
+  padding-left: 8px;
+  border-left: 2px solid var(--color-sem-control);
 }
 
 .hotkey {

@@ -40,7 +40,7 @@ The system SHALL track objective progress through an explicit runtime state mode
 
 ### Requirement: Reward draft after objective completion
 
-The system SHALL present a reward choice immediately after objective completion, evaluate deterministic clean-play eligibility for the completed objective window, and apply any configured clean-play bonus payout before the next segment starts.
+The system SHALL present a reward choice immediately after objective completion, evaluate deterministic clean-play eligibility for the completed objective window, apply any configured clean-play bonus payout before the next segment starts, and preserve explicit loop milestones for completion and reward selection.
 
 #### Scenario: Completion opens reward choice with clean-play result
 
@@ -66,6 +66,12 @@ The system SHALL present a reward choice immediately after objective completion,
 - **WHEN** progression enters a configured event-choice decision point instead of objective-completion reward flow
 - **THEN** the run enters an event-choice-pending state
 - **AND** progression resumes only after one event option is selected and resolved deterministically
+
+#### Scenario: Completion and reward-pick milestones remain distinct in runtime loop
+
+- **WHEN** objective completion is resolved and reward drafting begins
+- **THEN** completion moment state is represented before reward selection is confirmed
+- **AND** reward selection is represented as a subsequent, distinct milestone in the same objective window
 
 ### Requirement: Tradeoff reward definitions
 

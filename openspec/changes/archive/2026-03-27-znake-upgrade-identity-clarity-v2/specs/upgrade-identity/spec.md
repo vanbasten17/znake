@@ -1,8 +1,5 @@
-# upgrade-identity Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change znake-upgrade-identity-v1. Update Purpose after archive.
-## Requirements
 ### Requirement: Upgrade families define run identity
 
 The system SHALL define three upgrade families named `aggro`, `control`, and `survival`, each with a distinct gameplay purpose and explicit family-level tradeoff guidance that changes how the player uses movement or space.
@@ -39,17 +36,3 @@ The system SHALL store short tradeoff and synergy notes for each upgrade so rewa
 - **WHEN** an upgrade card is shown
 - **THEN** gameplay and tradeoff notes are presented as distinct consequence cues
 - **AND** the player can compare downside risk without inspecting external menus
-
-### Requirement: Reward flow consumes family-aware upgrade choices
-The system SHALL expose a deterministic selection contract that reward flow can use to draft identity-forward upgrade options.
-
-#### Scenario: Draft helper returns reward-ready choices
-- **WHEN** reward flow requests upgrade choices for a run seed and floor
-- **THEN** it receives a deterministic list of upgrade definitions
-- **AND** the helper avoids duplicate upgrade ids in the same draft
-
-#### Scenario: Early draft contrast is preserved
-- **WHEN** the first-pass upgrade helper builds a draft from the initial pool
-- **THEN** the returned set favors visible family contrast or role contrast
-- **AND** repeated family stacking remains possible only after contrast rules are satisfied
-

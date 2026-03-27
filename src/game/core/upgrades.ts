@@ -5,19 +5,22 @@ export const UPGRADE_FAMILIES: Record<UpgradeFamily, UpgradeFamilyDefinition> = 
   aggro: {
     id: 'aggro',
     label: 'AGGRO',
-    summary: 'Speed, shortcut pressure, and greedy pathing.',
+    summary: 'Tempo spikes, fast cuts, and proactive lane forcing.',
+    tradeoff: 'Compresses reaction margins and punishes late turns.',
     color: 0xff8a3d,
   },
   control: {
     id: 'control',
     label: 'CONTROL',
-    summary: 'Zoning, safer space ownership, and map shaping.',
+    summary: 'Space shaping, safer routing, and lane ownership.',
+    tradeoff: 'Lower burst payoff; value depends on clean path planning.',
     color: 0x57d4ff,
   },
   survival: {
     id: 'survival',
     label: 'SURVIVAL',
-    summary: 'Forgiveness, recovery, and stability under pressure.',
+    summary: 'Mistake buffering, recovery, and run stability.',
+    tradeoff: 'Less explosive tempo; wins through consistency over spikes.',
     color: 0x7dff9f,
   },
 }

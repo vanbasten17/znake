@@ -134,6 +134,12 @@ The system SHALL render upgrade selection in a portrait-first polished compositi
 - **THEN** each card communicates the upgrade family and short gameplay purpose
 - **AND** tradeoff-oriented copy remains readable without inspecting external menus
 
+#### Scenario: Upgrade cards separate identity and consequence cues
+
+- **WHEN** upgrade choices are rendered
+- **THEN** card hierarchy presents family identity context separately from per-upgrade consequence cues
+- **AND** playstyle and tradeoff consequence text can be compared quickly on supported mobile and desktop layouts
+
 ### Requirement: Stable scene handoff for DOM shell
 
 The system SHALL perform scene transitions through a stable handoff path that prevents stale input and visual shell drift.

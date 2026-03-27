@@ -88,6 +88,12 @@ export class UpgradeScene extends Phaser.Scene {
     })
   }
 
+  private getUpgradeFamilyTradeoff(upgrade: Upgrade): string {
+    return t(`upgrade.family.${upgrade.family}.tradeoff`, {
+      defaultValue: UPGRADE_FAMILIES[upgrade.family].tradeoff,
+    })
+  }
+
   private getUpgradeGameplay(upgrade: Upgrade): string {
     return t(`upgrade.${upgrade.id}_gameplay`, { defaultValue: upgrade.gameplay })
   }
@@ -184,6 +190,11 @@ export class UpgradeScene extends Phaser.Scene {
     family.style.color = `#${UPGRADE_FAMILIES[upgrade.family].color.toString(16).padStart(6, '0')}`
     content.append(family)
 
+    const identity = document.createElement('span')
+    identity.className = styles.identity
+    identity.textContent = `${t('upgrade.identityLabel')}: ${this.getUpgradeFamilySummary(upgrade)}`
+    content.append(identity)
+
     const name = document.createElement('span')
     name.className = styles.name
     name.textContent = this.getUpgradeName(upgrade)
@@ -197,13 +208,19 @@ export class UpgradeScene extends Phaser.Scene {
 
     const gameplay = document.createElement('span')
     gameplay.className = styles.gameplay
-    gameplay.textContent = this.getUpgradeGameplay(upgrade)
+    gameplay.textContent = `${t('upgrade.playstyleLabel')}: ${this.getUpgradeGameplay(upgrade)}`
     content.append(gameplay)
 
     const tradeoff = document.createElement('span')
     tradeoff.className = styles.tradeoff
-    tradeoff.textContent = `${this.getUpgradeFamilySummary(upgrade)} ${this.getUpgradeTradeoff(upgrade)}`
+    tradeoff.textContent = `${t('upgrade.tradeoffLabel')}: ${this.getUpgradeTradeoff(upgrade)}`
     content.append(tradeoff)
+
+    const familyTradeoff = document.createElement('span')
+    familyTradeoff.className = styles.familyTradeoff
+    familyTradeoff.textContent = this.getUpgradeFamilyTradeoff(upgrade)
+    familyTradeoff.style.borderLeftColor = `#${UPGRADE_FAMILIES[upgrade.family].color.toString(16).padStart(6, '0')}`
+    content.append(familyTradeoff)
 
     const hotkey = document.createElement('span')
     hotkey.className = styles.hotkey

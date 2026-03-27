@@ -46,6 +46,7 @@ export type UpgradeFamilyDefinition = {
   id: UpgradeFamily
   label: string
   summary: string
+  tradeoff: string
   color: number
 }
 

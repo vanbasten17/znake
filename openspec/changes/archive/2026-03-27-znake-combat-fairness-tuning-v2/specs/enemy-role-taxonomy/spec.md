@@ -1,17 +1,4 @@
-# enemy-role-taxonomy Specification
-
-## Purpose
-TBD - created by archiving change znake-enemy-role-taxonomy-v1. Update Purpose after archive.
-## Requirements
-### Requirement: Enemy role contract registry
-
-The system SHALL define a first-pass role taxonomy registry containing `sniper`, `blocker`, `summoner`, `charger`, and `leech` as explicit gameplay role contracts.
-
-#### Scenario: All first-pass roles are registered
-
-- **WHEN** gameplay loads enemy role taxonomy configuration for a run
-- **THEN** the registry includes exactly the five first-pass roles `sniper`, `blocker`, `summoner`, `charger`, and `leech`
-- **AND** each role includes machine-readable contract metadata for role intent, telegraph class, and counterplay class
+## MODIFIED Requirements
 
 ### Requirement: Role telegraph and counterplay readability
 
@@ -50,14 +37,3 @@ The system SHALL enforce role-level fairness guardrails so role pressure remains
 - **WHEN** role telegraph and action timings are resolved
 - **THEN** configured minimum reaction windows are respected for first-pass roles
 - **AND** no role bypasses fairness timing contracts through scene-only overrides
-
-### Requirement: Deterministic role resolution
-
-Role intent, telegraph, and cadence outcomes SHALL remain deterministic from seeded simulation state and config inputs.
-
-#### Scenario: Same seed yields same role outcomes
-
-- **WHEN** two simulations run with the same seed, role config, and input stream
-- **THEN** role composition, telegraph timing, and action resolution match deterministically
-- **AND** scene rendering order does not affect role behavior outcomes
-

@@ -43,7 +43,7 @@ The system SHALL keep room objective declarations, objective target values, rewa
 
 ### Requirement: Central combat fairness tuning
 
-The system SHALL define combat fairness timings and spawn-safety thresholds in centralized balance configuration.
+The system SHALL define combat fairness timings and spawn-safety thresholds in centralized balance configuration, including telegraph readability windows and short room-entry/post-hit breathing windows.
 
 #### Scenario: Telegraph timing is balance-driven
 
@@ -56,6 +56,12 @@ The system SHALL define combat fairness timings and spawn-safety thresholds in c
 - **WHEN** room-entry grace, post-hit grace, minimum spawn distance, lane exclusion, or escape-space thresholds are evaluated
 - **THEN** the values come from centralized balance config
 - **AND** fairness rules can be tuned without editing multiple gameplay call sites
+
+#### Scenario: Fairness tuning remains threshold-driven and bounded
+
+- **WHEN** combat fairness values are adjusted for a tuning pass
+- **THEN** updates are made through centralized threshold tables
+- **AND** tuning does not require new scene-owned fairness branches
 
 ### Requirement: Central feedback tuning
 
