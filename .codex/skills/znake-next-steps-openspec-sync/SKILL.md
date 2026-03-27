@@ -1,6 +1,6 @@
 ---
 name: znake-next-steps-openspec-sync
-description: Sync NEXT_STEPS.md against this repo's OpenSpec history and base specs, append a generated status section at the bottom, choose the next highest-priority unmatched work items, and return conflict-aware OpenSpec proposal/apply prompts for parallel Cursor threads.
+description: Sync NEXT_STEPS.md against this repo's OpenSpec history and base specs, append a generated status section at the bottom, choose the next highest-priority unmatched work items, and return conflict-aware OpenSpec proposal/apply prompts for parallel Cursor threads. If all major items are already covered, clean up NEXT_STEPS.md and remind the user to run a new brainstorming cycle.
 ---
 
 # Znake Next Steps OpenSpec Sync
@@ -39,15 +39,34 @@ This skill is repo-specific. Assume:
    - matched items with linked evidence paths
    - unmatched items still likely needing work
    - a short note if multiple NEXT_STEPS bullets collapse into one existing OpenSpec concept
-6. Choose a small sample of next working items by priority.
-7. Return copy-paste prompts optimized for actual concurrency:
+6. Detect completion mode:
+   - enter completion mode when there are no major `Unmatched` items, no `In Active Change` items, and no major items that are only `Specced in Base Specs`
+7. If NOT in completion mode, choose a small sample of next working items by priority.
+8. If NOT in completion mode, return copy-paste prompts optimized for actual concurrency:
    - parallel thread prompts only when safe overlap exists
    - otherwise sequential combined prompts (`propose` then `apply` per item)
-8. Explicitly state the safest execution order.
-9. Prefer the shortest practical execution plan:
+9. If NOT in completion mode, explicitly state the safest execution order.
+10. If NOT in completion mode, prefer the shortest practical execution plan:
    - pair each selected item as `Create spec` then `Apply`
    - minimize separate planning-only queues unless a dependency requires waiting
    - present the order as one global numbered list, not just thread labels
+11. If in completion mode, clean up `NEXT_STEPS.md` and return only:
+   - concise match summary
+   - confirmation of the cleanup edit
+   - a direct reminder to run a new brainstorming cycle using `znake-brainstorming-next-steps`
+
+## Completion Mode Cleanup
+
+When completion mode is true, rewrite `NEXT_STEPS.md` into a concise rollover document:
+
+- keep title: `# Next Steps`
+- include a short status note that current major roadmap items are already mapped/archived in OpenSpec
+- keep a compact `## OpenSpec Match Status` section with generation date and 2-4 bullets of evidence summary
+- include `## Suggested Next Step` with exactly one action:
+  - run a fresh brainstorming pass via `znake-brainstorming-next-steps` to generate a new priority backlog
+
+Do not keep the old long planning body in completion mode.
+Do not generate propose/apply prompt packs in completion mode.
 
 ## Matching Rules
 
@@ -61,7 +80,7 @@ This skill is repo-specific. Assume:
 
 ## How To Pick Next Working Items
 
-Choose 2 to 4 items only.
+Choose 2 to 4 items only (skip this section in completion mode).
 
 Prioritize:
 
@@ -117,6 +136,7 @@ After generating prompts, always include:
 
 When there is no meaningful safe parallelism, say so explicitly and avoid presenting artificial thread parallelism.
 When mixed, explicitly state which prompts are serialized and which are parallel.
+Skip this section entirely in completion mode.
 
 Use this order style:
 
@@ -139,6 +159,7 @@ Unless the user asks for a different breakdown, prefer this output pattern:
      2. apply spec
 3. `Parallel Notes`
    - one line per item describing what can overlap safely
+Skip this section in completion mode.
 
 Default sequencing rules:
 
@@ -216,17 +237,22 @@ Before finishing:
 
 ## Editing Guardrail For NEXT_STEPS.md
 
-Do not rewrite the planning document wholesale.
+Default rule:
+- do not rewrite the planning document wholesale.
 
-Only append or refresh the final generated section:
+Default edit scope:
+- only append or refresh the final generated section:
 
 - `## OpenSpec Match Status`
 
 If that section already exists, replace only that section and leave the rest of the file intact.
 
+Completion mode exception:
+- if completion mode is true, rewrite `NEXT_STEPS.md` using the `Completion Mode Cleanup` structure above.
+
 ## Output Format
 
-Always return:
+When NOT in completion mode, always return:
 
 1. `Match summary`
 2. `NEXT_STEPS.md update`
@@ -241,3 +267,9 @@ Always return:
 8. `Parallel Notes`
 
 Keep it concise and operational.
+
+When in completion mode, always return:
+
+1. `Match summary`
+2. `NEXT_STEPS.md cleanup`
+3. `Brainstorming reminder`
