@@ -40,7 +40,9 @@ This skill is repo-specific. Assume:
    - unmatched items still likely needing work
    - a short note if multiple NEXT_STEPS bullets collapse into one existing OpenSpec concept
 6. Choose a small sample of next working items by priority.
-7. Return copy-paste prompts for parallel Cursor threads.
+7. Return copy-paste prompts optimized for actual concurrency:
+   - parallel thread prompts only when safe overlap exists
+   - otherwise sequential combined prompts (`propose` then `apply` per item)
 8. Explicitly state the safest execution order.
 9. Prefer the shortest practical execution plan:
    - pair each selected item as `Create spec` then `Apply`
@@ -76,20 +78,31 @@ De-prioritize:
 
 ## Prompt Output Requirements
 
-Return prompts in two groups:
+Always add a letter label before every prompt block for quick identification:
+- `A. ...`
+- `B. ...`
+- `C. ...`
 
-1. `Proposal prompts`
-   - one per selected work item
-   - each prompt should clearly trigger OpenSpec proposal creation
-   - include a suggested change name
-   - include scope, non-goals, and the needed spec areas
+Output mode MUST follow real dependency structure:
 
-2. `Apply prompts`
-   - one per selected work item, only if proposal/apply split makes sense
-   - reference the change name from the proposal prompt
-   - ask for implementation of the agreed tasks only
+1. If **all selected items can be parallelized safely**:
+   - return two groups:
+     - `Proposal prompts`
+     - `Apply prompts`
+   - one proposal + one apply prompt per selected item
+   - each prompt must be paste-ready for a fresh Cursor thread
 
-Each prompt must be ready to paste into a fresh Cursor thread.
+2. If **none of the selected items can be parallelized safely**:
+   - return only one group: `Sequential prompt`
+   - include exactly one combined prompt that contains the full ordered plan
+   - that single prompt must include both `propose` + `apply` steps for each selected item in sequence
+   - do not emit split proposal/apply groups in this case
+
+3. If there is a **mixed** case (some can parallelize, some cannot):
+   - return two sections:
+     - `Sequential prompts` for dependency-coupled items (combined propose+apply per item or chain as needed)
+     - `Parallel prompts` for items that can run independently (split proposal/apply per item)
+   - each prompt must be paste-ready and clearly scoped
 
 ## Conflict Review
 
@@ -101,6 +114,9 @@ After generating prompts, always include:
 - a one-line reason for each dependency or conflict
 - a default `Shortest Practical Version` that uses `propose` then `apply` for each item in sequence
 - an expanded numbered execution list that explicitly says `Create spec for ...` and `Apply ...`
+
+When there is no meaningful safe parallelism, say so explicitly and avoid presenting artificial thread parallelism.
+When mixed, explicitly state which prompts are serialized and which are parallel.
 
 Use this order style:
 
@@ -215,8 +231,11 @@ Always return:
 1. `Match summary`
 2. `NEXT_STEPS.md update`
 3. `Selected next items`
-4. `Proposal prompts`
-5. `Apply prompts`
+4. prompt section(s) chosen by mode:
+   - all parallel: `Proposal prompts` + `Apply prompts`
+   - none parallel: `Sequential prompt`
+   - mixed: `Sequential prompts` + `Parallel prompts`
+5. `Why this prompt mode`
 6. `Shortest Practical Version`
 7. `Detailed Execution Order`
 8. `Parallel Notes`
