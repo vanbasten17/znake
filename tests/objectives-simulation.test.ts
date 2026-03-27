@@ -2,10 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   addCorePressureCoolant,
+  advanceRoomObjectiveState,
   applyPortalBeaconAcceleration,
+  createEmptyRunCleanPlaySummary,
   initCorePressureState,
   initPortalFlowState,
+  initRoomObjectiveState,
   resetCorePressureTimer,
+  resolveCleanPlayBonusForObjective,
   shouldCompleteObjective,
   tickCorePressure,
   tickPortalFlow,
@@ -129,4 +133,126 @@ test('core pressure timer reset preserves charges', () => {
     }),
   )
   assert.equal(state.remainingMs, state.intervalMs)
+})
+
+test('clean-play resolution awards once when objective completes without hits', () => {
+  let objective = initRoomObjectiveState({ kind: 'survive', target: 1000 })
+  objective = advanceRoomObjectiveState(objective, { type: 'tick', deltaMs: 1000 }).state
+  const first = resolveCleanPlayBonusForObjective({
+    state: objective,
+    runSummary: createEmptyRunCleanPlaySummary(),
+    invalidateOnShieldHit: true,
+    invalidateOnBodyHit: true,
+    scoreByObjectiveKind: {
+      survive: 20,
+      collect_cores: 24,
+      defeat_elite: 30,
+      activate_terminals: 26,
+    },
+    maxAwardsPerRunByObjectiveKind: {
+      survive: 3,
+      collect_cores: 3,
+      defeat_elite: 2,
+      activate_terminals: 3,
+    },
+  })
+
+  assert.equal(first.result.awarded, true)
+  assert.equal(first.result.rewardAmount, 20)
+  assert.equal(first.runSummary.totalBonusScore, 20)
+
+  const second = resolveCleanPlayBonusForObjective({
+    state: first.state,
+    runSummary: first.runSummary,
+    invalidateOnShieldHit: true,
+    invalidateOnBodyHit: true,
+    scoreByObjectiveKind: {
+      survive: 20,
+      collect_cores: 24,
+      defeat_elite: 30,
+      activate_terminals: 26,
+    },
+    maxAwardsPerRunByObjectiveKind: {
+      survive: 3,
+      collect_cores: 3,
+      defeat_elite: 2,
+      activate_terminals: 3,
+    },
+  })
+
+  assert.equal(second.result.awarded, false)
+  assert.equal(second.result.reason, 'already_resolved')
+  assert.equal(second.runSummary.totalBonusScore, 20)
+})
+
+test('clean-play resolution is invalidated by shield/body hits', () => {
+  let objective = initRoomObjectiveState({ kind: 'collect_cores', target: 2 })
+  objective = advanceRoomObjectiveState(objective, {
+    type: 'damage_taken',
+    damageKind: 'shield',
+  }).state
+  objective = advanceRoomObjectiveState(objective, { type: 'core_collected', amount: 2 }).state
+
+  const resolved = resolveCleanPlayBonusForObjective({
+    state: objective,
+    runSummary: createEmptyRunCleanPlaySummary(),
+    invalidateOnShieldHit: true,
+    invalidateOnBodyHit: true,
+    scoreByObjectiveKind: {
+      survive: 20,
+      collect_cores: 24,
+      defeat_elite: 30,
+      activate_terminals: 26,
+    },
+    maxAwardsPerRunByObjectiveKind: {
+      survive: 3,
+      collect_cores: 3,
+      defeat_elite: 2,
+      activate_terminals: 3,
+    },
+  })
+
+  assert.equal(resolved.result.eligible, false)
+  assert.equal(resolved.result.awarded, false)
+  assert.equal(resolved.result.reason, 'took_hit')
+  assert.equal(resolved.runSummary.cleanClears, 0)
+})
+
+test('clean-play payout obeys objective-kind cap', () => {
+  let objective = initRoomObjectiveState({ kind: 'defeat_elite', target: 1 })
+  objective = advanceRoomObjectiveState(objective, { type: 'elite_defeated', amount: 1 }).state
+
+  const resolved = resolveCleanPlayBonusForObjective({
+    state: objective,
+    runSummary: {
+      completedObjectives: 0,
+      cleanClears: 0,
+      totalBonusScore: 60,
+      awardedByKind: {
+        survive: 0,
+        collect_cores: 0,
+        defeat_elite: 2,
+        activate_terminals: 0,
+      },
+    },
+    invalidateOnShieldHit: true,
+    invalidateOnBodyHit: true,
+    scoreByObjectiveKind: {
+      survive: 20,
+      collect_cores: 24,
+      defeat_elite: 30,
+      activate_terminals: 26,
+    },
+    maxAwardsPerRunByObjectiveKind: {
+      survive: 3,
+      collect_cores: 3,
+      defeat_elite: 2,
+      activate_terminals: 3,
+    },
+  })
+
+  assert.equal(resolved.result.eligible, true)
+  assert.equal(resolved.result.awarded, false)
+  assert.equal(resolved.result.reason, 'objective_kind_cap_reached')
+  assert.equal(resolved.runSummary.totalBonusScore, 60)
 })

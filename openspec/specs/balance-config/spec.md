@@ -15,7 +15,7 @@ The system SHALL keep gameplay content selection rules in centralized, data-driv
 
 ### Requirement: Objective and reward tuning tables
 
-The system SHALL keep room objective declarations, objective target values, and reward definitions in centralized balance configuration.
+The system SHALL keep room objective declarations, objective target values, reward definitions, and clean-play rule/payout tables in centralized balance configuration.
 
 #### Scenario: Objective targets are centrally tuned
 
@@ -28,6 +28,18 @@ The system SHALL keep room objective declarations, objective target values, and 
 - **WHEN** gameplay resolves a reward option's positive and negative modifiers
 - **THEN** those values come from centralized balance data
 - **AND** reward selection UI does not define gameplay effect magnitudes inline
+
+#### Scenario: Clean-play eligibility rules are centrally tuned
+
+- **WHEN** gameplay evaluates whether a completed objective qualifies for clean-play status
+- **THEN** condition flags and qualification constraints come from centralized balance config
+- **AND** objective and scene code does not hardcode duplicate eligibility constants
+
+#### Scenario: Clean-play payout rules are centrally tuned
+
+- **WHEN** gameplay resolves clean-play bonus payout type, amount, and per-objective caps
+- **THEN** those values come from centralized balance config
+- **AND** reward/recap presentation paths consume resolved values without redefining magnitudes inline
 
 ### Requirement: Central combat fairness tuning
 
@@ -94,4 +106,50 @@ The system SHALL define first-pass body economy costs, cooldowns, and gating thr
 - **WHEN** gameplay validates any body spend request
 - **THEN** minimum spendable length floor is read from centralized balance config
 - **AND** all body sinks use the same shared floor policy
+
+dits
+
+### Requirement: Central role cadence and composition policy
+
+The system SHALL keep room-level role cadence, caps, and anti-stack constraints in centralized balance configuration.
+
+#### Scenario: Role cadence is centrally tuned
+
+- **WHEN** spawn cadence or role action cadence is evaluated
+- **THEN** cadence intervals and weighting policies come from centralized config
+- **AND** encounter pacing can be tuned without editing multiple call sites
+
+#### Scenario: Anti-stack constraints are centrally tuned
+
+- **WHEN** gameplay evaluates simultaneous high-pressure role overlap
+- **THEN** max-overlap, cooldown-gap, or equivalent anti-stack thresholds come from centralized config
+- **AND** deterministic fallback thresholds are defined when strict constraints cannot be satisfied
+
+### Requirement: Central mutator taxonomy and tuning tables
+
+The system SHALL define challenge mutator taxonomy, tuning values, and compatibility metadata in centralized balance configuration.
+
+#### Scenario: Mutator catalog is centrally authored
+- **WHEN** runtime loads mutator definitions
+- **THEN** it reads mutator taxonomy, effect parameters, and readability metadata from centralized balance config
+- **AND** scene or gameplay modules do not hardcode mutator tables inline
+
+#### Scenario: Eligibility and weighting are config-driven
+- **WHEN** mutator drafting resolves candidates
+- **THEN** eligibility gates and draft weights come from centralized balance config
+- **AND** tuning can be adjusted without cross-module constant edits
+
+### Requirement: Central mutator guardrail configuration
+
+The system SHALL define anti-frustration and fairness guardrails for mutator composition in centralized balance configuration.
+
+#### Scenario: Conflict and stack-limit tables are config-driven
+- **WHEN** mutator compatibility is evaluated
+- **THEN** blocked pairs, domain stack limits, and pressure ceilings are read from centralized balance config
+- **AND** compatibility logic does not rely on duplicated inline checks
+
+#### Scenario: Recoverability floors are config-driven
+- **WHEN** mutator sets are validated against objective, body-economy, and event-choice constraints
+- **THEN** minimum recoverability thresholds are read from centralized balance config
+- **AND** rejected candidates include deterministic reason codes for observability
 

@@ -1,4 +1,6 @@
 import type {
+  ChallengeMutatorDefinition,
+  EnemyRole,
   EventChoiceDefinition,
   FloorTemplate,
   NonBossObjectiveKind,
@@ -130,6 +132,27 @@ export const BALANCE = {
     defeatEliteCap: 2,
     activateTerminalsBase: 2,
     activateTerminalsCap: 3,
+  },
+  cleanPlay: {
+    rules: {
+      invalidateOnShieldHit: true,
+      invalidateOnBodyHit: true,
+    },
+    payout: {
+      type: 'score',
+      scoreByObjectiveKind: {
+        survive: 20,
+        collect_cores: 24,
+        defeat_elite: 30,
+        activate_terminals: 26,
+      } satisfies Record<RoomObjectiveKind, number>,
+      maxAwardsPerRunByObjectiveKind: {
+        survive: 3,
+        collect_cores: 3,
+        defeat_elite: 2,
+        activate_terminals: 3,
+      } satisfies Record<RoomObjectiveKind, number>,
+    },
   },
   runMap: {
     previewHorizon: 2,
@@ -303,6 +326,76 @@ export const BALANCE = {
       },
     ] satisfies ReadonlyArray<EventChoiceDefinition>,
   },
+  challengeMutators: {
+    enabled: true,
+    maxActive: 2,
+    maxShownInHud: 2,
+    guardrails: {
+      pressureBudgetMax: 2,
+      minMoveIntervalMs: 90,
+      minEnemyIntervalMs: 180,
+      maxBodySpendMinLength: 3,
+      maxEventMinSnakeLength: 3,
+      blockedPairs: [['tempo_spike', 'tight_turns']] as const,
+    },
+    availability: {
+      requiredGoal: 'floor_5' as const,
+      requiredProgress: 5,
+    },
+    catalog: [
+      {
+        id: 'tempo_spike',
+        label: 'TEMPO SPIKE',
+        summary: 'Faster enemies and shorter survive objectives.',
+        domain: 'pressure',
+        minFloor: 2,
+        weight: 1,
+        pressureCost: 1,
+        effects: {
+          enemyIntervalMultiplier: 0.92,
+          surviveObjectiveTargetMultiplier: 0.92,
+        },
+      },
+      {
+        id: 'tight_turns',
+        label: 'TIGHT TURNS',
+        summary: 'Turn queue is shorter and routing is stricter.',
+        domain: 'constraint',
+        minFloor: 2,
+        weight: 1,
+        pressureCost: 1,
+        effects: {
+          maxTurnQueueDelta: -1,
+        },
+      },
+      {
+        id: 'lean_market',
+        label: 'LEAN MARKET',
+        summary: 'Body spending demands a higher safety floor.',
+        domain: 'economy',
+        minFloor: 3,
+        weight: 1,
+        pressureCost: 0,
+        effects: {
+          bodySpendMinLengthDelta: 1,
+          eventMinSnakeLengthDelta: 1,
+        },
+      },
+      {
+        id: 'route_tension',
+        label: 'ROUTE TENSION',
+        summary: 'Riskier routes gain extra pressure, safer routes relax more.',
+        domain: 'routing',
+        minFloor: 3,
+        weight: 1,
+        pressureCost: 0,
+        effects: {
+          saferRouteEnemyDelta: -1,
+          riskierRouteEnemyDelta: 1,
+        },
+      },
+    ] satisfies ReadonlyArray<ChallengeMutatorDefinition>,
+  },
   rewards: {
     draftSize: 3,
     pool: [
@@ -403,6 +496,59 @@ export const BALANCE = {
       enemyMinDistanceFromPlayer: 7,
       avoidPlayerForwardLaneSteps: 3,
       minOpenNeighborCount: 2,
+    },
+  },
+  enemyRoles: {
+    byKind: {
+      normal: 'blocker',
+      stalker: 'leech',
+      ambusher: 'charger',
+      boss: 'blocker',
+      egg: 'summoner',
+      mirror: 'sniper',
+    } satisfies Record<'normal' | 'stalker' | 'ambusher' | 'boss' | 'egg' | 'mirror', EnemyRole>,
+    roleKnobs: {
+      sniper: {
+        telegraphTicks: 2,
+        cooldownTurns: 2,
+      },
+      blocker: {
+        pressureWeight: 1,
+      },
+      summoner: {
+        hatchWarningTurns: 1,
+      },
+      charger: {
+        telegraphTicks: 2,
+      },
+      leech: {
+        feedTelegraphTicks: 1,
+        scoreDrainOnFoodSteal: 4,
+      },
+    },
+    spawnPolicy: {
+      weights: {
+        sniper: 0.22,
+        blocker: 0.26,
+        summoner: 0.18,
+        charger: 0.2,
+        leech: 0.14,
+      } satisfies Record<EnemyRole, number>,
+      maxActiveByRole: {
+        sniper: 1,
+        blocker: 3,
+        summoner: 1,
+        charger: 1,
+        leech: 2,
+      } satisfies Record<EnemyRole, number>,
+      minSpawnGapByRole: {
+        sniper: 2,
+        blocker: 0,
+        summoner: 2,
+        charger: 2,
+        leech: 1,
+      } satisfies Record<EnemyRole, number>,
+      fallbackRole: 'blocker' as EnemyRole,
     },
   },
   enemy: {

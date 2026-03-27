@@ -1,4 +1,4 @@
-import type { Upgrade, UpgradeFamily } from './types'
+import type { RunCleanPlaySummary, Upgrade, UpgradeFamily } from './types'
 
 export type DeathRecapBuildLeaning = UpgradeFamily | 'mixed' | 'none'
 
@@ -6,6 +6,7 @@ export type DeathRecapViewModel = {
   deathReason: string
   buildLeaning: DeathRecapBuildLeaning
   notableChoices: Upgrade[]
+  cleanPlay: Pick<RunCleanPlaySummary, 'completedObjectives' | 'cleanClears' | 'totalBonusScore'>
 }
 
 const FAMILY_ORDER: UpgradeFamily[] = ['aggro', 'control', 'survival']
@@ -51,8 +52,14 @@ const getBuildLeaning = (upgrades: ReadonlyArray<Upgrade>): DeathRecapBuildLeani
 export const buildDeathRecap = (params: {
   deathReason?: string
   upgrades: ReadonlyArray<Upgrade>
+  cleanPlay?: Pick<RunCleanPlaySummary, 'completedObjectives' | 'cleanClears' | 'totalBonusScore'>
 }): DeathRecapViewModel => ({
   deathReason: params.deathReason ?? 'unknown',
   buildLeaning: getBuildLeaning(params.upgrades),
   notableChoices: params.upgrades.slice(-MAX_NOTABLE_CHOICES),
+  cleanPlay: params.cleanPlay ?? {
+    completedObjectives: 0,
+    cleanClears: 0,
+    totalBonusScore: 0,
+  },
 })

@@ -9,6 +9,7 @@ export type SnakeSegment = Vec2
 
 export type PowerupType = 'shield' | 'slow' | 'ghost' | 'score' | 'venom'
 export type EnemyKind = 'normal' | 'stalker' | 'ambusher' | 'boss' | 'egg' | 'mirror'
+export type EnemyRole = 'sniper' | 'blocker' | 'summoner' | 'charger' | 'leech'
 export type WorldItemType = 'core' | 'rift_battery' | 'portal_beacon'
 
 export type UpgradeFamily = 'aggro' | 'control' | 'survival'
@@ -86,6 +87,40 @@ export type RunMapPreview = {
   currentNode: RunMapNode
   choices: RunMapPreviewChoice[]
   previewHorizon: number
+}
+
+export type ChallengeMutatorDomain = 'pressure' | 'constraint' | 'economy' | 'routing'
+
+export type ChallengeMutatorId = 'tempo_spike' | 'tight_turns' | 'lean_market' | 'route_tension'
+
+export type ChallengeMutatorEffects = {
+  moveIntervalMultiplier?: number
+  enemyIntervalMultiplier?: number
+  bodySpendMinLengthDelta?: number
+  maxTurnQueueDelta?: number
+  surviveObjectiveTargetMultiplier?: number
+  saferRouteEnemyDelta?: number
+  riskierRouteEnemyDelta?: number
+  eventMinSnakeLengthDelta?: number
+}
+
+export type ChallengeMutatorDefinition = {
+  id: ChallengeMutatorId
+  label: string
+  summary: string
+  domain: ChallengeMutatorDomain
+  minFloor: number
+  weight: number
+  pressureCost: number
+  effects: ChallengeMutatorEffects
+}
+
+export type ChallengeMutatorRuntime = {
+  id: ChallengeMutatorId
+  label: string
+  summary: string
+  domain: ChallengeMutatorDomain
+  effects: ChallengeMutatorEffects
 }
 
 export type EventChoiceKind = 'risky_trade' | 'curse_offer' | 'safe_vs_dangerous_route'
@@ -177,17 +212,26 @@ export type Enemy = {
   dir: Vec2
   alive: boolean
   kind: EnemyKind
+  role: EnemyRole
   health: number
   dashCooldown: number
   hatchTurnsRemaining: number
   mirrorDelaySteps: number
+  roleCooldown: number
   telegraph: EnemyTelegraph | null
+  readability: EnemyReadabilityState
 }
 
 export type EnemyTelegraph = {
-  kind: 'ambusher_dash'
+  kind: 'ambusher_dash' | 'sniper_lock' | 'leech_feed'
   dir: Vec2
   ticksRemaining: number
+}
+
+export type EnemyReadabilityState = {
+  role: EnemyRole
+  telegraphActive: boolean
+  counterplayTicksRemaining: number
 }
 
 export type Particle = {
@@ -235,6 +279,8 @@ export type GameState = {
   pendingFloorRoute: FloorRouteChoice | null
   currentRunMapNodeId: string | null
   pendingRunMapNodeId: string | null
+  runCleanPlaySummary: RunCleanPlaySummary
+  currentRunMutators: ChallengeMutatorRuntime[]
 }
 
 export type VirtualInput = {
@@ -291,12 +337,49 @@ export type RoomObjectiveDefinition = {
   target: number
 }
 
+export type CleanPlayDamageKind = 'shield' | 'body'
+
+export type RoomObjectiveCleanPlayState = {
+  shieldHits: number
+  bodyHits: number
+  resolved: boolean
+  bonusAwarded: boolean
+}
+
 export type RoomObjectiveState = {
   kind: RoomObjectiveKind
   progress: number
   target: number
   completed: boolean
   rewardClaimed: boolean
+  cleanPlay: RoomObjectiveCleanPlayState
+}
+
+export type CleanPlayRewardType = 'score'
+
+export type CleanPlayResultReason =
+  | 'not_completed'
+  | 'already_resolved'
+  | 'took_hit'
+  | 'objective_kind_cap_reached'
+  | 'awarded'
+
+export type CleanPlayObjectiveResult = {
+  objectiveKind: RoomObjectiveKind
+  eligible: boolean
+  awarded: boolean
+  rewardType: CleanPlayRewardType
+  rewardAmount: number
+  shieldHits: number
+  bodyHits: number
+  reason: CleanPlayResultReason
+}
+
+export type RunCleanPlaySummary = {
+  completedObjectives: number
+  cleanClears: number
+  totalBonusScore: number
+  awardedByKind: Record<RoomObjectiveKind, number>
 }
 
 export type NonBossObjectiveKind = 'portal' | 'score' | 'kills'

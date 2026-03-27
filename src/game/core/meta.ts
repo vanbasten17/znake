@@ -177,6 +177,9 @@ export const applyRelicEffect = (cfg: RunConfig, relicId: RelicId | null): void 
   relic.apply(cfg)
 }
 
+export const isChallengeMutatorsUnlocked = (profile: PlayerProfile): boolean =>
+  profile.goalProgress.floor_5 >= BALANCE.challengeMutators.availability.requiredProgress
+
 export const drawRelicDraft = (options?: {
   nextIndex?: (poolLength: number) => number
 }): RelicDefinition[] => {

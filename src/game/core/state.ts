@@ -16,6 +16,18 @@ export const gameState: GameState = {
   pendingFloorRoute: null,
   currentRunMapNodeId: null,
   pendingRunMapNodeId: null,
+  currentRunMutators: [],
+  runCleanPlaySummary: {
+    completedObjectives: 0,
+    cleanClears: 0,
+    totalBonusScore: 0,
+    awardedByKind: {
+      survive: 0,
+      collect_cores: 0,
+      defeat_elite: 0,
+      activate_terminals: 0,
+    },
+  },
 }
 
 export let playerProfile: PlayerProfile = loadProfile()

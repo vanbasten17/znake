@@ -76,7 +76,7 @@ The system SHALL render upgrade UI text in the active locale.
 
 ### Requirement: Death scene
 
-The system SHALL render death summary text in the active locale.
+The system SHALL render death summary text in the active locale and include concise clean-play recap context derived from resolved run data.
 
 #### Scenario: Death summary localized
 
@@ -89,6 +89,12 @@ The system SHALL render death summary text in the active locale.
 - **WHEN** death scene is active
 - **THEN** death summary composition is rendered via DOM overlay in game area
 - **AND** next-run and main-menu actions remain behaviorally equivalent
+
+#### Scenario: Death recap surfaces clean-play bonus summary
+
+- **WHEN** death scene is shown after one or more completed objectives in a run
+- **THEN** recap includes a concise clean-play summary based on resolved objective outcomes
+- **AND** recap can communicate clean clear count and total clean-play bonus payout with readable fallback text when none were earned
 
 ### Requirement: Relic draft polished composition
 
@@ -223,4 +229,18 @@ The system SHALL provide short deterministic feedback cues after event resolutio
 - **WHEN** an event option resolves
 - **THEN** the overlay or HUD shows a short summary of applied costs and benefits
 - **AND** the summary text matches the configured deterministic outcome payload
+
+### Requirement: Mutator readability surfaces in game scene
+
+The system SHALL present deterministic mutator readability cues through scene overlays without moving gameplay ownership into scene code.
+
+#### Scenario: Pre-run mutator summary is shown
+- **WHEN** a run starts with active mutators
+- **THEN** GameScene surfaces a concise mutator summary payload before or at run entry
+- **AND** summary text mirrors deterministic mutator config labels and effects
+
+#### Scenario: Active mutator status remains readable in run HUD
+- **WHEN** mutator effects are active during gameplay
+- **THEN** run HUD or overlay shows bounded active mutator status cues suitable for desktop and portrait mobile
+- **AND** scene presentation does not mutate mutator logic or resolution order
 

@@ -11,6 +11,7 @@ test('death recap uses a deterministic dominant family when one family leads', (
 
   assert.equal(recap.deathReason, 'enemy')
   assert.equal(recap.buildLeaning, 'aggro')
+  assert.equal(recap.cleanPlay.completedObjectives, 0)
   assert.deepEqual(
     recap.notableChoices.map((upgrade) => upgrade.id),
     ['phase_shift', 'attractor', 'void_shield'],
@@ -33,5 +34,6 @@ test('death recap falls back cleanly when the player dies before shaping a build
 
   assert.equal(recap.deathReason, 'unknown')
   assert.equal(recap.buildLeaning, 'none')
+  assert.equal(recap.cleanPlay.totalBonusScore, 0)
   assert.deepEqual(recap.notableChoices, [])
 })

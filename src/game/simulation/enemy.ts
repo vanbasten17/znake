@@ -25,12 +25,21 @@ type TickEnemyContext = {
   egg: {
     hatchLength: number
   }
+  roles: {
+    sniper: {
+      telegraphTicks: number
+      cooldownTurns: number
+      minLaneDistance: number
+      chanceWhenAligned: number
+    }
+  }
 }
 
 export type EnemyTickResult = {
   enemy: Enemy
   ateFood: boolean
   hatched: boolean
+  rolePressureOutcome: 'leech_food_stolen' | null
 }
 
 const cloneEnemy = (enemy: Enemy): Enemy => ({
@@ -43,6 +52,7 @@ const cloneEnemy = (enemy: Enemy): Enemy => ({
         dir: { ...enemy.telegraph.dir },
       }
     : null,
+  readability: { ...enemy.readability },
 })
 
 const advanceEnemyStep = (
@@ -80,11 +90,13 @@ const tickEggEnemy = (enemy: Enemy, hatchLength: number): EnemyTickResult => {
   const nextEnemy = cloneEnemy(enemy)
   nextEnemy.hatchTurnsRemaining = Math.max(0, nextEnemy.hatchTurnsRemaining - 1)
   if (nextEnemy.hatchTurnsRemaining > 0) {
-    return { enemy: nextEnemy, ateFood: false, hatched: false }
+    nextEnemy.readability.telegraphActive = true
+    nextEnemy.readability.counterplayTicksRemaining = nextEnemy.hatchTurnsRemaining
+    return { enemy: nextEnemy, ateFood: false, hatched: false, rolePressureOutcome: null }
   }
   const head = nextEnemy.body[0]
   if (!head) {
-    return { enemy: nextEnemy, ateFood: false, hatched: false }
+    return { enemy: nextEnemy, ateFood: false, hatched: false, rolePressureOutcome: null }
   }
   nextEnemy.kind = 'normal'
   nextEnemy.mirrorDelaySteps = 0
@@ -92,19 +104,72 @@ const tickEggEnemy = (enemy: Enemy, hatchLength: number): EnemyTickResult => {
     x: Math.max(0, head.x - i),
     y: head.y,
   }))
-  return { enemy: nextEnemy, ateFood: false, hatched: true }
+  nextEnemy.readability.telegraphActive = false
+  nextEnemy.readability.counterplayTicksRemaining = 1
+  return { enemy: nextEnemy, ateFood: false, hatched: true, rolePressureOutcome: null }
 }
 
 const tickMirrorEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickResult => {
   const head = enemy.body[0]
   if (!head) {
-    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false }
+    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false, rolePressureOutcome: null }
   }
   const delay = Math.max(1, enemy.mirrorDelaySteps)
   const targetIndex = context.playerHeadHistory.length - 1 - delay
   const target = targetIndex >= 0 ? context.playerHeadHistory[targetIndex] : context.playerHead
   if (!target) {
-    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false }
+    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false, rolePressureOutcome: null }
+  }
+  const aligned = head.x === target.x || head.y === target.y
+  const laneDistance = aligned
+    ? head.x === target.x
+      ? Math.abs(head.y - target.y)
+      : Math.abs(head.x - target.x)
+    : 0
+  if (
+    aligned &&
+    laneDistance >= context.roles.sniper.minLaneDistance &&
+    enemy.roleCooldown <= 0 &&
+    context.rng.nextFloat() < context.roles.sniper.chanceWhenAligned
+  ) {
+    const next = cloneEnemy(enemy)
+    const dir: Vec2 =
+      head.x === target.x
+        ? { x: 0, y: Math.sign(target.y - head.y) }
+        : { x: Math.sign(target.x - head.x), y: 0 }
+    if (dir.x !== 0 || dir.y !== 0) {
+      next.telegraph = {
+        kind: 'sniper_lock',
+        dir,
+        ticksRemaining: Math.max(1, context.roles.sniper.telegraphTicks),
+      }
+      next.readability.telegraphActive = true
+      next.readability.counterplayTicksRemaining = next.telegraph.ticksRemaining
+      next.roleCooldown = context.roles.sniper.cooldownTurns
+      return { enemy: next, ateFood: false, hatched: false, rolePressureOutcome: null }
+    }
+  }
+  if (enemy.telegraph?.kind === 'sniper_lock') {
+    const next = cloneEnemy(enemy)
+    if (next.telegraph && next.telegraph.ticksRemaining > 1) {
+      next.telegraph.ticksRemaining -= 1
+      next.readability.telegraphActive = true
+      next.readability.counterplayTicksRemaining = next.telegraph.ticksRemaining
+      return { enemy: next, ateFood: false, hatched: false, rolePressureOutcome: null }
+    }
+    const dir = next.telegraph?.dir ?? { x: 0, y: 0 }
+    next.telegraph = null
+    const advanced = advanceEnemyStep(next, dir, context.isWall, context.foodCell)
+    const landed = advanced.enemy
+    landed.readability.telegraphActive = false
+    landed.readability.counterplayTicksRemaining = 1
+    landed.roleCooldown = Math.max(0, landed.roleCooldown - 1)
+    return {
+      enemy: landed,
+      ateFood: advanced.ateFood,
+      hatched: false,
+      rolePressureOutcome: advanced.ateFood ? 'leech_food_stolen' : null,
+    }
   }
   const dx = Math.sign(target.x - head.x)
   const dy = Math.sign(target.y - head.y)
@@ -128,10 +193,20 @@ const tickMirrorEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickResu
     }
     const advanced = advanceEnemyStep(enemy, dir, context.isWall, context.foodCell)
     if (advanced.moved) {
-      return { enemy: advanced.enemy, ateFood: advanced.ateFood, hatched: false }
+      const nextEnemy = advanced.enemy
+      nextEnemy.roleCooldown = Math.max(0, nextEnemy.roleCooldown - 1)
+      return {
+        enemy: nextEnemy,
+        ateFood: advanced.ateFood,
+        hatched: false,
+        rolePressureOutcome:
+          advanced.ateFood && nextEnemy.role === 'leech' ? 'leech_food_stolen' : null,
+      }
     }
   }
-  return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false }
+  const idle = cloneEnemy(enemy)
+  idle.roleCooldown = Math.max(0, idle.roleCooldown - 1)
+  return { enemy: idle, ateFood: false, hatched: false, rolePressureOutcome: null }
 }
 
 const tryAmbusherDash = (enemy: Enemy, context: TickEnemyContext): EnemyTickResult | null => {
@@ -143,11 +218,13 @@ const tryAmbusherDash = (enemy: Enemy, context: TickEnemyContext): EnemyTickResu
     const pending = cloneEnemy(enemy)
     const telegraph = pending.telegraph
     if (!telegraph) {
-      return { enemy: pending, ateFood: false, hatched: false }
+      return { enemy: pending, ateFood: false, hatched: false, rolePressureOutcome: null }
     }
     if (telegraph.ticksRemaining > 1) {
       telegraph.ticksRemaining -= 1
-      return { enemy: pending, ateFood: false, hatched: false }
+      pending.readability.telegraphActive = true
+      pending.readability.counterplayTicksRemaining = telegraph.ticksRemaining
+      return { enemy: pending, ateFood: false, hatched: false, rolePressureOutcome: null }
     }
     const dir = { ...telegraph.dir }
     pending.telegraph = null
@@ -165,9 +242,11 @@ const tryAmbusherDash = (enemy: Enemy, context: TickEnemyContext): EnemyTickResu
     }
     if (moved) {
       current.dashCooldown = context.ambusher.dashCooldownTurns
-      return { enemy: current, ateFood, hatched: false }
+      current.readability.telegraphActive = false
+      current.readability.counterplayTicksRemaining = 1
+      return { enemy: current, ateFood, hatched: false, rolePressureOutcome: null }
     }
-    return { enemy: current, ateFood: false, hatched: false }
+    return { enemy: current, ateFood: false, hatched: false, rolePressureOutcome: null }
   }
   const playerHead = context.playerHead
   if (!playerHead) {
@@ -176,7 +255,7 @@ const tryAmbusherDash = (enemy: Enemy, context: TickEnemyContext): EnemyTickResu
   if (enemy.dashCooldown > 0) {
     const cooldownEnemy = cloneEnemy(enemy)
     cooldownEnemy.dashCooldown -= 1
-    return { enemy: cooldownEnemy, ateFood: false, hatched: false }
+    return { enemy: cooldownEnemy, ateFood: false, hatched: false, rolePressureOutcome: null }
   }
   const alignedX = head.x === playerHead.x
   const alignedY = head.y === playerHead.y
@@ -202,12 +281,14 @@ const tryAmbusherDash = (enemy: Enemy, context: TickEnemyContext): EnemyTickResu
     dir,
     ticksRemaining: Math.max(1, context.ambusher.telegraphTicks),
   }
-  return { enemy: telegraphEnemy, ateFood: false, hatched: false }
+  telegraphEnemy.readability.telegraphActive = true
+  telegraphEnemy.readability.counterplayTicksRemaining = telegraphEnemy.telegraph.ticksRemaining
+  return { enemy: telegraphEnemy, ateFood: false, hatched: false, rolePressureOutcome: null }
 }
 
 export const tickEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickResult => {
   if (!enemy.alive) {
-    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false }
+    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false, rolePressureOutcome: null }
   }
   if (enemy.kind === 'egg') {
     return tickEggEnemy(enemy, context.egg.hatchLength)
@@ -218,7 +299,7 @@ export const tickEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickRes
   const playerHead = context.playerHead
   const head = enemy.body[0]
   if (!playerHead || !head) {
-    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false }
+    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false, rolePressureOutcome: null }
   }
 
   if (enemy.kind === 'ambusher') {
@@ -254,10 +335,21 @@ export const tickEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickRes
     if (advanced.moved) {
       const nextEnemy = advanced.enemy
       nextEnemy.telegraph = null
-      return { enemy: nextEnemy, ateFood: advanced.ateFood, hatched: false }
+      nextEnemy.readability.telegraphActive = false
+      nextEnemy.readability.counterplayTicksRemaining = advanced.ateFood ? 1 : 0
+      nextEnemy.roleCooldown = Math.max(0, nextEnemy.roleCooldown - 1)
+      return {
+        enemy: nextEnemy,
+        ateFood: advanced.ateFood,
+        hatched: false,
+        rolePressureOutcome:
+          advanced.ateFood && nextEnemy.role === 'leech' ? 'leech_food_stolen' : null,
+      }
     }
   }
-  return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false }
+  const stalled = cloneEnemy(enemy)
+  stalled.roleCooldown = Math.max(0, stalled.roleCooldown - 1)
+  return { enemy: stalled, ateFood: false, hatched: false, rolePressureOutcome: null }
 }
 
 export const applyStalkerExtraStep = (

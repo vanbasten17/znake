@@ -7,7 +7,7 @@ import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../co
 import { getDevScenario, isDevMode } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
 import type { GlossaryMarkerTone } from '../core/glossary'
-import { applyRelicEffect, applyTalentEffects } from '../core/meta'
+import { applyRelicEffect, applyTalentEffects, isChallengeMutatorsUnlocked } from '../core/meta'
 import { getFloorObjective, getRoomObjectiveForRoomType } from '../core/objectives'
 import {
   applyRewardEffectsToConfig,
@@ -19,6 +19,8 @@ import type {
   BiomeItem,
   BodyEconomyRuntimeState,
   BodySpendBlockedReason,
+  ChallengeMutatorRuntime,
+  CleanPlayObjectiveResult,
   Enemy,
   EnemyKind,
   EventChoiceDraft,
@@ -58,6 +60,15 @@ import {
   tickBodyEconomyRuntimeState,
 } from '../simulation/bodyEconomy'
 import {
+  applyChallengeMutatorsToEnemyInterval,
+  applyChallengeMutatorsToRoomObjectiveTarget,
+  applyChallengeMutatorsToRouteChoice,
+  applyChallengeMutatorsToRunConfig,
+  composeMutatorEventChoiceContext,
+  getChallengeMutatorHudLabels,
+  resolveChallengeMutators,
+} from '../simulation/challengeMutators'
+import {
   type EnemyCollisionMatch,
   type EnemyCollisionPart,
   applyStalkerExtraStep,
@@ -65,6 +76,14 @@ import {
   resolveEnemyCollisionDamage,
   tickEnemy,
 } from '../simulation/enemy'
+import {
+  type RoleSpawnCadenceState,
+  createEnemyReadabilityState,
+  createInitialRoleSpawnCadenceState,
+  getEnemyRoleFromKind,
+  pickRoleByPolicy,
+  summarizeActiveRoles,
+} from '../simulation/enemyRoles'
 import {
   type EventChoiceProgressState,
   clearEventChoiceProgress,
@@ -85,12 +104,14 @@ import {
   addCorePressureCoolant,
   advanceRoomObjectiveState,
   applyPortalBeaconAcceleration,
+  createEmptyRunCleanPlaySummary,
   draftRewardOptions,
   initCorePressureState,
   initPortalFlowState,
   initRoomObjectiveState,
   markRoomObjectiveRewardClaimed,
   resetCorePressureTimer,
+  resolveCleanPlayBonusForObjective,
   shouldCompleteObjective,
   tickCorePressure,
   tickPortalFlow,
@@ -207,17 +228,20 @@ export class GameScene extends Phaser.Scene {
   private fxRng: GameRng = createSeededRng(2)
   private replayCapture: RunReplayCapture | null = null
   private enemyCount = 0
+  private roleSpawnCadence: RoleSpawnCadenceState = createInitialRoleSpawnCadenceState()
   private pendingGrowth = 0
   private venomCharges = 0
   private venomCooldownMs = 0
   private venomProjectiles: VenomProjectile[] = []
   private bodyEconomyState: BodyEconomyRuntimeState = createInitialBodyEconomyRuntimeState()
+  private challengeMutators: ChallengeMutatorRuntime[] = []
   private objectiveType: FloorObjectiveKind = 'portal'
   private objectiveScoreStart = 0
   private objectiveScoreTarget = 0
   private objectiveKillsStart = 0
   private objectiveKillsTarget = 0
   private roomObjective: RoomObjectiveState | null = null
+  private lastCleanPlayResult: CleanPlayObjectiveResult | null = null
   private objectiveTerminals: ObjectiveTerminal[] = []
   private rewardChoices: RewardOption[] = []
   private rewardPending = false
@@ -315,6 +339,16 @@ export class GameScene extends Phaser.Scene {
     }
     this.score = debugScenario?.score ?? data.score ?? 0
     this.resetLocalState()
+    if (
+      gameState.floor <= 1 &&
+      this.score <= 0 &&
+      gameState.persistentUpgrades.length === 0 &&
+      gameState.persistentRewards.length === 0
+    ) {
+      gameState.runCleanPlaySummary = createEmptyRunCleanPlaySummary()
+    } else if (!gameState.runCleanPlaySummary) {
+      gameState.runCleanPlaySummary = createEmptyRunCleanPlaySummary()
+    }
     this.runStartMs = this.time.now
     this.isDying = false
     this.runSeed =
@@ -354,9 +388,50 @@ export class GameScene extends Phaser.Scene {
     }
 
     const floorSetup = getFloorSetup(gameState.floor, this.cfg.enemySlow)
+    const mutatorResolution = resolveChallengeMutators({
+      runSeed: this.runSeed,
+      floor: gameState.floor,
+      available: isChallengeMutatorsUnlocked(playerProfile),
+      baseConfig: this.cfg,
+      baseEnemyInterval: floorSetup.enemyIntervalMs,
+    })
+    this.challengeMutators = mutatorResolution.active
+    gameState.currentRunMutators = this.challengeMutators.map((mutator) => ({
+      ...mutator,
+      effects: { ...mutator.effects },
+    }))
+    for (const mutator of this.challengeMutators) {
+      trackRetentionEvent('drafted', {
+        system: 'challenge_mutators',
+        mutatorId: mutator.id,
+        domain: mutator.domain,
+        floor: gameState.floor,
+        runSeed: this.runSeed,
+      })
+      trackRetentionEvent('activated', {
+        system: 'challenge_mutators',
+        mutatorId: mutator.id,
+        domain: mutator.domain,
+        floor: gameState.floor,
+        runSeed: this.runSeed,
+      })
+    }
+    for (const blocked of mutatorResolution.blocked) {
+      trackRetentionEvent('blocked', {
+        system: 'challenge_mutators',
+        mutatorId: blocked.id,
+        reason: blocked.reason,
+        floor: gameState.floor,
+        runSeed: this.runSeed,
+      })
+    }
+    applyChallengeMutatorsToRunConfig(this.cfg, this.challengeMutators)
     this.wallCount = floorSetup.wallCount
     this.enemyCount = floorSetup.enemyCount
-    this.enemyInterval = floorSetup.enemyIntervalMs
+    this.enemyInterval = applyChallengeMutatorsToEnemyInterval(
+      floorSetup.enemyIntervalMs,
+      this.challengeMutators,
+    )
     this.darknessActive = floorSetup.darknessActive
     this.darknessRadius = floorSetup.darknessRadius
     this.darknessEdgeFalloff = floorSetup.darknessEdgeFalloff
@@ -401,8 +476,18 @@ export class GameScene extends Phaser.Scene {
       this.currentRoomType,
       gameState.runObjectiveOffset,
     )
-    this.roomObjective = roomObjectiveDefinition
-      ? initRoomObjectiveState(roomObjectiveDefinition)
+    const composedRoomObjectiveDefinition = roomObjectiveDefinition
+      ? {
+          ...roomObjectiveDefinition,
+          target: applyChallengeMutatorsToRoomObjectiveTarget({
+            kind: roomObjectiveDefinition.kind,
+            target: roomObjectiveDefinition.target,
+            mutators: this.challengeMutators,
+          }),
+        }
+      : null
+    this.roomObjective = composedRoomObjectiveDefinition
+      ? initRoomObjectiveState(composedRoomObjectiveDefinition)
       : null
     this.applyRoomTypeSetup()
 
@@ -510,6 +595,19 @@ export class GameScene extends Phaser.Scene {
       template: this.floorTemplate,
       fallbackUsed: this.floorTemplateFallbackUsed,
     })
+    this.emitRoleCompositionTelemetry('room_start')
+    this.showRoomRoleContext()
+    if (this.challengeMutators.length > 0) {
+      trackRetentionEvent('resolved_impact', {
+        system: 'challenge_mutators',
+        floor: gameState.floor,
+        runSeed: this.runSeed,
+        mutatorCount: this.challengeMutators.length,
+        moveInterval: Math.floor(this.cfg.moveInterval),
+        enemyInterval: Math.floor(this.enemyInterval),
+        bodySpendMinLength: this.cfg.bodySpendMinLength,
+      })
+    }
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (this.rewardPending) {
@@ -762,6 +860,9 @@ export class GameScene extends Phaser.Scene {
         this.appliedFloorRoute === 'safer' ? t('game.routeSafer') : t('game.routeRiskier'),
       )
     }
+    for (const label of getChallengeMutatorHudLabels(this.challengeMutators)) {
+      activeModifiers.push(label)
+    }
     const modifierInfo = activeModifiers.length > 0 ? ` · ${activeModifiers.join(' · ')}` : ''
     const hudStatus =
       hazardParts.length > 0
@@ -798,12 +899,14 @@ export class GameScene extends Phaser.Scene {
     this.venomCooldownMs = 0
     this.venomProjectiles = []
     this.bodyEconomyState = createInitialBodyEconomyRuntimeState()
+    this.challengeMutators = []
     this.objectiveType = 'portal'
     this.objectiveScoreStart = 0
     this.objectiveScoreTarget = 0
     this.objectiveKillsStart = 0
     this.objectiveKillsTarget = 0
     this.roomObjective = null
+    this.lastCleanPlayResult = null
     this.objectiveTerminals = []
     this.rewardChoices = []
     this.rewardPending = false
@@ -826,6 +929,7 @@ export class GameScene extends Phaser.Scene {
     this.roomCells = new Set<string>()
     this.corridorCells = new Set<string>()
     this.enemyMoveTimer = 0
+    this.roleSpawnCadence = createInitialRoleSpawnCadenceState()
     this.riftTimer = 0
     this.riftSuppressionMsRemaining = 0
     this.riftCell = null
@@ -854,6 +958,7 @@ export class GameScene extends Phaser.Scene {
     this.sandTileCount = 0
     this.sandMovePenaltyMs = 0
     this.isDying = false
+    gameState.currentRunMutators = []
     this.destroyReferenceMarkerImages()
     this.referenceBoardMode = false
     this.referenceMarkers = []
@@ -981,9 +1086,30 @@ export class GameScene extends Phaser.Scene {
           egg: {
             hatchLength: BALANCE.enemyVariants.egg.hatchLength,
           },
+          roles: {
+            sniper: {
+              telegraphTicks: BALANCE.enemyRoles.roleKnobs.sniper.telegraphTicks,
+              cooldownTurns: BALANCE.enemyRoles.roleKnobs.sniper.cooldownTurns,
+              minLaneDistance: BALANCE.combatFairness.spawn.enemyMinDistanceFromPlayer,
+              chanceWhenAligned: 0.55,
+            },
+          },
         })
         this.enemies[i] = result.enemy
         if (result.ateFood) {
+          if (result.rolePressureOutcome === 'leech_food_stolen') {
+            this.score = Math.max(
+              0,
+              this.score - BALANCE.enemyRoles.roleKnobs.leech.scoreDrainOnFoodSteal,
+            )
+            updateHud(this.score)
+            trackRetentionEvent('role_pressure_outcome', {
+              role: 'leech',
+              outcome: 'food_stolen',
+              floor: gameState.floor,
+              score: this.score,
+            })
+          }
           this.spawnFood()
         }
         if (result.hatched) {
@@ -1053,6 +1179,7 @@ export class GameScene extends Phaser.Scene {
     if (this.shields > 0) {
       this.shields -= 1
       this.triggerDamageFeedback(head.x, head.y, COLORS.shield, true)
+      this.advanceRoomObjective({ type: 'damage_taken', damageKind: 'shield' })
       return
     }
     this.die('rift')
@@ -1353,55 +1480,70 @@ export class GameScene extends Phaser.Scene {
         dir: { x: 1, y: 0 },
         alive: true,
         kind: 'normal',
+        role: 'blocker',
         health: 1,
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        roleCooldown: 0,
         telegraph: null,
+        readability: createEnemyReadabilityState('blocker'),
       },
       {
         body: [{ x: 3, y: 13 }],
         dir: { x: 1, y: 0 },
         alive: true,
         kind: 'stalker',
+        role: 'leech',
         health: 1,
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        roleCooldown: 0,
         telegraph: null,
+        readability: createEnemyReadabilityState('leech'),
       },
       {
         body: [{ x: 5, y: 13 }],
         dir: { x: 1, y: 0 },
         alive: true,
         kind: 'ambusher',
+        role: 'charger',
         health: 1,
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        roleCooldown: 0,
         telegraph: null,
+        readability: createEnemyReadabilityState('charger'),
       },
       {
         body: [{ x: 15, y: 13 }],
         dir: { x: 1, y: 0 },
         alive: true,
         kind: 'egg',
+        role: 'summoner',
         health: 1,
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        roleCooldown: 0,
         telegraph: null,
+        readability: createEnemyReadabilityState('summoner'),
       },
       {
         body: [{ x: 17, y: 13 }],
         dir: { x: 1, y: 0 },
         alive: true,
         kind: 'mirror',
+        role: 'sniper',
         health: 1,
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        roleCooldown: 0,
         telegraph: null,
+        readability: createEnemyReadabilityState('sniper'),
       },
       {
         body: [
@@ -1413,11 +1555,14 @@ export class GameScene extends Phaser.Scene {
         dir: { x: 0, y: 1 },
         alive: true,
         kind: 'boss',
+        role: 'blocker',
         health: 3,
         dashCooldown: 0,
         hatchTurnsRemaining: 0,
         mirrorDelaySteps: 0,
+        roleCooldown: 0,
         telegraph: null,
+        readability: createEnemyReadabilityState('blocker'),
       },
     ]
     this.markReferenceLabel(1, 13, 'Enemy · Normal')
@@ -2050,7 +2195,8 @@ export class GameScene extends Phaser.Scene {
     event:
       | { type: 'core_collected'; amount?: number }
       | { type: 'elite_defeated'; amount?: number }
-      | { type: 'terminal_activated'; amount?: number },
+      | { type: 'terminal_activated'; amount?: number }
+      | { type: 'damage_taken'; damageKind: 'shield' | 'body' },
   ): void {
     if (
       !this.roomObjective ||
@@ -2100,6 +2246,48 @@ export class GameScene extends Phaser.Scene {
       this.isBossFloor
     ) {
       return
+    }
+    const cleanPlayResolution = resolveCleanPlayBonusForObjective({
+      state: this.roomObjective,
+      runSummary: gameState.runCleanPlaySummary,
+      invalidateOnShieldHit: BALANCE.cleanPlay.rules.invalidateOnShieldHit,
+      invalidateOnBodyHit: BALANCE.cleanPlay.rules.invalidateOnBodyHit,
+      scoreByObjectiveKind: BALANCE.cleanPlay.payout.scoreByObjectiveKind,
+      maxAwardsPerRunByObjectiveKind: BALANCE.cleanPlay.payout.maxAwardsPerRunByObjectiveKind,
+    })
+    this.roomObjective = cleanPlayResolution.state
+    gameState.runCleanPlaySummary = cleanPlayResolution.runSummary
+    this.lastCleanPlayResult = cleanPlayResolution.result
+    const objectiveWindowId = `${gameState.run}-${gameState.floor}-${gameState.runCleanPlaySummary.completedObjectives}`
+    trackRetentionEvent('objective_clean_play_resolved', {
+      objectiveKind: cleanPlayResolution.result.objectiveKind,
+      eligible: cleanPlayResolution.result.eligible,
+      awarded: cleanPlayResolution.result.awarded,
+      rewardType: cleanPlayResolution.result.rewardType,
+      rewardAmount: cleanPlayResolution.result.rewardAmount,
+      shieldHits: cleanPlayResolution.result.shieldHits,
+      bodyHits: cleanPlayResolution.result.bodyHits,
+      reason: cleanPlayResolution.result.reason,
+      objectiveWindowId,
+      floor: gameState.floor,
+      score: this.score,
+    })
+    if (cleanPlayResolution.result.awarded && cleanPlayResolution.result.rewardAmount > 0) {
+      this.score += cleanPlayResolution.result.rewardAmount
+      updateHud(this.score)
+      setHintText(
+        t('game.cleanPlayBonusAwarded', {
+          bonus: cleanPlayResolution.result.rewardAmount,
+        }),
+      )
+      trackRetentionEvent('clean_play_bonus_awarded', {
+        objectiveKind: cleanPlayResolution.result.objectiveKind,
+        rewardType: cleanPlayResolution.result.rewardType,
+        rewardAmount: cleanPlayResolution.result.rewardAmount,
+        objectiveWindowId,
+        floor: gameState.floor,
+        score: this.score,
+      })
     }
     this.bodyEconomyState = resetRewardOverclockWindow(this.bodyEconomyState)
     this.rewardChoices = draftRewardOptions(getRewardPool(), BALANCE.rewards.draftSize, this.rng)
@@ -2164,6 +2352,21 @@ export class GameScene extends Phaser.Scene {
     subtitle.className = rewardStyles.subtitle
     subtitle.textContent = t('reward.chooseOne')
     root.append(subtitle)
+
+    if (this.lastCleanPlayResult) {
+      const cleanPlay = document.createElement('p')
+      cleanPlay.className = rewardStyles.subtitle
+      if (this.lastCleanPlayResult.awarded && this.lastCleanPlayResult.rewardAmount > 0) {
+        cleanPlay.textContent = t('reward.cleanPlayAwarded', {
+          bonus: this.lastCleanPlayResult.rewardAmount,
+        })
+      } else if (this.lastCleanPlayResult.eligible) {
+        cleanPlay.textContent = t('reward.cleanPlayCapped')
+      } else {
+        cleanPlay.textContent = t('reward.cleanPlayMissed')
+      }
+      root.append(cleanPlay)
+    }
 
     const overclockButton = document.createElement('button')
     overclockButton.type = 'button'
@@ -2376,17 +2579,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   private draftEventChoiceForRoom(): EventChoiceDraft | null {
+    const baseContext = {
+      floor: gameState.floor,
+      currentShields: this.shields,
+      snakeLength: this.snake.length,
+      minSnakeLength: this.cfg.bodySpendMinLength,
+      score: this.score,
+    }
     return draftEventChoice({
       runSeed: this.runSeed,
       floor: gameState.floor,
       roomNodeId: this.currentRunMapNodeId,
-      context: {
-        floor: gameState.floor,
-        currentShields: this.shields,
-        snakeLength: this.snake.length,
-        minSnakeLength: this.cfg.bodySpendMinLength,
-        score: this.score,
-      },
+      context: composeMutatorEventChoiceContext(baseContext, this.challengeMutators),
     })
   }
 
@@ -2684,12 +2888,28 @@ export class GameScene extends Phaser.Scene {
     this.appliedFloorRoute = route
     gameState.pendingFloorRoute = null
     if (route === 'safer') {
-      this.enemyCount = Math.max(1, this.enemyCount + BALANCE.portal.routeChoice.safer.enemyDelta)
+      this.enemyCount = Math.max(
+        1,
+        this.enemyCount +
+          applyChallengeMutatorsToRouteChoice({
+            route: 'safer',
+            enemyDelta: BALANCE.portal.routeChoice.safer.enemyDelta,
+            mutators: this.challengeMutators,
+          }),
+      )
       this.wallCount = Math.max(1, this.wallCount + BALANCE.portal.routeChoice.safer.wallDelta)
       this.enemyInterval *= BALANCE.portal.routeChoice.safer.enemyIntervalMultiplier
       return
     }
-    this.enemyCount = Math.max(1, this.enemyCount + BALANCE.portal.routeChoice.riskier.enemyDelta)
+    this.enemyCount = Math.max(
+      1,
+      this.enemyCount +
+        applyChallengeMutatorsToRouteChoice({
+          route: 'riskier',
+          enemyDelta: BALANCE.portal.routeChoice.riskier.enemyDelta,
+          mutators: this.challengeMutators,
+        }),
+    )
     this.wallCount = Math.max(1, this.wallCount + BALANCE.portal.routeChoice.riskier.wallDelta)
     this.enemyInterval *= BALANCE.portal.routeChoice.riskier.enemyIntervalMultiplier
   }
@@ -3129,10 +3349,39 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy(kind: Enemy['kind'] = 'normal'): void {
+    const rolePolicy = BALANCE.enemyRoles.spawnPolicy
+    const rolePick =
+      kind === 'normal'
+        ? pickRoleByPolicy({
+            rng: this.rng,
+            enemies: this.enemies,
+            state: this.roleSpawnCadence,
+            policy: rolePolicy,
+          })
+        : null
+    if (rolePick) {
+      this.roleSpawnCadence = rolePick.state
+    }
+    const forcedKindFromRole: EnemyKind | null =
+      rolePick?.role === 'sniper'
+        ? 'mirror'
+        : rolePick?.role === 'summoner'
+          ? 'egg'
+          : rolePick?.role === 'charger'
+            ? 'ambusher'
+            : rolePick?.role === 'leech'
+              ? 'stalker'
+              : rolePick?.role === 'blocker'
+                ? 'normal'
+                : null
     const resolvedKind =
       kind === 'normal'
-        ? (this.resolveSpecialEnemyKind() ?? this.resolveEliteKind() ?? 'normal')
+        ? (forcedKindFromRole ??
+          this.resolveSpecialEnemyKind() ??
+          this.resolveEliteKind() ??
+          'normal')
         : kind
+    const role = getEnemyRoleFromKind(resolvedKind, BALANCE.enemyRoles.byKind)
     const randomLen =
       BALANCE.enemy.lengthBase +
       this.rng.nextInt(0, BALANCE.enemy.lengthRandomRange - 1) +
@@ -3177,12 +3426,42 @@ export class GameScene extends Phaser.Scene {
       dir: { x: 1, y: 0 },
       alive: true,
       kind: resolvedKind,
+      role,
       health: resolvedKind === 'boss' ? BALANCE.biome.boss.health : 1,
       dashCooldown: 0,
       hatchTurnsRemaining: resolvedKind === 'egg' ? BALANCE.enemyVariants.egg.hatchTurns : 0,
       mirrorDelaySteps: resolvedKind === 'mirror' ? BALANCE.enemyVariants.mirror.delaySteps : 0,
+      roleCooldown: 0,
       telegraph: null,
+      readability: createEnemyReadabilityState(role),
     })
+    trackRetentionEvent('encounter_role_composition', {
+      floor: gameState.floor,
+      reason: kind === 'normal' ? 'spawn' : 'forced_spawn',
+      roles: summarizeActiveRoles(this.enemies),
+    })
+  }
+
+  private emitRoleCompositionTelemetry(reason: 'room_start' | 'spawn'): void {
+    if (!this.usesCombatRoomFlow()) {
+      return
+    }
+    trackRetentionEvent('encounter_role_composition', {
+      floor: gameState.floor,
+      reason,
+      roles: summarizeActiveRoles(this.enemies),
+    })
+  }
+
+  private showRoomRoleContext(): void {
+    if (!this.usesCombatRoomFlow()) {
+      return
+    }
+    const summary = summarizeActiveRoles(this.enemies)
+    if (!summary) {
+      return
+    }
+    setHintText(`Roles: ${summary}`)
   }
 
   private ensureObjectiveEnemyAvailability(): void {
@@ -3239,6 +3518,9 @@ export class GameScene extends Phaser.Scene {
   private applySnakeSegmentDamage(enemy: Enemy, part: EnemyCollisionPart): boolean {
     const damage = Math.max(1, this.getEnemyCollisionDamage(enemy, part))
     const removed = this.removeSnakeSegments(damage, 'damage')
+    if (removed > 0) {
+      this.advanceRoomObjective({ type: 'damage_taken', damageKind: 'body' })
+    }
     if (removed < damage) {
       this.die('enemy')
       return false
@@ -3378,6 +3660,7 @@ export class GameScene extends Phaser.Scene {
       } else if (this.shields > 0) {
         this.shields -= 1
         this.triggerDamageFeedback(nx, ny, COLORS.shield, true)
+        this.advanceRoomObjective({ type: 'damage_taken', damageKind: 'shield' })
         this.startContactGrace(BALANCE.combatFairness.grace.postHitMs)
       } else {
         this.die('rift')
@@ -3527,6 +3810,13 @@ export class GameScene extends Phaser.Scene {
       if (this.shields > 0) {
         this.shields = Math.max(0, this.shields - 1)
         this.triggerDamageFeedback(nx, ny, COLORS.shield, true)
+        this.advanceRoomObjective({ type: 'damage_taken', damageKind: 'shield' })
+        trackRetentionEvent('role_pressure_outcome', {
+          role: collidedEnemy.role,
+          outcome: 'shield_hit',
+          floor: gameState.floor,
+          score: this.score,
+        })
         this.startContactGrace(BALANCE.combatFairness.grace.postHitMs)
         if (collidedEnemy.kind === 'boss' && collidedEnemy.alive) {
           this.applyBossKnockback(head)
@@ -3543,6 +3833,12 @@ export class GameScene extends Phaser.Scene {
         if (!survived) {
           return
         }
+        trackRetentionEvent('role_pressure_outcome', {
+          role: collidedEnemy.role,
+          outcome: 'body_hit',
+          floor: gameState.floor,
+          score: this.score,
+        })
         this.startContactGrace(BALANCE.combatFairness.grace.postHitMs)
         if (collidedEnemy.kind === 'boss' && collidedEnemy.alive) {
           this.applyBossKnockback(head)
@@ -4090,6 +4386,27 @@ export class GameScene extends Phaser.Scene {
               cy + enemy.telegraph.dir.y * CELL * 1.7,
             )
             g.strokePath()
+          }
+          if (enemy.telegraph?.kind === 'sniper_lock') {
+            const pulse = Math.sin(this.time.now * 0.01) * cellPx(2)
+            g.lineStyle(cellPx(2), 0x9be7ff, 0.85)
+            g.strokeCircle(cx, cy, CELL * 0.52 + pulse)
+            g.lineStyle(cellPx(2), 0x59b7ff, 0.55)
+            g.beginPath()
+            g.moveTo(cx, cy)
+            g.lineTo(
+              cx + enemy.telegraph.dir.x * CELL * 2.1,
+              cy + enemy.telegraph.dir.y * CELL * 2.1,
+            )
+            g.strokePath()
+          }
+          if (enemy.role === 'leech') {
+            g.lineStyle(cellPx(1), 0x9cf8ff, 0.45)
+            g.strokeCircle(
+              cx,
+              cy,
+              CELL * (0.4 + 0.06 * Math.sin(this.time.now * 0.012 + segment.x + segment.y)),
+            )
           }
           if (
             enemy.kind === 'egg' &&

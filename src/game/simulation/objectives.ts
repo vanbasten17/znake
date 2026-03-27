@@ -1,8 +1,11 @@
 import type {
+  CleanPlayObjectiveResult,
   FloorObjectiveKind,
   RewardOption,
   RoomObjectiveDefinition,
+  RoomObjectiveKind,
   RoomObjectiveState,
+  RunCleanPlaySummary,
 } from '../core/types'
 import type { GameRng } from './rng'
 
@@ -35,6 +38,7 @@ export type RoomObjectiveProgressEvent =
   | { type: 'core_collected'; amount?: number }
   | { type: 'elite_defeated'; amount?: number }
   | { type: 'terminal_activated'; amount?: number }
+  | { type: 'damage_taken'; damageKind: 'shield' | 'body' }
 
 export const initPortalFlowState = (params: {
   isBossFloor: boolean
@@ -244,6 +248,12 @@ export const initRoomObjectiveState = (
   target: Math.max(1, Math.floor(definition.target)),
   completed: false,
   rewardClaimed: false,
+  cleanPlay: {
+    shieldHits: 0,
+    bodyHits: 0,
+    resolved: false,
+    bonusAwarded: false,
+  },
 })
 
 export const advanceRoomObjectiveState = (
@@ -257,8 +267,15 @@ export const advanceRoomObjectiveState = (
     return { state, completedNow: false }
   }
 
+  const nextCleanPlay = { ...state.cleanPlay }
   let nextProgress = state.progress
-  if (state.kind === 'survive' && event.type === 'tick') {
+  if (event.type === 'damage_taken') {
+    if (event.damageKind === 'shield') {
+      nextCleanPlay.shieldHits += 1
+    } else {
+      nextCleanPlay.bodyHits += 1
+    }
+  } else if (state.kind === 'survive' && event.type === 'tick') {
     nextProgress += Math.max(0, event.deltaMs)
   } else if (state.kind === 'collect_cores' && event.type === 'core_collected') {
     nextProgress += Math.max(1, Math.floor(event.amount ?? 1))
@@ -274,6 +291,7 @@ export const advanceRoomObjectiveState = (
       ...state,
       progress: Math.min(nextProgress, state.target),
       completed,
+      cleanPlay: nextCleanPlay,
     },
     completedNow: completed,
   }
@@ -283,6 +301,180 @@ export const markRoomObjectiveRewardClaimed = (state: RoomObjectiveState): RoomO
   ...state,
   rewardClaimed: true,
 })
+
+export const createEmptyRunCleanPlaySummary = (): RunCleanPlaySummary => ({
+  completedObjectives: 0,
+  cleanClears: 0,
+  totalBonusScore: 0,
+  awardedByKind: {
+    survive: 0,
+    collect_cores: 0,
+    defeat_elite: 0,
+    activate_terminals: 0,
+  },
+})
+
+const isCleanPlayEligible = (params: {
+  state: RoomObjectiveState
+  invalidateOnShieldHit: boolean
+  invalidateOnBodyHit: boolean
+}): boolean => {
+  if (!params.state.completed) {
+    return false
+  }
+  if (params.invalidateOnShieldHit && params.state.cleanPlay.shieldHits > 0) {
+    return false
+  }
+  if (params.invalidateOnBodyHit && params.state.cleanPlay.bodyHits > 0) {
+    return false
+  }
+  return true
+}
+
+export const resolveCleanPlayBonusForObjective = (params: {
+  state: RoomObjectiveState
+  runSummary: RunCleanPlaySummary
+  invalidateOnShieldHit: boolean
+  invalidateOnBodyHit: boolean
+  scoreByObjectiveKind: Record<RoomObjectiveKind, number>
+  maxAwardsPerRunByObjectiveKind: Record<RoomObjectiveKind, number>
+}): {
+  state: RoomObjectiveState
+  runSummary: RunCleanPlaySummary
+  result: CleanPlayObjectiveResult
+} => {
+  const eligible = isCleanPlayEligible({
+    state: params.state,
+    invalidateOnShieldHit: params.invalidateOnShieldHit,
+    invalidateOnBodyHit: params.invalidateOnBodyHit,
+  })
+  const kind = params.state.kind
+  const currentAwardsForKind = params.runSummary.awardedByKind[kind] ?? 0
+  const maxAwardsForKind = Math.max(0, Math.floor(params.maxAwardsPerRunByObjectiveKind[kind] ?? 0))
+
+  if (!params.state.completed) {
+    return {
+      state: params.state,
+      runSummary: params.runSummary,
+      result: {
+        objectiveKind: kind,
+        eligible: false,
+        awarded: false,
+        rewardType: 'score',
+        rewardAmount: 0,
+        shieldHits: params.state.cleanPlay.shieldHits,
+        bodyHits: params.state.cleanPlay.bodyHits,
+        reason: 'not_completed',
+      },
+    }
+  }
+
+  if (params.state.cleanPlay.resolved) {
+    return {
+      state: params.state,
+      runSummary: params.runSummary,
+      result: {
+        objectiveKind: kind,
+        eligible,
+        // A repeated resolution call should report no new award.
+        awarded: false,
+        rewardType: 'score',
+        rewardAmount: 0,
+        shieldHits: params.state.cleanPlay.shieldHits,
+        bodyHits: params.state.cleanPlay.bodyHits,
+        reason: 'already_resolved',
+      },
+    }
+  }
+
+  if (!eligible) {
+    const nextRunSummary: RunCleanPlaySummary = {
+      completedObjectives: params.runSummary.completedObjectives + 1,
+      cleanClears: params.runSummary.cleanClears,
+      totalBonusScore: params.runSummary.totalBonusScore,
+      awardedByKind: { ...params.runSummary.awardedByKind },
+    }
+    return {
+      state: {
+        ...params.state,
+        cleanPlay: {
+          ...params.state.cleanPlay,
+          resolved: true,
+        },
+      },
+      runSummary: nextRunSummary,
+      result: {
+        objectiveKind: kind,
+        eligible: false,
+        awarded: false,
+        rewardType: 'score',
+        rewardAmount: 0,
+        shieldHits: params.state.cleanPlay.shieldHits,
+        bodyHits: params.state.cleanPlay.bodyHits,
+        reason: 'took_hit',
+      },
+    }
+  }
+
+  if (currentAwardsForKind >= maxAwardsForKind) {
+    const nextRunSummary: RunCleanPlaySummary = {
+      completedObjectives: params.runSummary.completedObjectives + 1,
+      cleanClears: params.runSummary.cleanClears + 1,
+      totalBonusScore: params.runSummary.totalBonusScore,
+      awardedByKind: { ...params.runSummary.awardedByKind },
+    }
+    return {
+      state: {
+        ...params.state,
+        cleanPlay: {
+          ...params.state.cleanPlay,
+          resolved: true,
+        },
+      },
+      runSummary: nextRunSummary,
+      result: {
+        objectiveKind: kind,
+        eligible: true,
+        awarded: false,
+        rewardType: 'score',
+        rewardAmount: 0,
+        shieldHits: params.state.cleanPlay.shieldHits,
+        bodyHits: params.state.cleanPlay.bodyHits,
+        reason: 'objective_kind_cap_reached',
+      },
+    }
+  }
+
+  const rewardAmount = Math.max(0, Math.floor(params.scoreByObjectiveKind[kind] ?? 0))
+  const nextRunSummary: RunCleanPlaySummary = {
+    completedObjectives: params.runSummary.completedObjectives + 1,
+    cleanClears: params.runSummary.cleanClears + 1,
+    totalBonusScore: params.runSummary.totalBonusScore + rewardAmount,
+    awardedByKind: { ...params.runSummary.awardedByKind },
+  }
+  nextRunSummary.awardedByKind[kind] = currentAwardsForKind + 1
+  return {
+    state: {
+      ...params.state,
+      cleanPlay: {
+        ...params.state.cleanPlay,
+        resolved: true,
+        bonusAwarded: rewardAmount > 0,
+      },
+    },
+    runSummary: nextRunSummary,
+    result: {
+      objectiveKind: kind,
+      eligible: true,
+      awarded: rewardAmount > 0,
+      rewardType: 'score',
+      rewardAmount,
+      shieldHits: params.state.cleanPlay.shieldHits,
+      bodyHits: params.state.cleanPlay.bodyHits,
+      reason: 'awarded',
+    },
+  }
+}
 
 export const draftRewardOptions = (
   pool: ReadonlyArray<RewardOption>,

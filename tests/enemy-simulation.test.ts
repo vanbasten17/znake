@@ -14,11 +14,18 @@ const baseEnemy = (partial?: Partial<Enemy>): Enemy => ({
   dir: { x: 1, y: 0 },
   alive: true,
   kind: 'normal',
+  role: 'blocker',
   health: 1,
   dashCooldown: 0,
   hatchTurnsRemaining: 0,
   mirrorDelaySteps: 0,
+  roleCooldown: 0,
   telegraph: null,
+  readability: {
+    role: 'blocker',
+    telegraphActive: false,
+    counterplayTicksRemaining: 0,
+  },
   ...partial,
 })
 
@@ -45,6 +52,14 @@ test('tickEnemy moves toward player in deterministic way', () => {
     stalkerSpeedMultiplier: 0.8,
     egg: {
       hatchLength: 3,
+    },
+    roles: {
+      sniper: {
+        telegraphTicks: 2,
+        cooldownTurns: 2,
+        minLaneDistance: 3,
+        chanceWhenAligned: 0.7,
+      },
     },
   })
   assert.equal(result.enemy.body[0]?.x, 6)
@@ -73,6 +88,14 @@ test('egg enemy hatches into normal enemy with configured length', () => {
     stalkerSpeedMultiplier: 0.8,
     egg: {
       hatchLength: 4,
+    },
+    roles: {
+      sniper: {
+        telegraphTicks: 2,
+        cooldownTurns: 2,
+        minLaneDistance: 3,
+        chanceWhenAligned: 0.7,
+      },
     },
   })
   assert.equal(result.hatched, true)
@@ -128,6 +151,14 @@ test('ambusher telegraphs before executing dash', () => {
     egg: {
       hatchLength: 3,
     },
+    roles: {
+      sniper: {
+        telegraphTicks: 2,
+        cooldownTurns: 2,
+        minLaneDistance: 3,
+        chanceWhenAligned: 0.7,
+      },
+    },
   })
   assert.equal(telegraph.enemy.body[0]?.x, 5)
   assert.equal(telegraph.enemy.body[0]?.y, 5)
@@ -151,6 +182,14 @@ test('ambusher telegraphs before executing dash', () => {
     egg: {
       hatchLength: 3,
     },
+    roles: {
+      sniper: {
+        telegraphTicks: 2,
+        cooldownTurns: 2,
+        minLaneDistance: 3,
+        chanceWhenAligned: 0.7,
+      },
+    },
   })
   assert.equal(charging.enemy.telegraph?.ticksRemaining, 1)
 
@@ -170,6 +209,14 @@ test('ambusher telegraphs before executing dash', () => {
     stalkerSpeedMultiplier: 0.8,
     egg: {
       hatchLength: 3,
+    },
+    roles: {
+      sniper: {
+        telegraphTicks: 2,
+        cooldownTurns: 2,
+        minLaneDistance: 3,
+        chanceWhenAligned: 0.7,
+      },
     },
   })
   assert.equal(dashed.enemy.body[0]?.x, 5)

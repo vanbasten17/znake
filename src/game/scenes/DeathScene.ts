@@ -57,6 +57,11 @@ export class DeathScene extends Phaser.Scene {
     const recap = buildDeathRecap({
       deathReason,
       upgrades: gameState.persistentUpgrades,
+      cleanPlay: {
+        completedObjectives: gameState.runCleanPlaySummary.completedObjectives,
+        cleanClears: gameState.runCleanPlaySummary.cleanClears,
+        totalBonusScore: gameState.runCleanPlaySummary.totalBonusScore,
+      },
     })
 
     const profileAfterRun = {
@@ -109,6 +114,12 @@ export class DeathScene extends Phaser.Scene {
       inputMode: getControlMode(),
       buildLeaning: recap.buildLeaning,
       notableChoices: recap.notableChoices.map((upgrade) => upgrade.id).join(','),
+      cleanPlayCompletedObjectives: recap.cleanPlay.completedObjectives,
+      cleanPlayClears: recap.cleanPlay.cleanClears,
+      cleanPlayBonusScore: recap.cleanPlay.totalBonusScore,
+      mutatorCount: gameState.currentRunMutators.length,
+      mutatorIds: gameState.currentRunMutators.map((mutator) => mutator.id).join(','),
+      mutatorDomains: gameState.currentRunMutators.map((mutator) => mutator.domain).join(','),
     })
 
     const best = Math.max(
@@ -284,6 +295,22 @@ export class DeathScene extends Phaser.Scene {
         this.getBuildLeaningSummary(recap.buildLeaning),
       ),
     )
+    const cleanPlayValue =
+      recap.cleanPlay.completedObjectives > 0
+        ? t('death.recap.cleanPlayValue', {
+            clean: recap.cleanPlay.cleanClears,
+            total: recap.cleanPlay.completedObjectives,
+          })
+        : t('death.recap.cleanPlayNone')
+    const cleanPlayDetail =
+      recap.cleanPlay.totalBonusScore > 0
+        ? t('death.recap.cleanPlayBonus', {
+            bonus: recap.cleanPlay.totalBonusScore,
+          })
+        : undefined
+    section.append(
+      this.createRecapBlock(t('death.recap.cleanPlayLabel'), cleanPlayValue, cleanPlayDetail),
+    )
 
     const choices = document.createElement('div')
     choices.className = styles.recapBlock
@@ -365,6 +392,18 @@ export class DeathScene extends Phaser.Scene {
     gameState.pendingFloorRoute = null
     gameState.currentRunMapNodeId = null
     gameState.pendingRunMapNodeId = null
+    gameState.currentRunMutators = []
+    gameState.runCleanPlaySummary = {
+      completedObjectives: 0,
+      cleanClears: 0,
+      totalBonusScore: 0,
+      awardedByKind: {
+        survive: 0,
+        collect_cores: 0,
+        defeat_elite: 0,
+        activate_terminals: 0,
+      },
+    }
     playerProfile.lifetimeStats.runsPlayed += 1
     saveProfile(playerProfile)
     trackRetentionEvent('run_start', {

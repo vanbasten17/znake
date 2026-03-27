@@ -631,6 +631,18 @@ export class MenuScene extends Phaser.Scene {
     gameState.pendingFloorRoute = null
     gameState.currentRunMapNodeId = null
     gameState.pendingRunMapNodeId = null
+    gameState.currentRunMutators = []
+    gameState.runCleanPlaySummary = {
+      completedObjectives: 0,
+      cleanClears: 0,
+      totalBonusScore: 0,
+      awardedByKind: {
+        survive: 0,
+        collect_cores: 0,
+        defeat_elite: 0,
+        activate_terminals: 0,
+      },
+    }
     playerProfile.lifetimeStats.runsPlayed += 1
     saveProfile(playerProfile)
     trackRetentionEvent('run_start', {

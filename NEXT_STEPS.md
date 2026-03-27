@@ -228,7 +228,7 @@ Improve gameplay clarity and meaning by introducing clear room goals, fairer com
 
 ## OpenSpec Match Status
 
-Generated: 2026-03-26
+Generated: 2026-03-27
 
 ### Implemented or Archived
 
@@ -237,6 +237,10 @@ Generated: 2026-03-26
 - Three upgrade families, visible tradeoffs, and first-pass synergy surfacing are already covered by [openspec/specs/upgrade-identity/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/upgrade-identity/spec.md) and archived in [openspec/changes/archive/2026-03-26-znake-upgrade-identity-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-26-znake-upgrade-identity-v1/proposal.md).
 - Strong feedback for damage, pickups, and objective completion is already covered by [openspec/specs/gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md), [openspec/specs/scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md), [openspec/specs/input-hud/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/input-hud/spec.md), and archived in [openspec/changes/archive/2026-03-26-znake-feedback-and-juice-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-26-znake-feedback-and-juice-v1/proposal.md).
 - Better run UI for objective readability, reward prompts, and consistent gameplay color language is already specced in [openspec/specs/input-hud/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/input-hud/spec.md) and [openspec/specs/ui-foundation/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/ui-foundation/spec.md).
+- Run map with explicit room types (`combat`, `elite`, `shop`, `rest`, `event`) is now covered by [openspec/specs/run-map/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/run-map/spec.md) and archived in [openspec/changes/archive/2026-03-26-znake-room-type-run-map-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-26-znake-room-type-run-map-v1/proposal.md).
+- Body as a real resource is now covered by [openspec/specs/body-economy/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/body-economy/spec.md) and archived in [openspec/changes/archive/2026-03-26-znake-body-economy-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-26-znake-body-economy-v1/proposal.md).
+- Short event choices are now covered by [openspec/specs/event-choices/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/event-choices/spec.md) and archived in [openspec/changes/archive/2026-03-26-znake-event-choices-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-26-znake-event-choices-v1/proposal.md).
+- Better death summary recap is now covered by [openspec/specs/scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md) plus [openspec/specs/observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md), and archived in [openspec/changes/archive/2026-03-26-znake-death-summary-recap-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-26-znake-death-summary-recap-v1/proposal.md).
 
 ### Specced in Base Specs
 
@@ -246,13 +250,11 @@ Generated: 2026-03-26
 
 ### Unmatched or Partial
 
-- Run map with explicit room types (`combat`, `elite`, `shop`, `rest`, `event`) is only a partial match today. Related evidence exists in [openspec/changes/archive/2026-03-20-znake-dual-portal-choice-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-20-znake-dual-portal-choice-v1/proposal.md), [openspec/changes/archive/2026-03-20-znake-room-template-generator-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-20-znake-room-template-generator-v1/proposal.md), and [openspec/specs/gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md), but there is no full room-type map graph/system yet.
-- Body as a real resource is only a partial match. [openspec/changes/archive/2026-03-20-znake-tail-health-power-segments-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-20-znake-tail-health-power-segments-v1/proposal.md) covers tail-as-health, but not spending segments on abilities, purchases, or defensive effects as a reusable economy.
-- Short event choices such as curses, risky trades, or route gambles appear unmatched in current base specs and archived changes.
 - Challenge modifiers and mutators appear unmatched in current base specs and archived changes.
-- Better death summary is only a partial match. [openspec/specs/scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md) and [openspec/specs/observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md) cover death UI plus death reason telemetry, but not a stronger player-facing "why you died / what build you made" recap requirement.
+- Enemy role breadth is still partial. Existing coverage includes [openspec/changes/archive/2026-03-19-znake-enemy-egg-mirror-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-19-znake-enemy-egg-mirror-v1/proposal.md) and ambusher/boss flows in [openspec/specs/gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md), but the broader role taxonomy (`sniper`, `blocker`, `summoner`, `charger`, `leech`) is not yet a dedicated capability.
 - Biomes with gameplay rules are a partial match through [openspec/changes/archive/2026-03-18-znake-void-biome-vertical-slice-v1/proposal.md](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-18-znake-void-biome-vertical-slice-v1/proposal.md), but not yet a broader multi-biome progression plan.
+- Rewarding clean play (for example no-hit objective bonuses) appears unmatched in current base specs and archived changes.
 
 ### Collapse Note
 
-- Multiple bullets in this document now collapse into four existing OpenSpec concepts: `objective-reward-loop`, `combat-readability-fairness`, `feedback-and-juice`, and `upgrade-identity`.
+- Multiple bullets in this document now collapse into eight existing OpenSpec concepts: `objective-reward-loop`, `combat-readability-fairness`, `feedback-and-juice`, `upgrade-identity`, `run-map`, `body-economy`, `event-choices`, and `death-summary-recap`.
