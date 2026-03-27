@@ -1,6 +1,12 @@
 import { BALANCE } from '../core/balance'
 import { getFloorObjective } from '../core/objectives'
-import type { RunMapNode, RunMapPreview, RunMapPreviewChoice, RunMapRoomType } from '../core/types'
+import type {
+  BiomeId,
+  RunMapNode,
+  RunMapPreview,
+  RunMapPreviewChoice,
+  RunMapRoomType,
+} from '../core/types'
 import { createSeededRng, deriveRunSeed } from './rng'
 
 const ROOT_NODE_ID = 'depth:0:path:root'
@@ -56,6 +62,22 @@ const getRoomTypeWeightsForDepth = (depth: number): Record<RunMapRoomType, numbe
   )
 }
 
+const getBiomeWeightsForDepth = (depth: number): Record<BiomeId, number> => {
+  let selected = BALANCE.runMap.biomeWeightsByDepth[0]?.weights
+  for (const entry of BALANCE.runMap.biomeWeightsByDepth) {
+    if (depth >= entry.minDepth) {
+      selected = entry.weights
+    }
+  }
+  return (
+    selected ?? {
+      'void-depths': 1,
+      'crystal-caverns': 0,
+      'ember-fields': 0,
+    }
+  )
+}
+
 const pickRoomTypeForNode = (runSeed: number, depth: number, path: string): RunMapRoomType => {
   if (depth <= 0) {
     return 'combat'
@@ -69,6 +91,19 @@ const pickRoomTypeForNode = (runSeed: number, depth: number, path: string): RunM
         weight,
       })),
     ) ?? 'combat'
+  )
+}
+
+const pickBiomeForNode = (runSeed: number, depth: number, path: string): BiomeId => {
+  const rng = createSeededRng(deriveRunSeed([runSeed, depth, pathHash(path), 0x6f2d]))
+  const weights = getBiomeWeightsForDepth(depth)
+  return (
+    rng.weightedPick(
+      (Object.entries(weights) as Array<[BiomeId, number]>).map(([value, weight]) => ({
+        value,
+        weight,
+      })),
+    ) ?? 'void-depths'
   )
 }
 
@@ -98,10 +133,12 @@ export const buildRunMapNode = (params: {
     makeNodeId(nextDepth, `${parsed.path}${String.fromCharCode(97 + index)}`),
   )
   const roomType = pickRoomTypeForNode(params.runSeed, parsed.depth, parsed.path)
+  const biomeId = pickBiomeForNode(params.runSeed, parsed.depth, parsed.path)
   return {
     id: params.nodeId,
     depth: parsed.depth,
     roomType,
+    biomeId,
     nextNodeIds,
     branchPoint: nextNodeIds.length > 1,
     resolutionKind: isCombatRunMapRoomType(roomType) ? 'objective_reward' : 'noncombat_hook',
@@ -155,6 +192,7 @@ export const getRunMapPreview = (params: {
       nodeId,
       branchLabel: String(index + 1),
       roomType: choiceNode.roomType,
+      biomeId: choiceNode.biomeId,
       previewRoomTypes: collectPreviewRoomTypes({
         runSeed: params.runSeed,
         nodeId,

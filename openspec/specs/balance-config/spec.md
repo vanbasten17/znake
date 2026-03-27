@@ -153,3 +153,76 @@ The system SHALL define anti-frustration and fairness guardrails for mutator com
 - **THEN** minimum recoverability thresholds are read from centralized balance config
 - **AND** rejected candidates include deterministic reason codes for observability
 
+### Requirement: Central elite and miniboss pattern-window tuning
+The system SHALL keep elite/miniboss telegraph, commit, and recovery window knobs in centralized balance configuration.
+
+#### Scenario: Pattern windows are balance-driven
+- **WHEN** elite/miniboss phase durations or warning lead times are evaluated
+- **THEN** values are resolved from centralized balance config
+- **AND** gameplay and scene code do not duplicate those timing constants inline
+
+### Requirement: Central anti-cheap-hit fairness thresholds for elite and miniboss encounters
+The system SHALL define elite/miniboss reaction, spawn-safety, and anti-overlap thresholds in centralized balance configuration.
+
+#### Scenario: Reaction and spawn safety thresholds are config-driven
+- **WHEN** elite/miniboss fairness validation runs
+- **THEN** minimum reaction windows, minimum spawn distance, and escape-space floors come from centralized balance config
+- **AND** deterministic fallback thresholds are configured for exhausted strict-filter cases
+
+#### Scenario: Anti-overlap sequencing is config-driven
+- **WHEN** gameplay validates stacked elite/miniboss pressure intervals
+- **THEN** overlap caps and required cadence gaps come from centralized balance config
+- **AND** tuning can adjust fairness without editing scene-local logic
+
+### Requirement: Central elite and miniboss cadence and reward-gate policy
+The system SHALL define elite/miniboss encounter cadence and objective/reward gate policy in centralized balance configuration.
+
+#### Scenario: Cadence policy is centrally authored
+- **WHEN** run progression resolves elite/miniboss encounter frequency by depth or segment window
+- **THEN** cadence tables and eligibility weights are read from centralized config
+- **AND** progression systems consume resolved policy without hardcoded per-scene cadence lists
+
+#### Scenario: Reward-gate policy is centrally authored
+- **WHEN** an elite/miniboss encounter completes
+- **THEN** objective-critical reward gating policy is resolved from centralized config
+- **AND** reward flow paths do not hardcode encounter-specific gate exceptions inline
+
+### Requirement: Central biome-rule taxonomy and tuning tables
+The system SHALL define biome gameplay-rule taxonomy, effect domains, and first-pass tuning values in centralized balance configuration.
+
+#### Scenario: Biome rule catalog is centrally authored
+- **WHEN** runtime resolves biome gameplay-rule definitions
+- **THEN** biome rule identifiers, effect-domain tags, and baseline tuning values are read from centralized balance config
+- **AND** gameplay/scene code does not hardcode duplicate biome-rule catalogs inline
+
+#### Scenario: Biome activation policy knobs are centrally tuned
+- **WHEN** gameplay resolves per-boundary biome activation policy
+- **THEN** activation priorities, concurrent-rule limits, and deterministic fallback preferences come from centralized balance config
+- **AND** tuning changes do not require scene-local logic edits
+
+### Requirement: Central biome compatibility and guardrail policy
+The system SHALL keep biome compatibility matrices and recoverability guardrails in centralized balance configuration.
+
+#### Scenario: Cross-system compatibility constraints are config-driven
+- **WHEN** biome candidates are validated against objective kind, mutator domains, and body-economy context
+- **THEN** compatibility allow/deny matrices and pressure-budget ceilings are read from centralized balance config
+- **AND** validation logic uses shared policy without duplicated inline checks
+
+#### Scenario: Guardrail fallback policy is config-driven
+- **WHEN** strict compatibility filters reject a biome rule candidate
+- **THEN** deterministic fallback action priority (downgrade, replace, or defer) comes from centralized balance config
+- **AND** fallback thresholds remain tunable without multi-module constant edits
+
+### Requirement: Central readability and telemetry descriptor mapping for biome rules
+The system SHALL define player-facing readability descriptors and telemetry-facing reason mappings for biome rule states in centralized balance configuration.
+
+#### Scenario: Active-rule readability descriptors are centrally defined
+- **WHEN** HUD or overlay resolves active biome rule summaries
+- **THEN** concise rule labels, effect summaries, and tactical tags are read from centralized balance config
+- **AND** scene code consumes descriptors without authoring gameplay semantics inline
+
+#### Scenario: Guardrail reason mappings are centrally defined
+- **WHEN** compatibility rejection or fallback intervention is emitted for biome rules
+- **THEN** bounded reason codes and descriptor mappings come from centralized balance config
+- **AND** observability payloads align with shared reason taxonomy
+

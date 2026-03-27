@@ -232,6 +232,8 @@ const resources = {
       },
       biome: {
         void_depths: 'VOID DEPTHS',
+        crystal_caverns: 'CRYSTAL CAVERNS',
+        ember_fields: 'EMBER FIELDS',
       },
       relic: {
         selectTitle: 'SELECT A RELIC',
@@ -727,6 +729,8 @@ const resources = {
       },
       biome: {
         void_depths: 'PROFUNDITATS DEL BUIT',
+        crystal_caverns: 'COVES DE CRISTALL',
+        ember_fields: 'CAMPS DE BRASA',
       },
       relic: {
         selectTitle: 'SELECCIONA UNA RELÍQUIA',

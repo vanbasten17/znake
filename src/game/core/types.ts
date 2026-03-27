@@ -11,6 +11,12 @@ export type PowerupType = 'shield' | 'slow' | 'ghost' | 'score' | 'venom'
 export type EnemyKind = 'normal' | 'stalker' | 'ambusher' | 'boss' | 'egg' | 'mirror'
 export type EnemyRole = 'sniper' | 'blocker' | 'summoner' | 'charger' | 'leech'
 export type WorldItemType = 'core' | 'rift_battery' | 'portal_beacon'
+export type EliteMinibossPatternPhase = 'telegraph' | 'commit' | 'recovery'
+export type EliteMinibossFailureReason =
+  | 'late_react'
+  | 'trapped_path'
+  | 'telegraph_missed'
+  | 'stacked_pressure'
 
 export type UpgradeFamily = 'aggro' | 'control' | 'survival'
 export type UpgradeTag =
@@ -67,10 +73,83 @@ export type RunMapRoomType = 'combat' | 'elite' | 'shop' | 'rest' | 'event'
 
 export type RunMapResolutionKind = 'objective_reward' | 'noncombat_hook'
 
+export type BiomeId = 'void-depths' | 'crystal-caverns' | 'ember-fields'
+
+export type BiomeRuleDomain = 'routing_pressure' | 'movement_constraint' | 'survival_rhythm'
+
+export type BiomeRuleId =
+  | 'void_flux'
+  | 'void_flux_soft'
+  | 'crystal_slip'
+  | 'crystal_slip_soft'
+  | 'ember_hunt'
+  | 'ember_hunt_soft'
+
+export type BiomeRuleGuardrailReason =
+  | 'objective_conflict'
+  | 'mutator_conflict'
+  | 'body_economy_conflict'
+  | 'pressure_budget'
+
+export type BiomeRuleFallbackAction = 'downgrade' | 'replace' | 'defer'
+
+export type BiomeRuleEffects = {
+  enemyIntervalMultiplier?: number
+  saferRouteEnemyDelta?: number
+  riskierRouteEnemyDelta?: number
+  bodySpendMinLengthDelta?: number
+}
+
+export type BiomeRuleDefinition = {
+  id: BiomeRuleId
+  biomeId: BiomeId
+  domain: BiomeRuleDomain
+  label: string
+  summary: string
+  tacticalTag: string
+  pressureCost: number
+  effects: BiomeRuleEffects
+  blockedObjectiveKinds?: ReadonlyArray<RoomObjectiveKind>
+  blockedMutatorDomains?: ReadonlyArray<ChallengeMutatorDomain>
+  maxBodySpendMinLength?: number
+  downgradeToRuleId?: BiomeRuleId
+  replaceWithRuleId?: BiomeRuleId
+}
+
+export type BiomeRuleRuntime = {
+  id: BiomeRuleId
+  biomeId: BiomeId
+  domain: BiomeRuleDomain
+  label: string
+  summary: string
+  tacticalTag: string
+  effects: BiomeRuleEffects
+}
+
+export type BiomeRuleBlockedCandidate = {
+  id: BiomeRuleId
+  reason: BiomeRuleGuardrailReason
+}
+
+export type BiomeRuleFallbackApplied = {
+  candidateId: BiomeRuleId
+  action: BiomeRuleFallbackAction
+  reason: BiomeRuleGuardrailReason
+  appliedRuleId: BiomeRuleId | null
+}
+
+export type BiomeRuleResolution = {
+  biomeId: BiomeId
+  active: BiomeRuleRuntime[]
+  blocked: BiomeRuleBlockedCandidate[]
+  fallbackApplied: BiomeRuleFallbackApplied[]
+}
+
 export type RunMapNode = {
   id: string
   depth: number
   roomType: RunMapRoomType
+  biomeId: BiomeId
   nextNodeIds: string[]
   branchPoint: boolean
   resolutionKind: RunMapResolutionKind
@@ -80,6 +159,7 @@ export type RunMapPreviewChoice = {
   nodeId: string
   branchLabel: string
   roomType: RunMapRoomType
+  biomeId: BiomeId
   previewRoomTypes: RunMapRoomType[]
 }
 
@@ -208,6 +288,7 @@ export type BodyEconomyRuntimeState = {
 }
 
 export type Enemy = {
+  id: number
   body: SnakeSegment[]
   dir: Vec2
   alive: boolean
@@ -280,7 +361,9 @@ export type GameState = {
   currentRunMapNodeId: string | null
   pendingRunMapNodeId: string | null
   runCleanPlaySummary: RunCleanPlaySummary
+  eliteMinibossReadability: EliteMinibossReadabilitySummary
   currentRunMutators: ChallengeMutatorRuntime[]
+  biomeRuleSummary: BiomeRuleRunSummary
 }
 
 export type VirtualInput = {
@@ -380,6 +463,21 @@ export type RunCleanPlaySummary = {
   cleanClears: number
   totalBonusScore: number
   awardedByKind: Record<RoomObjectiveKind, number>
+}
+
+export type EliteMinibossReadabilitySummary = {
+  phaseWindowEvents: number
+  damageEvents: number
+  failureReasonCounts: Record<EliteMinibossFailureReason, number>
+}
+
+export type BiomeRuleRunSummary = {
+  activationEvents: number
+  transitionEvents: number
+  blockedEvents: number
+  fallbackEvents: number
+  activatedBiomeIds: BiomeId[]
+  activatedRuleIds: BiomeRuleId[]
 }
 
 export type NonBossObjectiveKind = 'portal' | 'score' | 'kills'

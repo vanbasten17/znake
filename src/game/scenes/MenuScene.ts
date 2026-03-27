@@ -632,6 +632,24 @@ export class MenuScene extends Phaser.Scene {
     gameState.currentRunMapNodeId = null
     gameState.pendingRunMapNodeId = null
     gameState.currentRunMutators = []
+    gameState.biomeRuleSummary = {
+      activationEvents: 0,
+      transitionEvents: 0,
+      blockedEvents: 0,
+      fallbackEvents: 0,
+      activatedBiomeIds: [],
+      activatedRuleIds: [],
+    }
+    gameState.eliteMinibossReadability = {
+      phaseWindowEvents: 0,
+      damageEvents: 0,
+      failureReasonCounts: {
+        late_react: 0,
+        trapped_path: 0,
+        telegraph_missed: 0,
+        stacked_pressure: 0,
+      },
+    }
     gameState.runCleanPlaySummary = {
       completedObjectives: 0,
       cleanClears: 0,

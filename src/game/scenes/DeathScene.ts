@@ -120,6 +120,22 @@ export class DeathScene extends Phaser.Scene {
       mutatorCount: gameState.currentRunMutators.length,
       mutatorIds: gameState.currentRunMutators.map((mutator) => mutator.id).join(','),
       mutatorDomains: gameState.currentRunMutators.map((mutator) => mutator.domain).join(','),
+      biomeRuleActivationEvents: gameState.biomeRuleSummary.activationEvents,
+      biomeRuleTransitionEvents: gameState.biomeRuleSummary.transitionEvents,
+      biomeRuleBlockedEvents: gameState.biomeRuleSummary.blockedEvents,
+      biomeRuleFallbackEvents: gameState.biomeRuleSummary.fallbackEvents,
+      biomeIdsSeen: gameState.biomeRuleSummary.activatedBiomeIds.join(','),
+      biomeRuleIdsSeen: gameState.biomeRuleSummary.activatedRuleIds.join(','),
+      eliteMinibossPhaseWindowEvents: gameState.eliteMinibossReadability.phaseWindowEvents,
+      eliteMinibossDamageEvents: gameState.eliteMinibossReadability.damageEvents,
+      eliteMinibossReasonLateReact:
+        gameState.eliteMinibossReadability.failureReasonCounts.late_react,
+      eliteMinibossReasonTrappedPath:
+        gameState.eliteMinibossReadability.failureReasonCounts.trapped_path,
+      eliteMinibossReasonTelegraphMissed:
+        gameState.eliteMinibossReadability.failureReasonCounts.telegraph_missed,
+      eliteMinibossReasonStackedPressure:
+        gameState.eliteMinibossReadability.failureReasonCounts.stacked_pressure,
     })
 
     const best = Math.max(
@@ -393,6 +409,24 @@ export class DeathScene extends Phaser.Scene {
     gameState.currentRunMapNodeId = null
     gameState.pendingRunMapNodeId = null
     gameState.currentRunMutators = []
+    gameState.biomeRuleSummary = {
+      activationEvents: 0,
+      transitionEvents: 0,
+      blockedEvents: 0,
+      fallbackEvents: 0,
+      activatedBiomeIds: [],
+      activatedRuleIds: [],
+    }
+    gameState.eliteMinibossReadability = {
+      phaseWindowEvents: 0,
+      damageEvents: 0,
+      failureReasonCounts: {
+        late_react: 0,
+        trapped_path: 0,
+        telegraph_missed: 0,
+        stacked_pressure: 0,
+      },
+    }
     gameState.runCleanPlaySummary = {
       completedObjectives: 0,
       cleanClears: 0,

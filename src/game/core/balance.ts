@@ -1,4 +1,6 @@
 import type {
+  BiomeId,
+  BiomeRuleDefinition,
   ChallengeMutatorDefinition,
   EnemyRole,
   EventChoiceDefinition,
@@ -158,6 +160,32 @@ export const BALANCE = {
     previewHorizon: 2,
     branchChoicesOnPortalObjective: 2,
     branchChoicesOtherwise: 1,
+    biomeWeightsByDepth: [
+      {
+        minDepth: 0,
+        weights: {
+          'void-depths': 1,
+          'crystal-caverns': 0,
+          'ember-fields': 0,
+        } satisfies Record<BiomeId, number>,
+      },
+      {
+        minDepth: 2,
+        weights: {
+          'void-depths': 0.55,
+          'crystal-caverns': 0.25,
+          'ember-fields': 0.2,
+        } satisfies Record<BiomeId, number>,
+      },
+      {
+        minDepth: 5,
+        weights: {
+          'void-depths': 0.3,
+          'crystal-caverns': 0.35,
+          'ember-fields': 0.35,
+        } satisfies Record<BiomeId, number>,
+      },
+    ] as const,
     elite: {
       enemyCountDelta: 1,
       enemyIntervalMultiplier: 0.9,
@@ -395,6 +423,110 @@ export const BALANCE = {
         },
       },
     ] satisfies ReadonlyArray<ChallengeMutatorDefinition>,
+  },
+  biomeRules: {
+    maxActive: 1,
+    guardrails: {
+      pressureBudgetMax: 1,
+      fallbackPriority: ['downgrade', 'replace', 'defer'] as const,
+    },
+    readability: {
+      maxShownInHud: 1,
+    },
+    catalog: [
+      {
+        id: 'void_flux',
+        biomeId: 'void-depths',
+        domain: 'survival_rhythm',
+        label: 'VOID FLUX',
+        summary: 'Pressure ticks accelerate, route choices carry sharper timing risk.',
+        tacticalTag: 'tempo',
+        pressureCost: 1,
+        effects: {
+          enemyIntervalMultiplier: 0.94,
+          saferRouteEnemyDelta: 0,
+          riskierRouteEnemyDelta: 1,
+        },
+        blockedObjectiveKinds: ['activate_terminals'],
+        blockedMutatorDomains: ['pressure'],
+        maxBodySpendMinLength: 3,
+        downgradeToRuleId: 'void_flux_soft',
+      },
+      {
+        id: 'void_flux_soft',
+        biomeId: 'void-depths',
+        domain: 'survival_rhythm',
+        label: 'VOID FLUX (SOFT)',
+        summary: 'A lighter tempo variant keeps pressure readable.',
+        tacticalTag: 'tempo',
+        pressureCost: 0,
+        effects: {
+          enemyIntervalMultiplier: 0.97,
+          riskierRouteEnemyDelta: 0,
+        },
+      },
+      {
+        id: 'crystal_slip',
+        biomeId: 'crystal-caverns',
+        domain: 'movement_constraint',
+        label: 'CRYSTAL SLIP',
+        summary: 'Safer lanes tighten while risky branches demand cleaner turns.',
+        tacticalTag: 'lanes',
+        pressureCost: 1,
+        effects: {
+          saferRouteEnemyDelta: 1,
+          riskierRouteEnemyDelta: 0,
+          bodySpendMinLengthDelta: 1,
+        },
+        blockedMutatorDomains: ['constraint', 'economy'],
+        maxBodySpendMinLength: 2,
+        downgradeToRuleId: 'crystal_slip_soft',
+      },
+      {
+        id: 'crystal_slip_soft',
+        biomeId: 'crystal-caverns',
+        domain: 'movement_constraint',
+        label: 'CRYSTAL SLIP (SOFT)',
+        summary: 'A lighter lane-pressure variant preserves recoverability.',
+        tacticalTag: 'lanes',
+        pressureCost: 0,
+        effects: {
+          saferRouteEnemyDelta: 0,
+          riskierRouteEnemyDelta: 0,
+        },
+      },
+      {
+        id: 'ember_hunt',
+        biomeId: 'ember-fields',
+        domain: 'routing_pressure',
+        label: 'EMBER HUNT',
+        summary: 'Riskier paths reward tempo but increase encounter density.',
+        tacticalTag: 'routing',
+        pressureCost: 1,
+        effects: {
+          enemyIntervalMultiplier: 0.96,
+          saferRouteEnemyDelta: -1,
+          riskierRouteEnemyDelta: 1,
+        },
+        blockedObjectiveKinds: ['survive'],
+        blockedMutatorDomains: ['routing'],
+        maxBodySpendMinLength: 3,
+        downgradeToRuleId: 'ember_hunt_soft',
+      },
+      {
+        id: 'ember_hunt_soft',
+        biomeId: 'ember-fields',
+        domain: 'routing_pressure',
+        label: 'EMBER HUNT (SOFT)',
+        summary: 'A lighter routing variant tempers branch pressure.',
+        tacticalTag: 'routing',
+        pressureCost: 0,
+        effects: {
+          saferRouteEnemyDelta: 0,
+          riskierRouteEnemyDelta: 0,
+        },
+      },
+    ] satisfies ReadonlyArray<BiomeRuleDefinition>,
   },
   rewards: {
     draftSize: 3,
@@ -638,6 +770,30 @@ export const BALANCE = {
       dashSteps: 2,
       dashMinLaneDistance: 2,
       dashCooldownTurns: 3,
+    },
+  },
+  eliteMiniboss: {
+    patternWindows: {
+      telegraphMinTicks: 2,
+      commitMinTicks: 1,
+      recoveryTicks: 2,
+      warningLeadTicks: 2,
+    },
+    fairness: {
+      reactionWindowTicksMin: 2,
+      spawnMinManhattanDistance: 7,
+      minEscapeNeighbors: 2,
+      maxSimultaneousPressureSources: 2,
+      minCadenceGapTicks: 1,
+    },
+    cadence: {
+      startFloor: 2,
+      everyNFloors: 3,
+      guaranteeInEliteRooms: true,
+    },
+    rewardGate: {
+      gateOnObjectiveCriticalOnly: true,
+      objectiveCriticalRoomTypes: ['elite'] as const satisfies ReadonlyArray<RunMapRoomType>,
     },
   },
   item: {

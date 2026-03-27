@@ -78,3 +78,58 @@ The system SHALL include mutator impact summary in run-end telemetry context for
 - **THEN** run-end telemetry includes active mutator identifiers and bounded impact summary fields
 - **AND** summary fields align with configured mutator domains for comparison across runs
 
+### Requirement: Elite and miniboss readability telemetry
+The system SHALL emit stable encounter-level telemetry for elite/miniboss readability and counterplay windows.
+
+#### Scenario: Telegraph and counterplay windows are tracked
+- **WHEN** an elite/miniboss pattern action enters telegraph and then resolves
+- **THEN** telemetry includes encounter identifier, pattern phase timings, and counterplay-window context
+- **AND** payload shape remains stable for cross-run comparison dashboards
+
+### Requirement: Elite and miniboss failure-reason attribution telemetry
+The system SHALL emit deterministic reason-code context for elite/miniboss damage and defeat outcomes.
+
+#### Scenario: Encounter damage includes bounded failure reason
+- **WHEN** an elite/miniboss action damages the player
+- **THEN** telemetry includes a bounded failure-reason code from a centralized reason taxonomy
+- **AND** emitted context can distinguish timing misses from spatial trap or stacked-pressure outcomes
+
+#### Scenario: Encounter defeat summary supports fairness tuning
+- **WHEN** the run ends after at least one elite/miniboss encounter
+- **THEN** run-end telemetry includes bounded elite/miniboss readability summary fields
+- **AND** summary fields align with encounter-level reason-code taxonomy used during the run
+
+### Requirement: Biome-rule activation lifecycle telemetry
+The system SHALL emit stable telemetry for biome gameplay-rule activation and deactivation context.
+
+#### Scenario: Activation emits biome rule context
+- **WHEN** biome gameplay rules are activated at a deterministic progression boundary
+- **THEN** telemetry includes run identifier, biome identifier, active biome-rule identifiers, and boundary context
+- **AND** payload shape remains stable for cross-run balancing analysis
+
+#### Scenario: Deactivation or transition emits lifecycle context
+- **WHEN** active biome-rule set changes because of biome transition or deterministic fallback intervention
+- **THEN** telemetry includes previous and next rule-set identifiers with transition reason
+- **AND** emitted fields support attribution of pressure-rhythm shifts during run progression
+
+### Requirement: Biome guardrail intervention telemetry
+The system SHALL emit deterministic telemetry for biome compatibility rejections and fallback interventions.
+
+#### Scenario: Compatibility rejection includes bounded reason code
+- **WHEN** a biome rule candidate is rejected by compatibility validation
+- **THEN** telemetry includes centralized guardrail reason code and blocked candidate identifier
+- **AND** payload distinguishes objective conflict, mutator conflict, and body-economy recoverability conflict categories
+
+#### Scenario: Fallback intervention includes applied action context
+- **WHEN** deterministic fallback action is applied after compatibility validation
+- **THEN** telemetry includes action type (downgrade, replace, defer) and resulting active rule identifiers
+- **AND** payload enables analysis of guardrail frequency by biome and run depth
+
+### Requirement: Run-end biome impact summary telemetry
+The system SHALL include bounded biome-impact summary fields in run-end telemetry for balancing and fairness diagnostics.
+
+#### Scenario: Run end reports biome impact context
+- **WHEN** a run ends after one or more biome-rule activations
+- **THEN** run-end telemetry includes active-biome coverage summary and bounded impact metrics tied to rule domains
+- **AND** summary fields align with activation and guardrail telemetry taxonomies used during the run
+

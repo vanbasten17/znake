@@ -17,6 +17,24 @@ export const gameState: GameState = {
   currentRunMapNodeId: null,
   pendingRunMapNodeId: null,
   currentRunMutators: [],
+  biomeRuleSummary: {
+    activationEvents: 0,
+    transitionEvents: 0,
+    blockedEvents: 0,
+    fallbackEvents: 0,
+    activatedBiomeIds: [],
+    activatedRuleIds: [],
+  },
+  eliteMinibossReadability: {
+    phaseWindowEvents: 0,
+    damageEvents: 0,
+    failureReasonCounts: {
+      late_react: 0,
+      trapped_path: 0,
+      telegraph_missed: 0,
+      stacked_pressure: 0,
+    },
+  },
   runCleanPlaySummary: {
     completedObjectives: 0,
     cleanClears: 0,

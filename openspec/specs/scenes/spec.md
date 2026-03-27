@@ -244,3 +244,50 @@ The system SHALL present deterministic mutator readability cues through scene ov
 - **THEN** run HUD or overlay shows bounded active mutator status cues suitable for desktop and portrait mobile
 - **AND** scene presentation does not mutate mutator logic or resolution order
 
+### Requirement: Elite and miniboss telegraph readability surfaces
+`GameScene` SHALL present elite/miniboss phase readability cues from deterministic simulation state without owning encounter logic.
+
+#### Scenario: Scene renders phase-aware warning cues
+- **WHEN** elite/miniboss simulation state exposes current pattern phase and remaining phase timing
+- **THEN** scene/HUD overlays surface concise telegraph and commit-readiness cues
+- **AND** presentation consumes simulation-owned state without mutating encounter sequencing logic
+
+### Requirement: Elite and miniboss encounter summary readability
+The system SHALL provide concise post-encounter readability context for player learning without introducing non-deterministic flow changes.
+
+#### Scenario: Post-encounter summary reflects deterministic encounter context
+- **WHEN** an elite/miniboss encounter resolves
+- **THEN** scene overlay can show concise readable summary context (encounter type, key avoided/hit patterns, and gate outcome)
+- **AND** summary content is sourced from deterministic encounter and telemetry-ready state payloads
+
+#### Scenario: Mobile and desktop layouts preserve cue readability
+- **WHEN** elite/miniboss cues and summary overlays are shown on supported layouts
+- **THEN** warning and summary copy remain readable within portrait mobile and desktop constraints
+- **AND** cue overlays do not hide critical movement-space information near the player head
+
+### Requirement: Active biome-rule readability in GameScene
+`GameScene` SHALL present active biome gameplay-rule context as concise tactical cues without owning biome-rule resolution logic.
+
+#### Scenario: Scene surfaces deterministic active-rule summary
+- **WHEN** a room or segment begins with active biome gameplay rules
+- **THEN** GameScene displays concise active-rule summary cues sourced from deterministic simulation payloads
+- **AND** cue content communicates movement/routing/survival impact in readable player-facing language
+
+#### Scenario: HUD status reflects active biome rule state changes
+- **WHEN** biome gameplay-rule state changes due to deterministic boundary activation or guardrail fallback
+- **THEN** HUD/overlay status updates within bounded presentation timing
+- **AND** update behavior does not mutate gameplay rule activation order
+
+### Requirement: Biome-rule cue readability constraints
+The system SHALL keep biome-rule readability cues legible across supported layouts while preserving movement-space visibility.
+
+#### Scenario: Mobile and desktop layouts keep biome cues readable
+- **WHEN** active biome-rule cues are shown on portrait mobile or desktop layouts
+- **THEN** labels and short tactical descriptors remain readable without overlap with primary objective/status UI
+- **AND** cues remain bounded in density to avoid cognitive overload during high-pressure moments
+
+#### Scenario: Biome cues avoid obscuring critical movement information
+- **WHEN** biome-rule overlays are visible during gameplay
+- **THEN** cue placement does not hide critical movement-space information near the player head or immediate threat lanes
+- **AND** presentation fallback behavior is applied when layout constraints are exceeded
+

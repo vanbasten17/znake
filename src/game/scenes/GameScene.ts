@@ -16,11 +16,14 @@ import {
 } from '../core/rewards'
 import { gameState, playerProfile } from '../core/state'
 import type {
+  BiomeId,
   BiomeItem,
+  BiomeRuleRuntime,
   BodyEconomyRuntimeState,
   BodySpendBlockedReason,
   ChallengeMutatorRuntime,
   CleanPlayObjectiveResult,
+  EliteMinibossPatternPhase,
   Enemy,
   EnemyKind,
   EventChoiceDraft,
@@ -33,6 +36,7 @@ import type {
   Powerup,
   PowerupType,
   RewardOption,
+  RoomObjectiveKind,
   RoomObjectiveState,
   RunConfig,
   RunMapPreviewChoice,
@@ -52,6 +56,11 @@ import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerH
 import { PAINT_BY_TONE, drawPremiumSegmentPhaser } from '../render/markerVectorArt'
 import { ArcadeEffectsPipeline } from '../render/shaders'
 import {
+  applyBiomeRulesToRuntime,
+  getBiomeRuleHudLabels,
+  resolveBiomeRuleActivation,
+} from '../simulation/biomeRules'
+import {
   collectBodyPulseHitEnemyIndexes,
   createInitialBodyEconomyRuntimeState,
   resetRewardOverclockWindow,
@@ -68,6 +77,14 @@ import {
   getChallengeMutatorHudLabels,
   resolveChallengeMutators,
 } from '../simulation/challengeMutators'
+import {
+  countOpenNeighborCells,
+  isEliteMinibossKind,
+  isObjectiveCriticalEncounter,
+  resolveEliteMinibossFailureReason,
+  resolveEliteMinibossPatternPhase,
+  shouldGuaranteeEliteCadence,
+} from '../simulation/eliteMiniboss'
 import {
   type EnemyCollisionMatch,
   type EnemyCollisionPart,
@@ -253,6 +270,10 @@ export class GameScene extends Phaser.Scene {
   private routeOverlayRoot: HTMLDivElement | null = null
   private roomResolveOverlayRoot: HTMLDivElement | null = null
   private currentRoomType: RunMapRoomType = 'combat'
+  private currentBiomeId: BiomeId = 'void-depths'
+  private activeBiomeRules: BiomeRuleRuntime[] = []
+  private biomeRouteEnemyDeltaSafer = 0
+  private biomeRouteEnemyDeltaRiskier = 0
   private currentRunMapNodeId = createDefaultRunMapNodeIdForFloor(1)
   private portals: PortalCell[] = []
   private portalCountdownMs = 0
@@ -266,6 +287,8 @@ export class GameScene extends Phaser.Scene {
   private roomCells = new Set<string>()
   private corridorCells = new Set<string>()
   private enemies: Enemy[] = []
+  private nextEnemyId = 1
+  private eliteMinibossPhaseByEnemyId = new Map<number, EliteMinibossPatternPhase>()
   private food: Food | null = null
   private powerup: Powerup | null = null
   private biomeItem: BiomeItem | null = null
@@ -348,6 +371,28 @@ export class GameScene extends Phaser.Scene {
       gameState.runCleanPlaySummary = createEmptyRunCleanPlaySummary()
     } else if (!gameState.runCleanPlaySummary) {
       gameState.runCleanPlaySummary = createEmptyRunCleanPlaySummary()
+    }
+    if (!gameState.eliteMinibossReadability) {
+      gameState.eliteMinibossReadability = {
+        phaseWindowEvents: 0,
+        damageEvents: 0,
+        failureReasonCounts: {
+          late_react: 0,
+          trapped_path: 0,
+          telegraph_missed: 0,
+          stacked_pressure: 0,
+        },
+      }
+    }
+    if (!gameState.biomeRuleSummary) {
+      gameState.biomeRuleSummary = {
+        activationEvents: 0,
+        transitionEvents: 0,
+        blockedEvents: 0,
+        fallbackEvents: 0,
+        activatedBiomeIds: [],
+        activatedRuleIds: [],
+      }
     }
     this.runStartMs = this.time.now
     this.isDying = false
@@ -444,7 +489,6 @@ export class GameScene extends Phaser.Scene {
     this.sandTileCount = floorSetup.sandTileCount
     this.sandMovePenaltyMs = floorSetup.sandMovePenaltyMs
     this.floorTemplate = floorSetup.floorTemplate
-    this.applyPendingFloorRoute()
     if (debugScenario?.forceIce) {
       this.iceActive = true
       this.iceTileCount = Math.max(this.iceTileCount, 8)
@@ -489,6 +533,8 @@ export class GameScene extends Phaser.Scene {
     this.roomObjective = composedRoomObjectiveDefinition
       ? initRoomObjectiveState(composedRoomObjectiveDefinition)
       : null
+    this.resolveActiveBiomeRules(composedRoomObjectiveDefinition?.kind ?? null)
+    this.applyPendingFloorRoute()
     this.applyRoomTypeSetup()
 
     this.bgGraphics = this.add.graphics()
@@ -829,9 +875,7 @@ export class GameScene extends Phaser.Scene {
     for (const portal of this.portals) {
       portal.pulse += dt * 4.2
     }
-    const localizedBiome = t(`biome.${BALANCE.biome.id.replaceAll('-', '_')}`, {
-      defaultValue: BALANCE.biome.name,
-    })
+    const localizedBiome = this.getBiomeLabel(this.currentBiomeId)
     const hazardParts: string[] = []
     if (this.riftSuppressionMsRemaining > 0) {
       hazardParts.push(
@@ -861,6 +905,9 @@ export class GameScene extends Phaser.Scene {
       )
     }
     for (const label of getChallengeMutatorHudLabels(this.challengeMutators)) {
+      activeModifiers.push(label)
+    }
+    for (const label of getBiomeRuleHudLabels(this.activeBiomeRules)) {
       activeModifiers.push(label)
     }
     const modifierInfo = activeModifiers.length > 0 ? ` · ${activeModifiers.join(' · ')}` : ''
@@ -918,6 +965,10 @@ export class GameScene extends Phaser.Scene {
     this.teardownRouteOverlay()
     this.teardownRoomResolveOverlay()
     this.currentRoomType = 'combat'
+    this.currentBiomeId = 'void-depths'
+    this.activeBiomeRules = []
+    this.biomeRouteEnemyDeltaSafer = 0
+    this.biomeRouteEnemyDeltaRiskier = 0
     this.currentRunMapNodeId = createDefaultRunMapNodeIdForFloor(1)
     this.portals = []
     this.portalCountdownMs = 0
@@ -928,6 +979,8 @@ export class GameScene extends Phaser.Scene {
     this.playerHeadHistory = []
     this.roomCells = new Set<string>()
     this.corridorCells = new Set<string>()
+    this.nextEnemyId = 1
+    this.eliteMinibossPhaseByEnemyId.clear()
     this.enemyMoveTimer = 0
     this.roleSpawnCadence = createInitialRoleSpawnCadenceState()
     this.riftTimer = 0
@@ -1096,6 +1149,7 @@ export class GameScene extends Phaser.Scene {
           },
         })
         this.enemies[i] = result.enemy
+        this.trackEliteMinibossPhaseWindow(result.enemy)
         if (result.ateFood) {
           if (result.rolePressureOutcome === 'leech_food_stolen') {
             this.score = Math.max(
@@ -1476,6 +1530,7 @@ export class GameScene extends Phaser.Scene {
 
     this.enemies = [
       {
+        id: 1,
         body: [{ x: 1, y: 13 }],
         dir: { x: 1, y: 0 },
         alive: true,
@@ -1490,6 +1545,7 @@ export class GameScene extends Phaser.Scene {
         readability: createEnemyReadabilityState('blocker'),
       },
       {
+        id: 2,
         body: [{ x: 3, y: 13 }],
         dir: { x: 1, y: 0 },
         alive: true,
@@ -1504,6 +1560,7 @@ export class GameScene extends Phaser.Scene {
         readability: createEnemyReadabilityState('leech'),
       },
       {
+        id: 3,
         body: [{ x: 5, y: 13 }],
         dir: { x: 1, y: 0 },
         alive: true,
@@ -1518,6 +1575,7 @@ export class GameScene extends Phaser.Scene {
         readability: createEnemyReadabilityState('charger'),
       },
       {
+        id: 4,
         body: [{ x: 15, y: 13 }],
         dir: { x: 1, y: 0 },
         alive: true,
@@ -1532,6 +1590,7 @@ export class GameScene extends Phaser.Scene {
         readability: createEnemyReadabilityState('summoner'),
       },
       {
+        id: 5,
         body: [{ x: 17, y: 13 }],
         dir: { x: 1, y: 0 },
         alive: true,
@@ -1546,6 +1605,7 @@ export class GameScene extends Phaser.Scene {
         readability: createEnemyReadabilityState('sniper'),
       },
       {
+        id: 6,
         body: [
           { x: 9, y: 1 },
           { x: 9, y: 2 },
@@ -1565,6 +1625,7 @@ export class GameScene extends Phaser.Scene {
         readability: createEnemyReadabilityState('blocker'),
       },
     ]
+    this.nextEnemyId = 7
     this.markReferenceLabel(1, 13, 'Enemy · Normal')
     this.markReferenceLabel(3, 13, 'Enemy · Stalker')
     this.markReferenceLabel(5, 13, 'Enemy · Ambusher')
@@ -1834,6 +1895,7 @@ export class GameScene extends Phaser.Scene {
       this.triggerPickupFeedback(head.x, head.y, COLORS.powerup)
     }
     this.enemies = this.enemies.filter((enemy) => enemy.alive)
+    this.cleanupEliteMinibossPhaseState()
     emitFeedback(hitCount > 0 ? 'success' : 'confirm')
   }
 
@@ -1911,6 +1973,7 @@ export class GameScene extends Phaser.Scene {
       runObjectiveOffset: gameState.runObjectiveOffset,
     })
     this.currentRoomType = this.isBossFloor ? 'combat' : preview.currentNode.roomType
+    this.currentBiomeId = preview.currentNode.biomeId
     this.routeChoices = preview.choices
   }
 
@@ -1966,27 +2029,117 @@ export class GameScene extends Phaser.Scene {
     return t('game.roomTypeCombatDesc')
   }
 
+  private getBiomeLabel(biomeId: BiomeId): string {
+    return t(`biome.${biomeId.replaceAll('-', '_')}`, {
+      defaultValue: biomeId.toUpperCase().replaceAll('-', ' '),
+    })
+  }
+
+  private resolveActiveBiomeRules(roomObjectiveKind: RoomObjectiveKind | null): void {
+    const previousBiomeId =
+      gameState.biomeRuleSummary.activatedBiomeIds[
+        gameState.biomeRuleSummary.activatedBiomeIds.length - 1
+      ] ?? null
+    const resolution = resolveBiomeRuleActivation({
+      biomeId: this.currentBiomeId,
+      roomObjectiveKind,
+      mutatorDomains: this.challengeMutators.map((mutator) => mutator.domain),
+      bodySpendMinLength: this.cfg.bodySpendMinLength,
+    })
+    this.activeBiomeRules = resolution.active
+
+    if (previousBiomeId !== null && previousBiomeId !== resolution.biomeId) {
+      gameState.biomeRuleSummary.transitionEvents += 1
+      trackRetentionEvent('biome_rule_transition', {
+        floor: gameState.floor,
+        runSeed: this.runSeed,
+        fromBiome: previousBiomeId,
+        toBiome: resolution.biomeId,
+        reason: 'room_entry',
+      })
+    }
+
+    if (resolution.active.length > 0) {
+      gameState.biomeRuleSummary.activationEvents += 1
+      trackRetentionEvent('biome_rule_activation', {
+        floor: gameState.floor,
+        runSeed: this.runSeed,
+        biomeId: resolution.biomeId,
+        roomType: this.currentRoomType,
+        ruleIds: resolution.active.map((rule) => rule.id).join(','),
+      })
+    }
+
+    for (const blocked of resolution.blocked) {
+      gameState.biomeRuleSummary.blockedEvents += 1
+      trackRetentionEvent('biome_rule_blocked', {
+        floor: gameState.floor,
+        runSeed: this.runSeed,
+        biomeId: resolution.biomeId,
+        candidateId: blocked.id,
+        reason: blocked.reason,
+      })
+    }
+    for (const fallback of resolution.fallbackApplied) {
+      gameState.biomeRuleSummary.fallbackEvents += 1
+      trackRetentionEvent('biome_rule_fallback_applied', {
+        floor: gameState.floor,
+        runSeed: this.runSeed,
+        biomeId: resolution.biomeId,
+        candidateId: fallback.candidateId,
+        action: fallback.action,
+        reason: fallback.reason,
+        appliedRuleId: fallback.appliedRuleId,
+      })
+    }
+
+    if (!gameState.biomeRuleSummary.activatedBiomeIds.includes(resolution.biomeId)) {
+      gameState.biomeRuleSummary.activatedBiomeIds.push(resolution.biomeId)
+    }
+    for (const rule of resolution.active) {
+      if (!gameState.biomeRuleSummary.activatedRuleIds.includes(rule.id)) {
+        gameState.biomeRuleSummary.activatedRuleIds.push(rule.id)
+      }
+    }
+
+    const adjusted = applyBiomeRulesToRuntime({
+      enemyInterval: this.enemyInterval,
+      saferRouteEnemyDelta: 0,
+      riskierRouteEnemyDelta: 0,
+      bodySpendMinLength: this.cfg.bodySpendMinLength,
+      activeRules: this.activeBiomeRules,
+    })
+    this.enemyInterval = adjusted.enemyInterval
+    this.biomeRouteEnemyDeltaSafer = adjusted.saferRouteEnemyDelta
+    this.biomeRouteEnemyDeltaRiskier = adjusted.riskierRouteEnemyDelta
+    this.cfg.bodySpendMinLength = adjusted.bodySpendMinLength
+  }
+
   private formatRouteChoicePreview(choice: RunMapPreviewChoice): string {
+    const biome = this.getBiomeLabel(choice.biomeId)
     const firstFuture = choice.previewRoomTypes[1]
     if (!firstFuture) {
-      return t('game.routeChoiceCompact', {
+      const room = t('game.routeChoiceCompact', {
         index: choice.branchLabel,
         room: this.getRoomTypeLabel(choice.roomType),
       })
+      return `${room} · ${biome}`
     }
-    return t('game.routePreviewCompact', {
+    const room = t('game.routePreviewCompact', {
       room: t('game.routeChoiceCompact', {
         index: choice.branchLabel,
         room: this.getRoomTypeLabel(choice.roomType),
       }),
       next: this.getRoomTypeLabel(firstFuture),
     })
+    return `${room} · ${biome}`
   }
 
   private refreshRunMapHud(): void {
-    const current = t('game.routeCurrentRoom', {
+    const currentRoom = t('game.routeCurrentRoom', {
       room: this.getRoomTypeLabel(this.currentRoomType),
     })
+    const current = `${currentRoom} · ${this.getBiomeLabel(this.currentBiomeId)}`
     if (this.routeChoices.length <= 0) {
       setRouteStatusText(current)
       return
@@ -2150,7 +2303,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private refreshObjectiveHud(): void {
-    setObjectiveStatusText(this.getRoomObjectiveStatusText())
+    const base = this.getRoomObjectiveStatusText()
+    const cue = this.getEliteMinibossCueText()
+    setObjectiveStatusText(cue ? `${base} · ${cue}` : base)
   }
 
   private setupRoomObjectiveActors(): void {
@@ -2519,7 +2674,9 @@ export class GameScene extends Phaser.Scene {
 
       const detail = document.createElement('span')
       detail.className = routeStyles.detail
-      detail.textContent = this.getRoomTypeDescription(choice.roomType)
+      detail.textContent = `${this.getRoomTypeDescription(choice.roomType)} · ${this.getBiomeLabel(
+        choice.biomeId,
+      )}`
       content.append(detail)
 
       const nextPreview = choice.previewRoomTypes[1]
@@ -2893,7 +3050,8 @@ export class GameScene extends Phaser.Scene {
         this.enemyCount +
           applyChallengeMutatorsToRouteChoice({
             route: 'safer',
-            enemyDelta: BALANCE.portal.routeChoice.safer.enemyDelta,
+            enemyDelta:
+              BALANCE.portal.routeChoice.safer.enemyDelta + this.biomeRouteEnemyDeltaSafer,
             mutators: this.challengeMutators,
           }),
       )
@@ -2906,7 +3064,8 @@ export class GameScene extends Phaser.Scene {
       this.enemyCount +
         applyChallengeMutatorsToRouteChoice({
           route: 'riskier',
-          enemyDelta: BALANCE.portal.routeChoice.riskier.enemyDelta,
+          enemyDelta:
+            BALANCE.portal.routeChoice.riskier.enemyDelta + this.biomeRouteEnemyDeltaRiskier,
           mutators: this.challengeMutators,
         }),
     )
@@ -3295,11 +3454,140 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resolveEliteKind(): EnemyKind | null {
-    return pickEliteKind({ floor: gameState.floor, rng: this.rng })
+    const cadence = BALANCE.eliteMiniboss.cadence
+    const forceSpawn = shouldGuaranteeEliteCadence({
+      floor: gameState.floor,
+      isBossFloor: this.isBossFloor,
+      currentRoomType: this.currentRoomType,
+      startFloor: cadence.startFloor,
+      everyNFloors: cadence.everyNFloors,
+      guaranteeInEliteRooms: cadence.guaranteeInEliteRooms,
+    })
+    return pickEliteKind({ floor: gameState.floor, rng: this.rng, forceSpawn })
   }
 
   private resolveSpecialEnemyKind(): EnemyKind | null {
     return pickSpecialEnemyKind({ floor: gameState.floor, rng: this.rng })
+  }
+
+  private getEliteMinibossCueText(): string | null {
+    let bestPhase: EliteMinibossPatternPhase | null = null
+    for (const enemy of this.enemies) {
+      if (!enemy.alive || !isEliteMinibossKind(enemy.kind)) {
+        continue
+      }
+      const phase = resolveEliteMinibossPatternPhase({
+        enemy,
+        recoveryTicks: BALANCE.eliteMiniboss.patternWindows.recoveryTicks,
+      })
+      if (phase === 'telegraph') {
+        return 'ELITE WINDOW: TELEGRAPH'
+      }
+      if (phase === 'commit') {
+        bestPhase = 'commit'
+      } else if (!bestPhase) {
+        bestPhase = 'recovery'
+      }
+    }
+    if (!bestPhase) {
+      return null
+    }
+    if (bestPhase === 'commit') {
+      return 'ELITE WINDOW: COMMIT'
+    }
+    return 'ELITE WINDOW: RECOVERY'
+  }
+
+  private trackEliteMinibossPhaseWindow(enemy: Enemy): void {
+    if (!enemy.alive || !isEliteMinibossKind(enemy.kind)) {
+      this.eliteMinibossPhaseByEnemyId.delete(enemy.id)
+      return
+    }
+    const phase = resolveEliteMinibossPatternPhase({
+      enemy,
+      recoveryTicks: BALANCE.eliteMiniboss.patternWindows.recoveryTicks,
+    })
+    const previous = this.eliteMinibossPhaseByEnemyId.get(enemy.id)
+    if (previous === phase) {
+      return
+    }
+    this.eliteMinibossPhaseByEnemyId.set(enemy.id, phase)
+    gameState.eliteMinibossReadability.phaseWindowEvents += 1
+    trackRetentionEvent('elite_miniboss_phase_window', {
+      encounterId: enemy.id,
+      kind: enemy.kind,
+      role: enemy.role,
+      phase,
+      telegraphActive: enemy.readability.telegraphActive,
+      counterplayTicksRemaining: enemy.readability.counterplayTicksRemaining,
+      floor: gameState.floor,
+      roomType: this.currentRoomType,
+    })
+  }
+
+  private getActiveEliteMinibossPressureSources(): number {
+    let count = 0
+    for (const enemy of this.enemies) {
+      if (!enemy.alive || !isEliteMinibossKind(enemy.kind)) {
+        continue
+      }
+      const phase = resolveEliteMinibossPatternPhase({
+        enemy,
+        recoveryTicks: BALANCE.eliteMiniboss.patternWindows.recoveryTicks,
+      })
+      if (phase !== 'recovery') {
+        count += 1
+      }
+    }
+    return count
+  }
+
+  private cleanupEliteMinibossPhaseState(): void {
+    const aliveIds = new Set(this.enemies.filter((enemy) => enemy.alive).map((enemy) => enemy.id))
+    for (const enemyId of this.eliteMinibossPhaseByEnemyId.keys()) {
+      if (!aliveIds.has(enemyId)) {
+        this.eliteMinibossPhaseByEnemyId.delete(enemyId)
+      }
+    }
+  }
+
+  private registerEliteMinibossDamageReason(enemy: Enemy): void {
+    if (!isEliteMinibossKind(enemy.kind)) {
+      return
+    }
+    const head = this.snake[0]
+    if (!head) {
+      return
+    }
+    const openNeighborCount = countOpenNeighborCells({
+      x: head.x,
+      y: head.y,
+      isBlocked: (x, y) =>
+        this.isWall(x, y) ||
+        this.snake.some((segment) => segment.x === x && segment.y === y) ||
+        this.enemies.some(
+          (candidate) =>
+            candidate.alive && candidate.body.some((segment) => segment.x === x && segment.y === y),
+        ),
+    })
+    const reason = resolveEliteMinibossFailureReason({
+      hadTelegraph: enemy.telegraph !== null || enemy.readability.telegraphActive,
+      counterplayTicksRemaining: enemy.readability.counterplayTicksRemaining,
+      openNeighborCount,
+      activePressureSources: this.getActiveEliteMinibossPressureSources(),
+      maxSimultaneousPressureSources: BALANCE.eliteMiniboss.fairness.maxSimultaneousPressureSources,
+    })
+    gameState.eliteMinibossReadability.damageEvents += 1
+    gameState.eliteMinibossReadability.failureReasonCounts[reason] += 1
+    trackRetentionEvent('elite_miniboss_damage_reason', {
+      encounterId: enemy.id,
+      kind: enemy.kind,
+      role: enemy.role,
+      reason,
+      openNeighborCount,
+      floor: gameState.floor,
+      roomType: this.currentRoomType,
+    })
   }
 
   private activateRiftSuppression(source: WorldItemType): void {
@@ -3374,13 +3662,21 @@ export class GameScene extends Phaser.Scene {
               : rolePick?.role === 'blocker'
                 ? 'normal'
                 : null
-    const resolvedKind =
+    let resolvedKind =
       kind === 'normal'
         ? (forcedKindFromRole ??
           this.resolveSpecialEnemyKind() ??
           this.resolveEliteKind() ??
           'normal')
         : kind
+    if (
+      kind === 'normal' &&
+      isEliteMinibossKind(resolvedKind) &&
+      this.getActiveEliteMinibossPressureSources() >=
+        BALANCE.eliteMiniboss.fairness.maxSimultaneousPressureSources
+    ) {
+      resolvedKind = 'normal'
+    }
     const role = getEnemyRoleFromKind(resolvedKind, BALANCE.enemyRoles.byKind)
     const randomLen =
       BALANCE.enemy.lengthBase +
@@ -3399,15 +3695,20 @@ export class GameScene extends Phaser.Scene {
                   ? randomLen + 1
                   : randomLen,
               )
+    const isEliteOrMiniboss = isEliteMinibossKind(resolvedKind)
     const seedCell = this.pickOpenCell({
       preferredZone: this.floorTemplate === 'rooms_v1' ? 'corridor' : null,
       minDistanceFromCenter: 6,
       fairness: {
         playerHead: this.snake[0] ?? null,
         playerDir: this.currentDir,
-        minManhattanDistance: BALANCE.combatFairness.spawn.enemyMinDistanceFromPlayer,
+        minManhattanDistance: isEliteOrMiniboss
+          ? BALANCE.eliteMiniboss.fairness.spawnMinManhattanDistance
+          : BALANCE.combatFairness.spawn.enemyMinDistanceFromPlayer,
         avoidForwardLaneSteps: BALANCE.combatFairness.spawn.avoidPlayerForwardLaneSteps,
-        minOpenNeighborCount: BALANCE.combatFairness.spawn.minOpenNeighborCount,
+        minOpenNeighborCount: isEliteOrMiniboss
+          ? BALANCE.eliteMiniboss.fairness.minEscapeNeighbors
+          : BALANCE.combatFairness.spawn.minOpenNeighborCount,
         bodyLength: len,
       },
     })
@@ -3422,6 +3723,7 @@ export class GameScene extends Phaser.Scene {
       })
     }
     this.enemies.push({
+      id: this.nextEnemyId++,
       body,
       dir: { x: 1, y: 0 },
       alive: true,
@@ -3435,6 +3737,10 @@ export class GameScene extends Phaser.Scene {
       telegraph: null,
       readability: createEnemyReadabilityState(role),
     })
+    const spawned = this.enemies[this.enemies.length - 1]
+    if (spawned) {
+      this.trackEliteMinibossPhaseWindow(spawned)
+    }
     trackRetentionEvent('encounter_role_composition', {
       floor: gameState.floor,
       reason: kind === 'normal' ? 'spawn' : 'forced_spawn',
@@ -3596,7 +3902,20 @@ export class GameScene extends Phaser.Scene {
     }
     updateHud(this.score)
     if (enemy.kind === 'stalker' || enemy.kind === 'ambusher') {
+      const gateIsCritical = isObjectiveCriticalEncounter({
+        isBossFloor: this.isBossFloor,
+        currentRoomType: this.currentRoomType,
+        roomObjective: this.roomObjective,
+        objectiveCriticalRoomTypes: BALANCE.eliteMiniboss.rewardGate.objectiveCriticalRoomTypes,
+      })
+      setHintText(
+        `Encounter: ${enemy.kind.toUpperCase()} DOWN · ${
+          gateIsCritical ? 'OBJECTIVE GATE' : 'FLOW CONTINUES'
+        }`,
+      )
       this.advanceRoomObjective({ type: 'elite_defeated' })
+    } else if (enemy.kind === 'boss') {
+      setHintText('Encounter: BOSS DOWN · OBJECTIVE GATE')
     }
   }
 
@@ -3817,11 +4136,13 @@ export class GameScene extends Phaser.Scene {
           floor: gameState.floor,
           score: this.score,
         })
+        this.registerEliteMinibossDamageReason(collidedEnemy)
         this.startContactGrace(BALANCE.combatFairness.grace.postHitMs)
         if (collidedEnemy.kind === 'boss' && collidedEnemy.alive) {
           this.applyBossKnockback(head)
         }
         this.enemies = this.enemies.filter((enemy) => enemy.alive)
+        this.cleanupEliteMinibossPhaseState()
         if (
           !this.isBossFloor &&
           this.rng.nextFloat() < BALANCE.spawn.enemyRespawnOnShieldHitChance
@@ -3839,14 +4160,17 @@ export class GameScene extends Phaser.Scene {
           floor: gameState.floor,
           score: this.score,
         })
+        this.registerEliteMinibossDamageReason(collidedEnemy)
         this.startContactGrace(BALANCE.combatFairness.grace.postHitMs)
         if (collidedEnemy.kind === 'boss' && collidedEnemy.alive) {
           this.applyBossKnockback(head)
         }
         this.enemies = this.enemies.filter((enemy) => enemy.alive)
+        this.cleanupEliteMinibossPhaseState()
       }
     } else {
       this.enemies = this.enemies.filter((enemy) => enemy.alive)
+      this.cleanupEliteMinibossPhaseState()
       if (
         !this.isBossFloor &&
         this.enemies.length < this.enemyCount &&

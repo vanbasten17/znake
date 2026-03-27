@@ -37,13 +37,14 @@ export const pickPowerupType = (params: {
 export const pickEliteKind = (params: {
   floor: number
   rng: GameRng
+  forceSpawn?: boolean
 }): Extract<EnemyKind, 'stalker' | 'ambusher'> | null => {
   const sorted = [...BALANCE.elite.spawnByFloor].sort((a, b) => b.minFloor - a.minFloor)
   const config = sorted.find((entry) => params.floor >= entry.minFloor) ?? sorted[0]
   if (!config) {
     return null
   }
-  if (params.rng.nextFloat() >= config.spawnChance) {
+  if (!params.forceSpawn && params.rng.nextFloat() >= config.spawnChance) {
     return null
   }
   const weighted = params.rng.weightedPick([
