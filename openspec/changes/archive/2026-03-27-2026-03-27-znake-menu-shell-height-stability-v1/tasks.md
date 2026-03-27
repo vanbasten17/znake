@@ -1,0 +1,3 @@
+- [x] 1. Update OpenSpec artifacts for menu-shell full-height transition stability.
+- [x] 2. Patch shell and draft/reward overlay CSS to remove offset-heavy vertical anchoring and preserve full-height composition.
+- [x] 3. Run `pnpm check` and confirm no regressions.

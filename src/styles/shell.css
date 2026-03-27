@@ -6,17 +6,14 @@ body[data-ui-shell="run"] {
 }
 
 body[data-ui-shell="menu"] {
-  --menu-top-overlap: calc(52px + env(safe-area-inset-top) * 0.2);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: 0 minmax(0, 1fr);
   justify-items: center;
   align-items: stretch;
 }
 
 body[data-ui-shell="menu"] #hud {
-  background: transparent;
-  border-bottom: 0;
-  pointer-events: none;
+  display: none;
 }
 
 body[data-ui-shell="menu"] #hud-top,
@@ -26,9 +23,9 @@ body[data-ui-shell="menu"] #voice-feedback {
 }
 
 body[data-ui-shell="menu"] #game-area {
+  grid-row: 2;
   width: min(100vw, var(--layout-max-width));
-  height: calc(100% + var(--menu-top-overlap));
-  margin-top: calc(-1 * var(--menu-top-overlap));
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -76,7 +73,7 @@ body[data-ui-shell="run"] #controls {
 @media (min-width: 900px) and (pointer: fine) {
   body[data-ui-shell="run"],
   body[data-ui-shell="menu"] {
-    align-content: center;
+    align-content: stretch;
     justify-content: center;
   }
 
