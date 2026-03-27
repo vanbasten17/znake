@@ -16,7 +16,7 @@ This replaces a generic design-doc workflow with a repo-specific loop built arou
 
 - `NEXT_STEPS.md`
 - `openspec/specs/`
-- archived OpenSpec history
+- archived OpenSpec history (only when needed for disambiguation)
 - conflict-aware follow-up into proposal and apply threads
 
 ## Core Outcome
@@ -34,7 +34,7 @@ Do not write a separate design doc unless the user explicitly asks for one.
 1. Explore current context first.
    - Read `NEXT_STEPS.md` if it exists.
    - Read relevant `openspec/specs/`.
-   - Check archived OpenSpec changes if they are directly related.
+   - Check archived OpenSpec changes only if directly related and needed to disambiguate.
    - Check relevant code only if needed to avoid unrealistic ideas.
 2. Clarify the creative goal with the user.
    - Ask concise questions only when they materially improve direction.
@@ -118,7 +118,7 @@ Always aim to leave:
 Before introducing something as a new next step, check if it is already represented in:
 
 - `openspec/specs/`
-- `openspec/changes/archive/`
+- `openspec/changes/archive/` (only when required for historical confirmation)
 
 If an idea is already well covered, do one of these:
 

@@ -17,7 +17,7 @@ This skill is repo-specific. Assume:
 
 - planning source: `NEXT_STEPS.md`
 - OpenSpec base specs: `openspec/specs/`
-- archived change history: `openspec/changes/archive/`
+- archived change history: `openspec/changes/archive/` (optional, not default)
 - live changes, if any: `openspec/changes/` excluding `archive/`
 
 ## Workflow
@@ -25,8 +25,8 @@ This skill is repo-specific. Assume:
 1. Read `NEXT_STEPS.md`.
 2. Read relevant OpenSpec sources:
    - `openspec/specs/`
-   - `openspec/changes/archive/`
    - any live change under `openspec/changes/` outside `archive/`
+   - `openspec/changes/archive/` only when needed to disambiguate historical intent or implementation status
 3. Match each major `NEXT_STEPS.md` item into one of these buckets:
    - `Implemented or Archived`
    - `Specced in Base Specs`
@@ -50,6 +50,7 @@ This skill is repo-specific. Assume:
 ## Matching Rules
 
 - Prefer exact concept matches over keyword-only matches.
+- Default to base specs plus active changes as primary evidence.
 - Treat archived changes plus matching base specs as strongest evidence that an item is already done at the spec level.
 - Treat a base spec without implementation proof as `Specced in Base Specs`, not fully done.
 - If `NEXT_STEPS.md` item maps to multiple spec requirements, summarize them together.
@@ -151,7 +152,7 @@ Non-goals
 
 Relevant existing context
 - `NEXT_STEPS.md`
-- matching specs or archived changes
+- matching specs (add archived changes only when needed)
 
 Spec areas likely affected
 - `openspec/specs/...`
@@ -181,13 +182,21 @@ Constraints
 - preserve determinism
 - keep GameScene thin
 - avoid unrelated refactors
+- use `openspec/specs/` as source of truth for implementation
+- do not read `openspec/changes/archive/` unless historical intent is required
 
 Before finishing:
-- run `pnpm build`
 - run `pnpm check`
+- run `pnpm build` only for significant behavior or architecture changes
 - summarize what changed
 - summarize what should be tested
 ```
+
+## Reasoning Profile Guidance
+
+- For proposal/design creation prompts, recommend higher reasoning depth.
+- For apply prompts, recommend low reasoning depth by default.
+- Raise apply reasoning depth only for core simulation, determinism-sensitive logic, or architectural refactors.
 
 ## Editing Guardrail For NEXT_STEPS.md
 

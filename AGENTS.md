@@ -29,6 +29,30 @@ For tiny edits or exploratory work, use judgment.
 - Do not introduce large rewrites without explicit instruction
 - Avoid new dependencies unless necessary
 
+## OpenSpec workflow
+- For implementation (`apply`), use current base specs in `openspec/specs/` as the source of truth.
+- Do not read `openspec/changes/archive/` by default during implementation.
+- Only consult `openspec/changes/archive/` when historical intent is required (for example conflict resolution, unclear requirement lineage, or explicit user request).
+- Prefer the smallest context needed to complete the current change safely.
+
+## Execution profile
+- Proposal/design work: prefer higher reasoning depth.
+- Apply implementation work: prefer low reasoning depth by default.
+- Raise apply reasoning depth only for core simulation, determinism-sensitive logic, or architectural refactors.
+
+## Task sizing
+- Keep each change scoped to 3-6 implementation tasks where possible.
+- Keep tasks small and single-purpose to improve throughput and reviewability.
+- Prefer incremental apply iterations over large one-shot implementations.
+
+## Context discipline
+- During apply, read only what is needed: current `tasks.md`, relevant files in `openspec/specs/`, and touched code paths.
+- Avoid full-document planning reads (for example full `NEXT_STEPS.md`) unless the task is explicitly planning-oriented.
+
+## Validation policy
+- Small/localized changes: run `pnpm check`.
+- Significant behavior or architecture changes: run both `pnpm check` and `pnpm build`.
+
 ## Testing
 Prefer deterministic tests for pure logic.
 Use fixed seeds when randomness is involved.
