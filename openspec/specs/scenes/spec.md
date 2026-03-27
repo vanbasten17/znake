@@ -307,3 +307,40 @@ The system SHALL keep biome-rule readability cues legible across supported layou
 - **THEN** cues remain concise and non-overlapping on supported desktop and portrait mobile layouts
 - **AND** existing hazard/objective readability remains intact
 
+### Requirement: Boss encounter identity readability surfaces
+`GameScene` SHALL present concise boss identity and phase-readability cues from deterministic simulation payloads without owning encounter logic.
+
+#### Scenario: Scene surfaces boss identity and phase from simulation-owned payload
+- **WHEN** a boss encounter is active and simulation exposes boss identity/phase readability state
+- **THEN** scene/HUD shows concise boss identity and phase cue text suitable for desktop and mobile layouts
+- **AND** cue rendering does not mutate encounter sequencing or fairness logic
+
+### Requirement: Boss encounter summary readability
+The system SHALL present concise post-boss summary context sourced from deterministic encounter payloads.
+
+#### Scenario: Post-boss summary remains bounded and deterministic
+- **WHEN** a boss encounter resolves or the run ends after boss pressure events
+- **THEN** scene recap surfaces concise boss summary context (identity, key phase reached, bounded failure-reason counts)
+- **AND** summary content is sourced from deterministic gameplay/telemetry-ready state only
+
+### Requirement: Menu progression unlock readiness surface
+The system SHALL surface progression-gated feature unlock readiness in menu progression context without changing flow behavior.
+
+#### Scenario: Menu goals title includes deterministic unlock readiness
+- **WHEN** menu meta UI refreshes with current profile progression
+- **THEN** goals/progression surface includes concise unlock readiness status derived from deterministic meta helper output
+- **AND** start flow and talent/goal interactions remain behaviorally equivalent
+
+### Requirement: Scene overlay semantic color consistency
+The system SHALL apply shared semantic token families to key readability cues across menu and run-adjacent overlays.
+
+#### Scenario: Key overlay cues use shared semantic tokens
+- **WHEN** menu, death, reward, upgrade, or relic overlays render key semantic text accents
+- **THEN** those accents use shared semantic token families for danger/heal/economy/control/elite intent
+- **AND** scene flow and interaction behavior remain unchanged
+
+#### Scenario: Mobile and desktop readability remains clear
+- **WHEN** semantic token mappings are applied on portrait mobile and desktop
+- **THEN** cue text remains readable and distinguishable
+- **AND** no gameplay-state ownership moves into scene style logic
+

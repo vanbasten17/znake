@@ -17,9 +17,9 @@
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(18px, 4vw, 28px);
-  color: #ff6f93;
+  color: var(--color-sem-danger);
   text-align: center;
-  text-shadow: 0 0 10px rgba(255, 111, 147, 0.28);
+  text-shadow: 0 0 10px rgba(255, 123, 102, 0.28);
 }
 
 .score {
@@ -51,18 +51,18 @@
 }
 
 .lineReward {
-  color: #99ffcc;
+  color: var(--color-sem-economy);
 }
 
 .lineCurrency {
-  color: #88aabb;
+  color: var(--color-sem-control);
 }
 
 .newRecord {
   margin: 0;
   font-family: var(--font-ui);
   font-size: clamp(12px, 2.3vw, 14px);
-  color: #ffdd00;
+  color: var(--color-sem-economy);
 }
 
 .recap {
@@ -155,13 +155,13 @@
 
 .action:hover,
 .action:focus-visible {
-  border-color: #6aa3c9;
+  border-color: var(--color-sem-control);
   outline: none;
 }
 
 .actionPrimary {
-  border-color: #00ff88;
-  color: #00ff88;
+  border-color: var(--color-sem-heal);
+  color: var(--color-sem-heal);
 }
 
 @media (max-width: 560px) {

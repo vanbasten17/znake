@@ -17,7 +17,7 @@
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(24px, 5vw, 34px);
-  color: #b7ffe8;
+  color: var(--color-sem-economy);
   letter-spacing: 1px;
   text-transform: uppercase;
 }
@@ -35,7 +35,7 @@
   border-radius: 999px;
   padding: 8px 14px;
   background: rgba(8, 22, 42, 0.9);
-  color: #b9ecff;
+  color: var(--color-sem-control);
   font-family: var(--font-ui);
   font-size: clamp(10px, 2.1vw, 12px);
   letter-spacing: 0.6px;
@@ -58,7 +58,7 @@
   margin: 0;
   font-family: var(--font-ui);
   font-size: clamp(11px, 2.2vw, 14px);
-  color: #e8fff5;
+  color: var(--color-sem-control);
   letter-spacing: 0.8px;
 }
 
@@ -87,8 +87,8 @@
 
 .card:hover,
 .card:focus-visible {
-  border-color: #9fffd5;
-  box-shadow: 0 0 0 1px rgba(159, 255, 213, 0.42);
+  border-color: var(--color-sem-heal);
+  box-shadow: 0 0 0 1px rgba(143, 255, 210, 0.42);
   outline: none;
 }
 
@@ -96,7 +96,7 @@
 .hotkey {
   font-family: var(--font-display);
   font-size: clamp(16px, 3.4vw, 21px);
-  color: #d6fff0;
+  color: var(--color-sem-elite);
 }
 
 .hotkey {
@@ -124,9 +124,9 @@
 }
 
 .upside {
-  color: #bfffe5;
+  color: var(--color-sem-heal);
 }
 
 .downside {
-  color: #ffd4a6;
+  color: var(--color-sem-danger);
 }

@@ -1,4 +1,6 @@
 import type {
+  BossEncounterPhase,
+  BossEncounterSummary,
   EliteMinibossFailureReason,
   EliteMinibossPatternPhase,
   Enemy,
@@ -102,4 +104,28 @@ export const resolveEliteMinibossFailureReason = (params: {
     return 'late_react'
   }
   return 'telegraph_missed'
+}
+
+export const createEmptyBossEncounterSummary = (): BossEncounterSummary => ({
+  encountered: false,
+  identityId: 'none',
+  highestPhase: 'alpha',
+  phaseWindowEvents: 0,
+  damageEvents: 0,
+  failureReasonCounts: {
+    late_react: 0,
+    trapped_path: 0,
+    telegraph_missed: 0,
+    stacked_pressure: 0,
+  },
+})
+
+export const resolveBossHighestPhase = (
+  current: BossEncounterPhase,
+  next: BossEncounterPhase,
+): BossEncounterPhase => {
+  if (current === 'rage' || next === 'rage') {
+    return 'rage'
+  }
+  return 'alpha'
 }

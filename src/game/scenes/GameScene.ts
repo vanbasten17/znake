@@ -23,6 +23,7 @@ import type {
   BodySpendBlockedReason,
   BodyTerrainGuardrailReason,
   BodyTerrainSnapshot,
+  BossEncounterPhase,
   ChallengeMutatorRuntime,
   CleanPlayObjectiveResult,
   EliteMinibossPatternPhase,
@@ -89,8 +90,10 @@ import {
 } from '../simulation/challengeMutators'
 import {
   countOpenNeighborCells,
+  createEmptyBossEncounterSummary,
   isEliteMinibossKind,
   isObjectiveCriticalEncounter,
+  resolveBossHighestPhase,
   resolveEliteMinibossFailureReason,
   resolveEliteMinibossPatternPhase,
   shouldGuaranteeEliteCadence,
@@ -190,7 +193,6 @@ type GameSceneData = {
 
 type DeathReason = 'wall' | 'self' | 'enemy' | 'rift'
 type PortalCell = Vec2 & { pulse: number; route: FloorRouteChoice }
-type BossPhase = 'alpha' | 'rage'
 type EnemyCollision = {
   enemy: Enemy
   part: EnemyCollisionPart
@@ -328,7 +330,7 @@ export class GameScene extends Phaser.Scene {
   private corePressureCoolantCharges = 0
   private stars: Array<{ x: number; y: number; size: number; alpha: number }> = []
   private isBossFloor = false
-  private bossPhase: BossPhase = 'alpha'
+  private bossPhase: BossEncounterPhase = 'alpha'
   private appliedFloorRoute: FloorRouteChoice | null = null
   private darknessActive = false
   private darknessRadius = 0
@@ -406,6 +408,9 @@ export class GameScene extends Phaser.Scene {
           stacked_pressure: 0,
         },
       }
+    }
+    if (!gameState.bossEncounterSummary) {
+      gameState.bossEncounterSummary = createEmptyBossEncounterSummary()
     }
     if (!gameState.predatorPreyPacingSummary) {
       gameState.predatorPreyPacingSummary = {
@@ -553,6 +558,14 @@ export class GameScene extends Phaser.Scene {
       this.currentRoomType = 'combat'
     }
     this.bossPhase = 'alpha'
+    if (this.isBossFloor) {
+      gameState.bossEncounterSummary.encountered = true
+      gameState.bossEncounterSummary.identityId = BALANCE.biome.boss.identity.id
+      gameState.bossEncounterSummary.highestPhase = resolveBossHighestPhase(
+        gameState.bossEncounterSummary.highestPhase,
+        'alpha',
+      )
+    }
     if (this.isBossFloor) {
       // Boss floors must start without preloaded shields; shield access comes from pickups.
       this.shields = 0
@@ -3718,6 +3731,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getEliteMinibossCueText(): string | null {
+    let bossPhase: EliteMinibossPatternPhase | null = null
     let bestPhase: EliteMinibossPatternPhase | null = null
     for (const enemy of this.enemies) {
       if (!enemy.alive || !isEliteMinibossKind(enemy.kind)) {
@@ -3727,6 +3741,14 @@ export class GameScene extends Phaser.Scene {
         enemy,
         recoveryTicks: BALANCE.eliteMiniboss.patternWindows.recoveryTicks,
       })
+      if (enemy.kind === 'boss') {
+        if (phase === 'telegraph') {
+          bossPhase = 'telegraph'
+        } else if (phase === 'commit' || bossPhase !== 'telegraph') {
+          bossPhase = phase
+        }
+        continue
+      }
       if (phase === 'telegraph') {
         return 'ELITE WINDOW: TELEGRAPH'
       }
@@ -3735,6 +3757,15 @@ export class GameScene extends Phaser.Scene {
       } else if (!bestPhase) {
         bestPhase = 'recovery'
       }
+    }
+    if (bossPhase === 'telegraph') {
+      return `BOSS ${BALANCE.biome.boss.identity.cueLabel}: TELEGRAPH`
+    }
+    if (bossPhase === 'commit') {
+      return `BOSS ${BALANCE.biome.boss.identity.cueLabel}: COMMIT`
+    }
+    if (bossPhase === 'recovery') {
+      return `BOSS ${BALANCE.biome.boss.identity.cueLabel}: RECOVERY`
     }
     if (!bestPhase) {
       return null
@@ -3760,6 +3791,16 @@ export class GameScene extends Phaser.Scene {
     }
     this.eliteMinibossPhaseByEnemyId.set(enemy.id, phase)
     gameState.eliteMinibossReadability.phaseWindowEvents += 1
+    if (enemy.kind === 'boss') {
+      gameState.bossEncounterSummary.phaseWindowEvents += 1
+      trackRetentionEvent('boss_phase_window', {
+        encounterId: enemy.id,
+        identityId: gameState.bossEncounterSummary.identityId,
+        phase,
+        counterplayTicksRemaining: enemy.readability.counterplayTicksRemaining,
+        floor: gameState.floor,
+      })
+    }
     trackRetentionEvent('elite_miniboss_phase_window', {
       encounterId: enemy.id,
       kind: enemy.kind,
@@ -3817,15 +3858,34 @@ export class GameScene extends Phaser.Scene {
             candidate.alive && candidate.body.some((segment) => segment.x === x && segment.y === y),
         ),
     })
+    const maxSimultaneousPressureSources =
+      enemy.kind === 'boss'
+        ? BALANCE.biome.boss.fairness.maxSimultaneousPressureSources
+        : BALANCE.eliteMiniboss.fairness.maxSimultaneousPressureSources
     const reason = resolveEliteMinibossFailureReason({
       hadTelegraph: enemy.telegraph !== null || enemy.readability.telegraphActive,
       counterplayTicksRemaining: enemy.readability.counterplayTicksRemaining,
       openNeighborCount,
       activePressureSources: this.getActiveEliteMinibossPressureSources(),
-      maxSimultaneousPressureSources: BALANCE.eliteMiniboss.fairness.maxSimultaneousPressureSources,
+      maxSimultaneousPressureSources,
     })
     gameState.eliteMinibossReadability.damageEvents += 1
     gameState.eliteMinibossReadability.failureReasonCounts[reason] += 1
+    if (enemy.kind === 'boss') {
+      gameState.bossEncounterSummary.damageEvents += 1
+      gameState.bossEncounterSummary.failureReasonCounts[reason] += 1
+      trackRetentionEvent('boss_damage_reason', {
+        encounterId: enemy.id,
+        identityId: gameState.bossEncounterSummary.identityId,
+        phase: this.bossPhase,
+        reason,
+        openNeighborCount,
+        activePressureSources: this.getActiveEliteMinibossPressureSources(),
+        reactionWindowTicksMin: BALANCE.biome.boss.fairness.reactionWindowTicksMin,
+        maxSimultaneousPressureSources,
+        floor: gameState.floor,
+      })
+    }
     trackRetentionEvent('elite_miniboss_damage_reason', {
       encounterId: enemy.id,
       kind: enemy.kind,
@@ -4117,6 +4177,15 @@ export class GameScene extends Phaser.Scene {
       }
       if (enemy.kind === 'boss' && enemy.health <= 1 && this.bossPhase !== 'rage') {
         this.bossPhase = 'rage'
+        gameState.bossEncounterSummary.highestPhase = resolveBossHighestPhase(
+          gameState.bossEncounterSummary.highestPhase,
+          'rage',
+        )
+        trackRetentionEvent('boss_phase_changed', {
+          identityId: gameState.bossEncounterSummary.identityId,
+          phase: 'rage',
+          floor: gameState.floor,
+        })
         setHintText(t('game.bossPhaseRageHint'))
         this.triggerDamageFeedback(head.x, head.y, COLORS.enemyHead)
       }

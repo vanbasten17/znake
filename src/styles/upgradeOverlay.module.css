@@ -48,9 +48,9 @@
   margin: 0;
   font-family: var(--font-ui);
   font-size: clamp(11px, 2.2vw, 14px);
-  color: #b9ffe2;
+  color: var(--color-sem-control);
   letter-spacing: 0.8px;
-  text-shadow: 0 0 10px rgba(0, 255, 136, 0.32);
+  text-shadow: 0 0 10px rgba(155, 215, 255, 0.32);
 }
 
 .cards {
@@ -78,8 +78,8 @@
 
 .card:hover,
 .card:focus-visible {
-  border-color: #00ffaa;
-  box-shadow: 0 0 0 1px rgba(153, 255, 204, 0.45);
+  border-color: var(--color-sem-heal);
+  box-shadow: 0 0 0 1px rgba(143, 255, 210, 0.45);
   outline: none;
 }
 
@@ -101,14 +101,14 @@
   font-size: 11px;
   letter-spacing: 1.1px;
   text-transform: uppercase;
-  color: #cce6ff;
+  color: var(--color-sem-control);
 }
 
 .name {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(15px, 3vw, 19px);
-  color: #9fffd4;
+  color: var(--color-sem-heal);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   line-height: 1.1;
@@ -131,14 +131,14 @@
 .tradeoff {
   font-family: var(--font-ui);
   font-size: clamp(10px, 2vw, 12px);
-  color: #9fd5ff;
+  color: var(--color-sem-danger);
   line-height: 1.3;
 }
 
 .hotkey {
   font-family: var(--font-display);
   font-size: clamp(15px, 3vw, 19px);
-  color: #8bffc0;
+  color: var(--color-sem-elite);
   justify-self: end;
 }
 

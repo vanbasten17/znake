@@ -178,7 +178,22 @@ export const applyRelicEffect = (cfg: RunConfig, relicId: RelicId | null): void 
 }
 
 export const isChallengeMutatorsUnlocked = (profile: PlayerProfile): boolean =>
-  profile.goalProgress.floor_5 >= BALANCE.challengeMutators.availability.requiredProgress
+  (() => {
+    const unlockMode = BALANCE.challengeMutators.availability.unlockMode as 'any' | 'all'
+    const { unlockByGoalProgress } = BALANCE.challengeMutators.availability
+    const requirements = Object.entries(unlockByGoalProgress) as Array<[GoalId, number]>
+    if (requirements.length <= 0) {
+      return true
+    }
+    if (unlockMode === 'all') {
+      return requirements.every(
+        ([goalId, requiredProgress]) => profile.goalProgress[goalId] >= requiredProgress,
+      )
+    }
+    return requirements.some(
+      ([goalId, requiredProgress]) => profile.goalProgress[goalId] >= requiredProgress,
+    )
+  })()
 
 export const drawRelicDraft = (options?: {
   nextIndex?: (poolLength: number) => number

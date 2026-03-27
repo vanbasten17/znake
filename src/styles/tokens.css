@@ -24,6 +24,12 @@
   --color-text-dim: #333333;
   --color-text-muted: #445566;
   --color-text-hint: #222244;
+  --color-sem-danger: #ff7b66;
+  --color-sem-heal: #8fffd2;
+  --color-sem-economy: #ffe178;
+  --color-sem-control: #9bd7ff;
+  --color-sem-elite: #ffb86d;
+  --color-sem-control-muted: #6f8ea8;
 
   /* Typography */
   --font-ui: "Share Tech Mono", monospace;

@@ -17,6 +17,7 @@ export type EliteMinibossFailureReason =
   | 'trapped_path'
   | 'telegraph_missed'
   | 'stacked_pressure'
+export type BossEncounterPhase = 'alpha' | 'rage'
 export type PredatorPreyPacingPhase = 'hunt' | 'escape' | 'reset'
 export type PredatorPreyPacingTransitionReason =
   | 'encounter_start'
@@ -380,6 +381,7 @@ export type GameState = {
   pendingRunMapNodeId: string | null
   runCleanPlaySummary: RunCleanPlaySummary
   eliteMinibossReadability: EliteMinibossReadabilitySummary
+  bossEncounterSummary: BossEncounterSummary
   predatorPreyPacingSummary: PredatorPreyPacingSummary
   routeMasterySummary: RouteMasterySummary
   currentRunMutators: ChallengeMutatorRuntime[]
@@ -486,6 +488,15 @@ export type RunCleanPlaySummary = {
 }
 
 export type EliteMinibossReadabilitySummary = {
+  phaseWindowEvents: number
+  damageEvents: number
+  failureReasonCounts: Record<EliteMinibossFailureReason, number>
+}
+
+export type BossEncounterSummary = {
+  encountered: boolean
+  identityId: string
+  highestPhase: BossEncounterPhase
   phaseWindowEvents: number
   damageEvents: number
   failureReasonCounts: Record<EliteMinibossFailureReason, number>

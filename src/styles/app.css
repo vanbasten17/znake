@@ -40,6 +40,12 @@ body.a11y-high-contrast {
   --color-text-tertiary: #b6d8ff;
   --color-text-hint: #8fb4de;
   --color-accent: #54ffbf;
+  --color-sem-danger: #ffb39f;
+  --color-sem-heal: #b9ffe8;
+  --color-sem-economy: #fff2ad;
+  --color-sem-control: #cde9ff;
+  --color-sem-elite: #ffd3a6;
+  --color-sem-control-muted: #9ab7ce;
   --glow-accent-title: 0 0 14px rgba(84, 255, 191, 0.62);
 }
 
@@ -76,9 +82,9 @@ body.a11y-reduced-effects {
 #objective-status {
   min-height: 18px;
   font-size: clamp(11px, 2.5vw, 13px);
-  color: #b9ffe2;
+  color: var(--color-sem-control);
   letter-spacing: 0.7px;
-  text-shadow: 0 0 10px rgba(0, 255, 136, 0.22);
+  text-shadow: 0 0 10px rgba(155, 215, 255, 0.22);
   transition: color 120ms ease, text-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 
@@ -86,7 +92,7 @@ body.a11y-reduced-effects {
   min-height: 14px;
   font-family: var(--font-ui);
   font-size: clamp(9px, 2vw, 11px);
-  color: #9dc8e6;
+  color: var(--color-sem-control);
   letter-spacing: 0.7px;
   opacity: 0.92;
 }
@@ -301,7 +307,7 @@ body.keyboard-controls #controls {
   text-align: center;
   font-family: var(--font-ui);
   font-size: clamp(8px, 1.8vw, 10px);
-  color: #4a6a88;
+  color: var(--color-sem-control-muted);
   letter-spacing: 0.8px;
   min-height: 12px;
   transition: color 120ms ease, text-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
@@ -309,22 +315,22 @@ body.keyboard-controls #controls {
 
 #objective-status[data-juice="danger"],
 #run-status[data-juice="danger"] {
-  color: #ffd2a8;
-  text-shadow: 0 0 12px rgba(255, 123, 0, 0.45);
+  color: var(--color-sem-danger);
+  text-shadow: 0 0 12px rgba(255, 123, 102, 0.45);
   transform: scale(1.02);
 }
 
 #objective-status[data-juice="pickup"],
 #run-status[data-juice="pickup"] {
-  color: #b7fff3;
-  text-shadow: 0 0 14px rgba(80, 255, 210, 0.42);
+  color: var(--color-sem-heal);
+  text-shadow: 0 0 14px rgba(143, 255, 210, 0.42);
   transform: scale(1.02);
 }
 
 #objective-status[data-juice="reward"],
 #run-status[data-juice="reward"] {
-  color: #fff6b2;
-  text-shadow: 0 0 18px rgba(255, 224, 102, 0.52);
+  color: var(--color-sem-economy);
+  text-shadow: 0 0 18px rgba(255, 225, 120, 0.52);
   transform: scale(1.04);
 }
 
@@ -335,7 +341,7 @@ body.keyboard-controls #controls {
   font-family: var(--font-ui);
   font-size: clamp(8px, 1.8vw, 10px);
   letter-spacing: 0.8px;
-  color: #9dc8e6;
+  color: var(--color-sem-control-muted);
   opacity: 0;
   transition: opacity 120ms ease;
   pointer-events: none;
@@ -346,11 +352,11 @@ body.keyboard-controls #controls {
 }
 
 #voice-feedback[data-state="accepted"] {
-  color: #8ffff0;
+  color: var(--color-sem-heal);
 }
 
 #voice-feedback[data-state="rejected"] {
-  color: #ff95aa;
+  color: var(--color-sem-danger);
 }
 
 @media (pointer: coarse), (hover: none) {

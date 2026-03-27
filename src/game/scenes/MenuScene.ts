@@ -12,6 +12,7 @@ import {
   PROGRESSION_GOALS,
   TALENT_TREE,
   claimGoalReward,
+  isChallengeMutatorsUnlocked,
   saveProfile,
   unlockTalent,
 } from '../core/meta'
@@ -27,6 +28,7 @@ import {
   MARKER_EXPORT_LOGICAL_FRAME,
   MARKER_EXPORT_SCALE_DEFAULT,
 } from '../render/markerExportSpec'
+import { createEmptyBossEncounterSummary } from '../simulation/eliteMiniboss'
 import { deriveRunSeed } from '../simulation/rng'
 import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
 import { getAccessibilitySettings, updateAccessibilitySettings } from '../systems/accessibility'
@@ -334,7 +336,7 @@ export class MenuScene extends Phaser.Scene {
               ? this.getTalentLabel(prereq.id, prereq.name)
               : (talent.requires?.toUpperCase() ?? 'NONE'),
           })
-          statusEl.style.color = '#667788'
+          statusEl.style.color = 'var(--color-sem-control-muted)'
           return
         }
         statusEl.textContent = !affordable
@@ -372,7 +374,11 @@ export class MenuScene extends Phaser.Scene {
             ? t('menu.goalReady', { reward: goal.reward })
             : t('menu.goalProgress', { progress, target: goal.target })
         goalEl.textContent = `${goalLabel} - ${status}`
-        goalEl.style.color = claimed ? '#6f88a1' : ready ? 'var(--color-accent)' : '#f4f8ff'
+        goalEl.style.color = claimed
+          ? 'var(--color-sem-control-muted)'
+          : ready
+            ? 'var(--color-sem-economy)'
+            : 'var(--color-text-primary)'
       }
 
       this.goalRowRefreshers.push(refresh)
@@ -521,7 +527,7 @@ export class MenuScene extends Phaser.Scene {
       this.currencyValueEl.textContent = String(playerProfile.currency)
     }
     if (this.goalsTitleEl) {
-      this.goalsTitleEl.textContent = t('menu.goalsTitle')
+      this.goalsTitleEl.textContent = `${t('menu.goalsTitle')} · ${this.getMutatorUnlockStatusText()}`
     }
     if (this.languageEl) {
       this.languageEl.textContent = `${t('menu.language')}: ${getLanguage().toUpperCase()}`
@@ -559,6 +565,12 @@ export class MenuScene extends Phaser.Scene {
     return t('game.roomObjectiveSurvivePreview', {
       seconds: Math.ceil(objective.target / 1000),
     })
+  }
+
+  private getMutatorUnlockStatusText(): string {
+    return isChallengeMutatorsUnlocked(playerProfile)
+      ? t('menu.mutatorsUnlocked')
+      : t('menu.mutatorsLocked')
   }
 
   private getVoiceStatusLabel(status: VoiceRuntimeStatus): string {
@@ -651,6 +663,7 @@ export class MenuScene extends Phaser.Scene {
         stacked_pressure: 0,
       },
     }
+    gameState.bossEncounterSummary = createEmptyBossEncounterSummary()
     gameState.predatorPreyPacingSummary = {
       transitionEvents: 0,
       transitionsByPhase: {

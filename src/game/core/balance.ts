@@ -5,6 +5,7 @@ import type {
   EnemyRole,
   EventChoiceDefinition,
   FloorTemplate,
+  GoalId,
   NonBossObjectiveKind,
   RewardOption,
   RoomObjectiveKind,
@@ -367,8 +368,11 @@ export const BALANCE = {
       blockedPairs: [['tempo_spike', 'tight_turns']] as const,
     },
     availability: {
-      requiredGoal: 'floor_5' as const,
-      requiredProgress: 5,
+      unlockMode: 'any' as const,
+      unlockByGoalProgress: {
+        floor_5: 5,
+        elite_hunter_12: 6,
+      } as const satisfies Record<GoalId, number>,
     },
     catalog: [
       {
@@ -857,6 +861,14 @@ export const BALANCE = {
       health: 3,
       length: 4,
       scoreOnDefeat: 140,
+      identity: {
+        id: 'void_apex',
+        cueLabel: 'VOID APEX',
+      },
+      fairness: {
+        reactionWindowTicksMin: 2,
+        maxSimultaneousPressureSources: 2,
+      },
       supportShieldSpawnAtStart: true,
       supportShieldRespawnMs: 8500,
     },

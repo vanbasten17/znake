@@ -35,6 +35,19 @@ export const gameState: GameState = {
       stacked_pressure: 0,
     },
   },
+  bossEncounterSummary: {
+    encountered: false,
+    identityId: 'none',
+    highestPhase: 'alpha',
+    phaseWindowEvents: 0,
+    damageEvents: 0,
+    failureReasonCounts: {
+      late_react: 0,
+      trapped_path: 0,
+      telegraph_missed: 0,
+      stacked_pressure: 0,
+    },
+  },
   predatorPreyPacingSummary: {
     transitionEvents: 0,
     transitionsByPhase: {

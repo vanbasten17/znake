@@ -94,7 +94,7 @@
   font-family: var(--font-display);
   font-size: clamp(11px, 2.2vw, 13px);
   line-height: 1.1;
-  color: #9dd6ff;
+  color: var(--color-sem-control);
   letter-spacing: 0.6px;
 }
 
@@ -239,9 +239,9 @@
   text-align: center;
   font-family: var(--font-ui);
   font-size: clamp(11px, 2.2vw, 14px);
-  color: #b9ffe2;
+  color: var(--color-sem-control);
   letter-spacing: 0.7px;
-  text-shadow: 0 0 10px rgba(0, 255, 136, 0.28);
+  text-shadow: 0 0 10px rgba(155, 215, 255, 0.28);
 }
 
 .devSection {
@@ -257,7 +257,7 @@
   font-family: var(--font-display);
   font-size: clamp(10px, 2.1vw, 12px);
   letter-spacing: 0.5px;
-  color: #9dd6ff;
+  color: var(--color-sem-control);
 }
 
 .devRows {

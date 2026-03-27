@@ -7,6 +7,7 @@ import { getRunObjectiveOffsetForSeed } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { UpgradeFamily } from '../core/types'
 import { UPGRADE_FAMILIES } from '../core/upgrades'
+import { createEmptyBossEncounterSummary } from '../simulation/eliteMiniboss'
 import { deriveRunSeed } from '../simulation/rng'
 import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
 import { getControlMode } from '../systems/controlScheme'
@@ -138,6 +139,17 @@ export class DeathScene extends Phaser.Scene {
         gameState.eliteMinibossReadability.failureReasonCounts.telegraph_missed,
       eliteMinibossReasonStackedPressure:
         gameState.eliteMinibossReadability.failureReasonCounts.stacked_pressure,
+      bossEncountered: gameState.bossEncounterSummary.encountered,
+      bossIdentityId: gameState.bossEncounterSummary.identityId,
+      bossHighestPhase: gameState.bossEncounterSummary.highestPhase,
+      bossPhaseWindowEvents: gameState.bossEncounterSummary.phaseWindowEvents,
+      bossDamageEvents: gameState.bossEncounterSummary.damageEvents,
+      bossReasonLateReact: gameState.bossEncounterSummary.failureReasonCounts.late_react,
+      bossReasonTrappedPath: gameState.bossEncounterSummary.failureReasonCounts.trapped_path,
+      bossReasonTelegraphMissed:
+        gameState.bossEncounterSummary.failureReasonCounts.telegraph_missed,
+      bossReasonStackedPressure:
+        gameState.bossEncounterSummary.failureReasonCounts.stacked_pressure,
       predatorPreyTransitionEvents: gameState.predatorPreyPacingSummary.transitionEvents,
       predatorPreyTransitionsHunt: gameState.predatorPreyPacingSummary.transitionsByPhase.hunt,
       predatorPreyTransitionsEscape: gameState.predatorPreyPacingSummary.transitionsByPhase.escape,
@@ -454,6 +466,7 @@ export class DeathScene extends Phaser.Scene {
         stacked_pressure: 0,
       },
     }
+    gameState.bossEncounterSummary = createEmptyBossEncounterSummary()
     gameState.predatorPreyPacingSummary = {
       transitionEvents: 0,
       transitionsByPhase: {
