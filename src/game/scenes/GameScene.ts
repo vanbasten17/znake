@@ -184,8 +184,9 @@ import {
   createRunReplayCapture,
 } from '../simulation/replay'
 import { type GameRng, createSeededRng, deriveRunSeed } from '../simulation/rng'
+import { resolveRouteChoiceInsights } from '../simulation/routeChoiceInsights'
 import { getRouteMasteryReadout, recordRouteMasteryDecision } from '../simulation/routeMastery'
-import { type RouteRiskLevel, resolveRouteRiskForecast } from '../simulation/routeRiskForecast'
+import type { RouteRiskLevel } from '../simulation/routeRiskForecast'
 import {
   createDefaultRunMapNodeIdForFloor,
   getRunMapPreview,
@@ -2290,6 +2291,16 @@ export class GameScene extends Phaser.Scene {
     return t('game.routeRiskLow')
   }
 
+  private getDepthBandLabel(depthBand: 'early' | 'mid' | 'late'): string {
+    if (depthBand === 'mid') {
+      return t('game.routeDepthBandMid')
+    }
+    if (depthBand === 'late') {
+      return t('game.routeDepthBandLate')
+    }
+    return t('game.routeDepthBandEarly')
+  }
+
   private resolveActiveBiomeRules(roomObjectiveKind: RoomObjectiveKind | null): void {
     const previousBiomeId =
       gameState.biomeRuleSummary.activatedBiomeIds[
@@ -2898,15 +2909,25 @@ export class GameScene extends Phaser.Scene {
         panel: routeStyles.panel,
         title: routeStyles.title,
         subtitle: routeStyles.subtitle,
+        body: routeStyles.body,
         cards: routeStyles.cards,
       },
       titleText: t('game.routeChoiceTitle'),
-      subtitleText: t('game.routeChoiceSubtitle'),
+      subtitleText: `${t('game.routeChoiceSubtitle')} · ${getRouteMasteryReadout(gameState.routeMasterySummary).short}`,
+      legendText: t('game.routeChoiceLegend'),
     })
 
     for (const [index, choice] of this.routeChoices.entries()) {
       const button = createButton(routeStyles.card, '')
       button.addEventListener('click', () => this.pickRouteChoice(index))
+      const insights = resolveRouteChoiceInsights(choice, this.currentBiomeId)
+      const riskClass =
+        insights.riskLevel === 'high'
+          ? routeStyles.cardHigh
+          : insights.riskLevel === 'medium'
+            ? routeStyles.cardMedium
+            : routeStyles.cardLow
+      button.classList.add(riskClass)
 
       const hotkey = createEl('span', routeStyles.hotkey, String(index + 1))
       button.append(hotkey)
@@ -2924,27 +2945,71 @@ export class GameScene extends Phaser.Scene {
       )
       content.append(detail)
 
-      const riskForecast = resolveRouteRiskForecast(choice)
       const riskLine = createEl(
         'span',
         routeStyles.preview,
         t('game.routeChoiceRiskForecast', {
-          level: this.getRouteRiskLevelLabel(riskForecast.level),
-          score: riskForecast.score,
+          level: this.getRouteRiskLevelLabel(insights.riskLevel),
+          score: insights.riskScore,
         }),
       )
       content.append(riskLine)
 
-      const nextPreview = choice.previewRoomTypes[1]
-      if (nextPreview) {
+      const pressureLine = createEl(
+        'span',
+        routeStyles.preview,
+        t('game.routeChoicePressure', {
+          delta:
+            insights.pressureDelta >= 0 ? `+${insights.pressureDelta}` : insights.pressureDelta,
+        }),
+      )
+      content.append(pressureLine)
+
+      const eliteAheadLine = createEl(
+        'span',
+        routeStyles.preview,
+        t('game.routeChoiceEliteAhead', { count: insights.eliteAheadCount }),
+      )
+      content.append(eliteAheadLine)
+
+      const recoveryAheadLine = createEl(
+        'span',
+        routeStyles.preview,
+        t('game.routeChoiceRecoveryAhead', { count: insights.recoveryAheadCount }),
+      )
+      content.append(recoveryAheadLine)
+
+      const depthBandLine = createEl(
+        'span',
+        routeStyles.preview,
+        t('game.routeChoiceDepthBand', { band: this.getDepthBandLabel(insights.depthBand) }),
+      )
+      content.append(depthBandLine)
+
+      if (insights.biomePivot) {
+        const pivotLine = createEl('span', routeStyles.preview, t('game.routeChoiceBiomePivot'))
+        content.append(pivotLine)
+      }
+
+      if (insights.futureOne) {
         const preview = createEl(
           'span',
           routeStyles.preview,
           t('game.routeChoiceFuture', {
-            preview: this.getRoomTypeLabel(nextPreview),
+            preview: this.getRoomTypeLabel(insights.futureOne),
           }),
         )
         content.append(preview)
+      }
+      if (insights.futureTwo) {
+        const afterPreview = createEl(
+          'span',
+          routeStyles.preview,
+          t('game.routeChoiceAfter', {
+            preview: this.getRoomTypeLabel(insights.futureTwo),
+          }),
+        )
+        content.append(afterPreview)
       }
 
       shell.cards.append(button)

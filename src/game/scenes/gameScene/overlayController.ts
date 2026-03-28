@@ -19,6 +19,7 @@ type RewardOverlayShellParams = {
 }
 
 type RouteOverlayShellParams = {
+  legendText: string
   subtitleText: string
   titleText: string
   styles: {
@@ -26,6 +27,7 @@ type RouteOverlayShellParams = {
     panel: string
     title: string
     subtitle: string
+    body: string
     cards: string
   }
 }
@@ -71,6 +73,7 @@ export const createRouteOverlayShell = (params: RouteOverlayShellParams): RouteO
 
   panel.append(createEl('h2', params.styles.title, params.titleText))
   panel.append(createEl('p', params.styles.subtitle, params.subtitleText))
+  panel.append(createEl('p', params.styles.body, params.legendText))
 
   const cards = createEl('div', params.styles.cards)
   panel.append(cards)

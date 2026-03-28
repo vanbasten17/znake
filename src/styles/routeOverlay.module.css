@@ -73,6 +73,18 @@
   box-shadow: 0 0 0 1px rgba(183, 255, 232, 0.22);
 }
 
+.cardLow {
+  border-color: rgba(112, 221, 180, 0.66);
+}
+
+.cardMedium {
+  border-color: rgba(255, 205, 120, 0.66);
+}
+
+.cardHigh {
+  border-color: rgba(255, 133, 133, 0.7);
+}
+
 .hotkey {
   font-family: var(--font-display);
   font-size: clamp(16px, 3.4vw, 20px);
