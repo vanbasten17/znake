@@ -1,5 +1,6 @@
 import type {
   BiomeId,
+  BiomePhaseId,
   BiomeRuleDefinition,
   ChallengeMutatorDefinition,
   DepthBalanceBandId,
@@ -11,6 +12,7 @@ import type {
   GoalId,
   NonBossObjectiveKind,
   PowerupType,
+  ProgressionDirectorSnapshot,
   RewardOption,
   RoomObjectiveKind,
   RunConfig,
@@ -1396,6 +1398,49 @@ export const getRoleSpawnPolicyWindowForFloor = (params: { floor: number; spawnI
         charger: maxActiveOverride('charger') ?? base.maxActiveByRole.charger,
         leech: maxActiveOverride('leech') ?? base.maxActiveByRole.leech,
       },
+    },
+  }
+}
+
+const biomePhaseByDepthBand: Record<DepthBalanceBandId, BiomePhaseId> = {
+  early: 'opening',
+  mid: 'escalation',
+  late: 'apex',
+}
+
+export const getProgressionDirectorSnapshot = (params: {
+  floor: number
+  spawnIndex: number
+}): ProgressionDirectorSnapshot => {
+  const floor = toFloorNumber(params.floor)
+  const spawnIndex = Math.max(1, Math.floor(params.spawnIndex))
+  const depthBand = getDepthBandForFloor(floor)
+  const roleWindow = getRoleSpawnPolicyWindowForFloor({ floor, spawnIndex })
+
+  return {
+    floor,
+    spawnIndex,
+    depthBand,
+    biomePhase: biomePhaseByDepthBand[depthBand],
+    roleWindowId: roleWindow.id,
+    rolePolicy: {
+      weights: { ...roleWindow.policy.weights },
+      maxActiveByRole: { ...roleWindow.policy.maxActiveByRole },
+      minSpawnGapByRole: { ...roleWindow.policy.minSpawnGapByRole },
+      fallbackRole: roleWindow.policy.fallbackRole,
+    },
+    pressureBudget: {
+      maxConcurrentPressureSources:
+        BALANCE.predatorPreyPacing.guardrails.maxConcurrentPressureSources,
+      minTicksBetweenPressureActions:
+        BALANCE.predatorPreyPacing.guardrails.minTicksBetweenPressureActions,
+      fallbackAction: BALANCE.predatorPreyPacing.guardrails.fallbackAction,
+    },
+    terrainModifiers: {
+      zoneRadius: BALANCE.bodyTerrain.zoneRadius,
+      laneDistance: BALANCE.bodyTerrain.laneDistance,
+      minSafePocketNeighbors: BALANCE.bodyTerrain.guardrails.minSafePocketNeighbors,
+      pressureSourceThreshold: BALANCE.bodyTerrain.guardrails.pressureSourceThreshold,
     },
   }
 }

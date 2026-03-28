@@ -349,3 +349,11 @@ The system SHALL define run-start baseline length in centralized balance configu
 - **THEN** the system uses centralized baseline plus additive bonus fields as the single composition contract
 - **AND** composition behavior remains deterministic for identical seeds and profile state
 
+### Requirement: Central unified progression-director tuning inputs
+The system SHALL keep unified progression-director input knobs in centralized balance configuration and deterministic helper mappings.
+
+#### Scenario: Unified director inputs remain centrally tuned
+- **WHEN** tuning updates depth-band mapping, pacing guardrails, role-window overlays, or terrain knobs
+- **THEN** unified progression resolver reads updated values from centralized config/helpers
+- **AND** scene orchestration does not require duplicate constant edits
+

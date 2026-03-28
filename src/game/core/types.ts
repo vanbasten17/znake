@@ -84,6 +84,38 @@ export type RewardOption = {
 
 export type RunMapRoomType = 'combat' | 'elite' | 'shop' | 'rest' | 'event'
 export type DepthBalanceBandId = 'early' | 'mid' | 'late'
+export type BiomePhaseId = 'opening' | 'escalation' | 'apex'
+
+export type ProgressionDirectorPressureBudget = {
+  maxConcurrentPressureSources: number
+  minTicksBetweenPressureActions: number
+  fallbackAction: PredatorPreyPacingGuardrailAction
+}
+
+export type ProgressionDirectorTerrainModifiers = {
+  zoneRadius: number
+  laneDistance: number
+  minSafePocketNeighbors: number
+  pressureSourceThreshold: number
+}
+
+export type ProgressionDirectorRolePolicy = {
+  weights: Record<EnemyRole, number>
+  maxActiveByRole: Record<EnemyRole, number>
+  minSpawnGapByRole: Record<EnemyRole, number>
+  fallbackRole: EnemyRole
+}
+
+export type ProgressionDirectorSnapshot = {
+  floor: number
+  spawnIndex: number
+  depthBand: DepthBalanceBandId
+  biomePhase: BiomePhaseId
+  roleWindowId: string
+  rolePolicy: ProgressionDirectorRolePolicy
+  pressureBudget: ProgressionDirectorPressureBudget
+  terrainModifiers: ProgressionDirectorTerrainModifiers
+}
 
 export type RunMapResolutionKind = 'objective_reward' | 'noncombat_hook'
 
