@@ -282,3 +282,12 @@ The system SHALL include active challenge preset context in run lifecycle teleme
 - **THEN** payload includes active challenge preset identifier and preset mutator identifier context
 - **AND** fields align with run-start preset context naming
 
+### Requirement: Recap trend reason taxonomy compatibility
+
+The system SHALL keep death-reason trend computation compatible with existing bounded death reason taxonomy values.
+
+#### Scenario: Trend aggregator consumes existing reason values
+- **WHEN** trend insight computes counts from recent run summaries
+- **THEN** reason categories map directly to existing death reason taxonomy values
+- **AND** unknown values degrade safely to fallback copy without failing recap render
+

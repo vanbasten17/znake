@@ -112,26 +112,28 @@ Generated: 2026-03-28
 
 ### Implemented or Archived
 
-- Run-seed challenge presets and bounded preset modifier packs are now archived in [2026-03-28-znake-daily-weekly-challenge-presets-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-daily-weekly-challenge-presets-v1) and reflected in [challenge-presets/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/challenge-presets/spec.md), [gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md), [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md), and [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md).
+- Run-seed challenge presets and bounded preset mutator composition are archived in [2026-03-28-znake-daily-weekly-challenge-presets-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-daily-weekly-challenge-presets-v1) and reflected in [challenge-presets/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/challenge-presets/spec.md), [gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md), [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md), and [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md).
+- Lightweight run-history timeline (menu learning surface) is archived in [2026-03-28-znake-menu-run-history-timeline-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-menu-run-history-timeline-v1) and reflected in [run-history-surface/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/run-history-surface/spec.md), [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md), and [ui-foundation/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/ui-foundation/spec.md).
+- Post-run “why you died” trend insight panel is archived in [2026-03-28-znake-death-trend-insight-panel-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-death-trend-insight-panel-v1) and reflected in [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md) and [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md).
+- Rotating mastery focus track in menu is archived in [2026-03-28-znake-menu-mastery-focus-track-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-menu-mastery-focus-track-v1) and reflected in [meta-progression/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/meta-progression/spec.md) and [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md).
+- Upgrade draft synergy/conflict hint chips are archived in [2026-03-28-znake-upgrade-synergy-conflict-hints-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-upgrade-synergy-conflict-hints-v1) and reflected in [upgrade-identity/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/upgrade-identity/spec.md) and [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md).
 
 ### Specced in Base Specs
 
-- Post-run recap and failure telemetry context are substantially covered in [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md) and [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md), but a player-facing trend panel for recurring death causes is only partially specified.
-- Mastery and route-learning telemetry primitives are covered in [route-mastery-readability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/route-mastery-readability/spec.md) and [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md), but a menu-facing rotating mastery-goal surface remains partially specified.
-- Upgrade identity/readability contracts are covered in [upgrade-identity/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/upgrade-identity/spec.md), but contextual synergy/conflict hint overlays in draft UI remain unmatched as a concrete behavior contract.
+- Route and biome readability, event-choice structure, mutator contracts, and boss/elite fairness contracts remain strongly covered in current base specs (no new gaps identified in those areas during this loop).
 
 ### In Active Change
 
-- None currently (`openspec list --json` reports no active changes after cycle 1 archive).
+- None currently (`openspec list --json` reports no active changes after cycle 5 archive).
 
 ### Unmatched
 
-- Lightweight run-history timeline in menu (recent seed/depth/build/death snapshots for learning loops).
-- Explicit player-facing “why you died” trend panel beyond single-run recap.
-- Rotating mastery goal tracks surfaced directly in menu.
-- Upgrade draft synergy/conflict hint badges in choice UI.
-- Enemy composition director contracts for depth-band variety packaging.
+- Enemy composition director v1 contracts for depth-band role variety packaging.
+- Event-choice consequence memory (delayed outcome hooks across subsequent floors).
+- Route identity packages (explicit safe/economy vs high-risk/tempo route identities).
+- Upgrade family mini-set expansions (new content breadth, anti-snowball guardrails).
+- Boss phase remix contracts and broader mid/late depth content expansion framework.
 
 ### Collapse Note
 
-- Several backlog bullets collapse into existing concepts (telemetry, recap, route mastery, upgrade readability). The remaining high-value gap is menu-level learning surfaces that turn existing telemetry into actionable player feedback.
+- Several roadmap bullets collapsed into one menu-level learning surface cluster, which was completed in this loop. The remaining major work is content-depth and encounter-structure expansion rather than UI recap clarity.

@@ -85,6 +85,37 @@
   margin-top: var(--space-3);
 }
 
+.runHistory {
+  margin-top: var(--space-2);
+  border: 1px solid rgba(90, 150, 210, 0.32);
+  border-radius: 8px;
+  background: rgba(6, 15, 33, 0.82);
+  padding: var(--space-2) var(--space-3);
+}
+
+.runHistoryTitle {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: clamp(10px, 2.2vw, 12px);
+  color: var(--color-sem-control);
+  letter-spacing: 0.6px;
+}
+
+.runHistoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.runHistoryEntry,
+.runHistoryEmpty {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(10px, 2vw, 12px);
+  line-height: 1.2;
+  color: var(--color-text-primary);
+}
+
 .accessibility {
   display: flex;
   flex-direction: column;
@@ -210,6 +241,14 @@
   font-family: var(--font-display);
   font-size: clamp(11px, 2.6vw, 14px);
   color: var(--color-accent);
+}
+
+.masteryFocus {
+  margin: var(--space-1) 0 0;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: clamp(10px, 2vw, 12px);
+  color: var(--color-sem-control);
 }
 
 .goals {

@@ -18,6 +18,7 @@ import {
   unlockTalent,
 } from '../core/meta'
 import { getRoomObjective, getRunObjectiveOffsetForSeed } from '../core/objectives'
+import { loadRunHistory } from '../core/runHistory'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { ChallengePresetId, GoalId } from '../core/types'
 import { drawMarkerSpriteCanvas } from '../render/markerBitmapDraw'
@@ -101,6 +102,8 @@ export class MenuScene extends Phaser.Scene {
   private waiting = true
   private overlayRoot: HTMLDivElement | null = null
   private currencyValueEl: HTMLSpanElement | null = null
+  private runHistoryEl: HTMLDivElement | null = null
+  private masteryFocusEl: HTMLParagraphElement | null = null
   private goalsTitleEl: HTMLParagraphElement | null = null
   private languageEl: HTMLButtonElement | null = null
   private guideButtonEl: HTMLButtonElement | null = null
@@ -218,6 +221,11 @@ export class MenuScene extends Phaser.Scene {
     this.currencyValueEl.className = styles.currencyValue
     currencyText.append(this.currencyValueEl)
     stats.append(currencyText)
+
+    const history = document.createElement('div')
+    history.className = styles.runHistory
+    root.append(history)
+    this.runHistoryEl = history
 
     const accessibility = document.createElement('div')
     accessibility.className = styles.accessibility
@@ -355,6 +363,10 @@ export class MenuScene extends Phaser.Scene {
     this.goalsTitleEl.className = styles.goalsTitle
     root.append(this.goalsTitleEl)
 
+    this.masteryFocusEl = document.createElement('p')
+    this.masteryFocusEl.className = styles.masteryFocus
+    root.append(this.masteryFocusEl)
+
     const goals = document.createElement('div')
     goals.className = styles.goals
     root.append(goals)
@@ -472,6 +484,8 @@ export class MenuScene extends Phaser.Scene {
       this.overlayRoot = null
     }
     this.currencyValueEl = null
+    this.runHistoryEl = null
+    this.masteryFocusEl = null
     this.goalsTitleEl = null
     this.languageEl = null
     this.guideButtonEl = null
@@ -571,12 +585,16 @@ export class MenuScene extends Phaser.Scene {
     if (this.goalsTitleEl) {
       this.goalsTitleEl.textContent = `${t('menu.goalsTitle')} · ${this.getMutatorUnlockStatusText()}`
     }
+    if (this.masteryFocusEl) {
+      this.masteryFocusEl.textContent = this.getMasteryFocusText()
+    }
     if (this.languageEl) {
       this.languageEl.textContent = `${t('menu.language')}: ${getLanguage().toUpperCase()}`
     }
     if (this.guideButtonEl) {
       this.guideButtonEl.textContent = t('menu.guide')
     }
+    this.refreshRunHistoryUi()
     for (const refresh of this.talentRowRefreshers) {
       refresh()
     }
@@ -595,6 +613,43 @@ export class MenuScene extends Phaser.Scene {
       })
     }
     this.refreshGlossaryUi()
+  }
+
+  private refreshRunHistoryUi(): void {
+    if (!this.runHistoryEl) {
+      return
+    }
+    this.runHistoryEl.replaceChildren()
+
+    const title = document.createElement('p')
+    title.className = styles.runHistoryTitle
+    title.textContent = 'RECENT RUNS'
+    this.runHistoryEl.append(title)
+
+    const entries = loadRunHistory().slice(0, 3)
+    if (entries.length === 0) {
+      const empty = document.createElement('p')
+      empty.className = styles.runHistoryEmpty
+      empty.textContent = 'No recent runs'
+      this.runHistoryEl.append(empty)
+      return
+    }
+
+    const list = document.createElement('div')
+    list.className = styles.runHistoryList
+    for (const entry of entries) {
+      const row = document.createElement('p')
+      row.className = styles.runHistoryEntry
+      const preset =
+        entry.challengePresetId === 'standard'
+          ? 'STD'
+          : entry.challengePresetId === 'daily'
+            ? 'DAY'
+            : 'WK'
+      row.textContent = `${preset} · F${entry.floor} · ${entry.deathReason} · B:${entry.buildLeaning} · seed:${entry.runSeed}`
+      list.append(row)
+    }
+    this.runHistoryEl.append(list)
   }
 
   private createReleaseLink(url: string, labelKey: string): HTMLAnchorElement {
@@ -625,6 +680,23 @@ export class MenuScene extends Phaser.Scene {
     return t('game.roomObjectiveSurvivePreview', {
       seconds: Math.ceil(objective.target / 1000),
     })
+  }
+
+  private getMasteryFocusText(): string {
+    if (PROGRESSION_GOALS.length <= 0) {
+      return 'MASTERY FOCUS · none'
+    }
+    const dayIndex = Math.floor(Date.now() / (24 * 60 * 60 * 1000))
+    const goal = PROGRESSION_GOALS[Math.abs(dayIndex) % PROGRESSION_GOALS.length]
+    const progress = Math.min(goal.target, playerProfile.goalProgress[goal.id])
+    const claimed = playerProfile.claimedGoals[goal.id]
+    const goalLabel = t(`goal.${goal.id}_name`)
+    const status = claimed
+      ? t('menu.goalClaimed')
+      : progress >= goal.target
+        ? t('menu.goalReady', { reward: goal.reward })
+        : t('menu.goalProgress', { progress, target: goal.target })
+    return `MASTERY FOCUS · ${goalLabel} · ${status}`
   }
 
   private getMutatorUnlockStatusText(): string {

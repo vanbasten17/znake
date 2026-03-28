@@ -53,3 +53,12 @@ The system SHALL expose a deterministic selection contract that reward flow can 
 - **THEN** the returned set favors visible family contrast or role contrast
 - **AND** repeated family stacking remains possible only after contrast rules are satisfied
 
+### Requirement: Upgrade identity cues include explicit comparison chips
+
+The system SHALL include explicit comparison chips for synergy and conflict in upgrade decision surfaces.
+
+#### Scenario: Identity and consequence cues stay separable
+- **WHEN** upgrade card is displayed in decision surfaces
+- **THEN** synergy and conflict chips remain visually distinct from family identity and consequence body text
+- **AND** players can compare options quickly without opening external menus
+

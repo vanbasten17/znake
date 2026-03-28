@@ -406,3 +406,59 @@ Scenes SHALL orchestrate challenge preset run starts without moving seed/mutator
 - **THEN** restart resolves run seed using the same preset mode
 - **AND** retry transitions preserve deterministic comparability for that preset window
 
+### Requirement: Menu run-history timeline readability
+
+The system SHALL surface a compact run-history timeline in menu without changing scene flow behavior.
+
+#### Scenario: Menu shows recent run summary rows
+- **WHEN** menu overlay is rendered and history entries exist
+- **THEN** menu presents bounded recent rows with seed, floor, death reason, and build context
+- **AND** row ordering is newest-first
+
+#### Scenario: Menu shows empty-state fallback
+- **WHEN** no run-history entries are available
+- **THEN** menu presents a concise empty-state message
+- **AND** existing start/progression controls remain unaffected
+
+### Requirement: Death recap trend insight block
+
+The system SHALL include a bounded trend insight block in death recap using recent run-history reason data.
+
+#### Scenario: Recap shows top recent failure reason with sample context
+- **WHEN** death recap is rendered and recent history has sufficient entries
+- **THEN** recap shows the top recent failure reason with count/sample context
+- **AND** trend uses bounded recent history window only
+
+#### Scenario: Recap falls back for low history sample
+- **WHEN** recent history does not have sufficient entries for trend signal
+- **THEN** recap shows a fallback insight anchored to current run reason
+- **AND** recap remains readable without extra interaction
+
+### Requirement: Rotating mastery focus in menu
+
+The system SHALL show one deterministic rotating mastery-focus line in menu derived from existing goal progress state.
+
+#### Scenario: Menu renders focus goal with current status
+- **WHEN** menu overlay is rendered
+- **THEN** one focus goal is selected deterministically from existing progression goals
+- **AND** focus line includes claimed/ready/progress status context
+
+#### Scenario: Focus surface does not replace full goals list
+- **WHEN** focus line is shown
+- **THEN** full goal list remains available in menu
+- **AND** claim interactions remain behaviorally unchanged
+
+### Requirement: Upgrade draft synergy/conflict hint chips
+
+The system SHALL render explicit synergy/conflict hint chips on upgrade draft cards to improve comparison readability.
+
+#### Scenario: Upgrade cards include positive and caution hint chips
+- **WHEN** upgrade draft cards are rendered
+- **THEN** each card includes a positive synergy hint chip and a caution conflict hint chip
+- **AND** hint text derives from existing upgrade metadata fields
+
+#### Scenario: Hint chips do not alter pick behavior
+- **WHEN** hint chips are shown
+- **THEN** card pick interactions and transition flow remain unchanged
+- **AND** simulation-owned upgrade effects remain unchanged
+

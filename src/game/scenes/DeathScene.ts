@@ -6,6 +6,7 @@ import { STORAGE_KEYS } from '../core/constants'
 import { type DeathRecapBuildLeaning, buildDeathRecap } from '../core/deathRecap'
 import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
 import { getRunObjectiveOffsetForSeed } from '../core/objectives'
+import { appendRunHistoryEntry, loadRunHistory } from '../core/runHistory'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { UpgradeFamily } from '../core/types'
 import { UPGRADE_FAMILIES } from '../core/upgrades'
@@ -173,6 +174,17 @@ export class DeathScene extends Phaser.Scene {
       challengePresetId: gameState.currentChallengePresetId,
       challengePresetMutatorId: gameState.currentChallengePresetForcedMutatorId,
     })
+    if (gameState.currentRunSeed !== null) {
+      appendRunHistoryEntry({
+        endedAt: Date.now(),
+        runSeed: gameState.currentRunSeed,
+        floor: gameState.floor,
+        score,
+        deathReason,
+        buildLeaning: recap.buildLeaning,
+        challengePresetId: gameState.currentChallengePresetId,
+      })
+    }
 
     const best = Math.max(
       score,
@@ -370,6 +382,8 @@ export class DeathScene extends Phaser.Scene {
         recap.routeMastery.detail,
       ),
     )
+    const trend = this.getDeathTrendInsight(recap.deathReason)
+    section.append(this.createRecapBlock('Why You Died Trend', trend.value, trend.detail))
 
     const choices = document.createElement('div')
     choices.className = styles.recapBlock
@@ -423,6 +437,34 @@ export class DeathScene extends Phaser.Scene {
     }
 
     return block
+  }
+
+  private getDeathTrendInsight(currentDeathReason: string): { value: string; detail: string } {
+    const recent = loadRunHistory().slice(0, 6)
+    if (recent.length <= 1) {
+      return {
+        value: this.getDeathReasonText(currentDeathReason),
+        detail: 'Need more runs for trend signal',
+      }
+    }
+    const counts = new Map<string, number>()
+    for (const entry of recent) {
+      counts.set(entry.deathReason, (counts.get(entry.deathReason) ?? 0) + 1)
+    }
+    let topReason = currentDeathReason
+    let topCount = counts.get(currentDeathReason) ?? 0
+    for (const [reason, count] of counts.entries()) {
+      if (count > topCount) {
+        topReason = reason
+        topCount = count
+      }
+    }
+    const latest = recent[0]
+    const latestLabel = latest ? this.getDeathReasonText(latest.deathReason) : 'unknown'
+    return {
+      value: `${this.getDeathReasonText(topReason)} · ${topCount}/${recent.length}`,
+      detail: `Latest run: ${latestLabel} · floor ${latest?.floor ?? 0} · seed ${latest?.runSeed ?? 0}`,
+    }
   }
 
   private teardownOverlay(): void {

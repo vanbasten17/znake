@@ -102,6 +102,10 @@ export class UpgradeScene extends Phaser.Scene {
     return t(`upgrade.${upgrade.id}_tradeoff`, { defaultValue: upgrade.tradeoff })
   }
 
+  private getUpgradeSynergy(upgrade: Upgrade): string {
+    return t(`upgrade.${upgrade.id}_synergy`, { defaultValue: upgrade.synergy })
+  }
+
   private pick(upgrade: Upgrade | undefined): void {
     if (this.picked || !upgrade) {
       return
@@ -221,6 +225,21 @@ export class UpgradeScene extends Phaser.Scene {
     familyTradeoff.textContent = this.getUpgradeFamilyTradeoff(upgrade)
     familyTradeoff.style.borderLeftColor = `#${UPGRADE_FAMILIES[upgrade.family].color.toString(16).padStart(6, '0')}`
     content.append(familyTradeoff)
+
+    const hintRow = document.createElement('span')
+    hintRow.className = styles.hintRow
+
+    const synergy = document.createElement('span')
+    synergy.className = `${styles.hintChip} ${styles.hintChipPositive}`
+    synergy.textContent = `SYNERGY · ${this.getUpgradeSynergy(upgrade)}`
+    hintRow.append(synergy)
+
+    const conflict = document.createElement('span')
+    conflict.className = `${styles.hintChip} ${styles.hintChipNegative}`
+    conflict.textContent = `CONFLICT · ${this.getUpgradeTradeoff(upgrade)}`
+    hintRow.append(conflict)
+
+    content.append(hintRow)
 
     const hotkey = document.createElement('span')
     hotkey.className = styles.hotkey
