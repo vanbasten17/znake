@@ -6,6 +6,7 @@ const STATE_PATH = '.autoloop/state.json'
 const REPORT_PATH = '.autoloop/loop-report.json'
 const PROMPT_PACK_PATH = '.autoloop/prompt-pack.md'
 const COMMIT_MESSAGE_PATH = '.autoloop/commit-message.txt'
+const LOOP_VERSION = '1.0.1'
 
 const getArg = (name) => {
   const prefix = `--${name}=`
@@ -163,6 +164,7 @@ const main = () => {
       'No active OpenSpec changes found. Prompt pack generated from NEXT_STEPS unmatched items.'
     writeJson(STATE_PATH, state)
     writeJson(REPORT_PATH, {
+      loopVersion: LOOP_VERSION,
       passed: true,
       summary: state.summary,
       promptPackPath: PROMPT_PACK_PATH,
@@ -185,6 +187,7 @@ const main = () => {
     state.summary = 'Stopped at pnpm check.'
     writeJson(STATE_PATH, state)
     writeJson(REPORT_PATH, {
+      loopVersion: LOOP_VERSION,
       passed: false,
       failedStage: 'check',
       promptPackPath: PROMPT_PACK_PATH,
@@ -200,6 +203,7 @@ const main = () => {
     state.summary = 'Stopped at pnpm smoke.'
     writeJson(STATE_PATH, state)
     writeJson(REPORT_PATH, {
+      loopVersion: LOOP_VERSION,
       passed: false,
       failedStage: 'smoke',
       promptPackPath: PROMPT_PACK_PATH,
@@ -215,6 +219,7 @@ const main = () => {
     state.summary = 'Stopped at openspec validate.'
     writeJson(STATE_PATH, state)
     writeJson(REPORT_PATH, {
+      loopVersion: LOOP_VERSION,
       passed: false,
       failedStage: 'openspec-validate',
       promptPackPath: PROMPT_PACK_PATH,
@@ -231,6 +236,7 @@ const main = () => {
       state.summary = 'Stopped at archive.'
       writeJson(STATE_PATH, state)
       writeJson(REPORT_PATH, {
+        loopVersion: LOOP_VERSION,
         passed: false,
         failedStage: 'archive',
         promptPackPath: PROMPT_PACK_PATH,
@@ -248,6 +254,7 @@ const main = () => {
       state.summary = 'Stopped at git add.'
       writeJson(STATE_PATH, state)
       writeJson(REPORT_PATH, {
+        loopVersion: LOOP_VERSION,
         passed: false,
         failedStage: 'git-add',
         promptPackPath: PROMPT_PACK_PATH,
@@ -263,6 +270,7 @@ const main = () => {
       state.summary = 'git commit failed (possibly no staged changes).'
       writeJson(STATE_PATH, state)
       writeJson(REPORT_PATH, {
+        loopVersion: LOOP_VERSION,
         passed: false,
         failedStage: 'git-commit',
         promptPackPath: PROMPT_PACK_PATH,
@@ -276,6 +284,7 @@ const main = () => {
   state.summary = 'Autoloop completed all configured stages.'
   writeJson(STATE_PATH, state)
   writeJson(REPORT_PATH, {
+    loopVersion: LOOP_VERSION,
     passed: true,
     change: change.name,
     autoarchive,

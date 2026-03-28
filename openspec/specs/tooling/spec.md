@@ -48,17 +48,11 @@ The system SHALL provide an internal CLI workflow to convert authored marker SVG
 
 The system SHALL provide automated tests for extracted pure simulation logic and persistence migrations.
 
-#### Scenario: Deterministic simulation tests run without Phaser
+#### Scenario: Autoloop report includes versioned metadata for traceability
 
-- **WHEN** automated tests execute for simulation modules
-- **THEN** tests import pure TypeScript logic only
-- **AND** verify invariants such as connectivity, spawn safety, and RNG repeatability
-
-#### Scenario: Smoke playtest gate runs before verification/archive
-
-- **WHEN** an autonomous release/apply loop runs quality gates
-- **THEN** `pnpm smoke` is executed after `pnpm check` and before OpenSpec verify/archive actions
-- **AND** loop progression is blocked when smoke thresholds fail
+- **WHEN** `autoloop` writes `.autoloop/loop-report.json`
+- **THEN** report includes a `loopVersion` field
+- **AND** version value is stable within a release so automation consumers can validate expected schema
 
 ### Requirement: Internal gameplay debug controls
 
