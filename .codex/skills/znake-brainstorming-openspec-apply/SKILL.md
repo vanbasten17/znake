@@ -24,6 +24,43 @@ Use this as the single skill for proposal-first change creation, OpenSpec sync, 
 - Do not collapse large backlogs into one umbrella change unless the user explicitly asks for a single combined change.
 - When user provides an explicit count (N), prioritize producing N concrete OpenSpec changes over maintaining a separate ideation backlog layer.
 
+## Ralph Strict Mode (MANDATORY)
+
+Treat execution as a strict loop system inspired by "single-task-per-loop" orchestration.
+
+1. Single task per loop:
+- Only one active implementation task at a time.
+- Do not start the next task until current task passes validation gates.
+
+2. Explicit human gate:
+- After each completed loop, report result and pause for user confirmation when:
+  - behavior changes are non-trivial, or
+  - archive is about to run.
+- For low-risk internal refactors, continue automatically unless the user requested manual gating.
+
+3. Failure-domain hardening:
+- On any failed validation/test/check:
+  - record a concise failure entry in `FAIL_MEMORY.md`,
+  - add one prevention rule,
+  - apply a fix,
+  - re-run the failed gate before continuing.
+
+4. Loop telemetry:
+- For each loop, record:
+  - loop id,
+  - task/change id,
+  - gates run,
+  - pass/fail,
+  - retries count.
+- Include this telemetry in final run output under `Loop telemetry`.
+
+5. Auto-heal pass before archive:
+- Before archiving a completed change, run one auto-heal pass:
+  - run validation gates,
+  - fix small deterministic/style/typing regressions,
+  - re-run gates.
+- Archive only after gates are green.
+
 ## Change Granularity (MANDATORY)
 
 - Default mapping is **one idea -> one OpenSpec change**.
@@ -104,8 +141,10 @@ Before first implementation, add a short plan section to the response:
   4. Run validation:
      - `pnpm check`
      - `pnpm build` only for significant behavior/architecture work
-  5. Mark completed tasks in that change's `tasks.md`.
-  6. Re-prioritize remaining active changes before starting the next iteration.
+  5. If validation fails, execute failure-domain hardening and retry the failed gate.
+  6. Run auto-heal pass before archive (for completed changes).
+  7. Mark completed tasks in that change's `tasks.md`.
+  8. Re-prioritize remaining active changes before starting the next iteration.
 - Keep independent changes independent during execution: avoid reopening old unrelated changes when a new idea can proceed in its own change.
 - Archive each completed change as soon as it is stable, instead of waiting for a mega-batch, unless the user asks for one final archive sweep.
 - In proposal-first mode, loop unit is “active OpenSpec change”, not “abstract idea”.
@@ -142,6 +181,7 @@ Always return:
 7. `Archive status` (done/blocked + archive paths + affected base specs)
 8. `Commit status` (commit hash or manual-commit handoff)
 9. `Commit message` (single-line, ready to copy)
+10. `Loop telemetry` (loop id, task/change, gates, result, retries)
 
 If no active changes remain, end with:
 
