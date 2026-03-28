@@ -50,6 +50,11 @@ For tiny edits or exploratory work, use judgment.
 - Avoid broad planning-document reads unless the task is explicitly planning-oriented; prefer active `openspec/changes/*` context.
 
 ## Validation policy
+- JS/TS pre-gate normalization (mandatory before strict checks):
+  1) `pnpm exec biome check --write --unsafe .`
+  2) `pnpm format`
+  3) `pnpm check`
+- Do not run strict checks immediately after edits without running the formatter/import-normalization path first.
 - Small/localized changes: run `pnpm check`.
 - Significant behavior or architecture changes: run both `pnpm check` and `pnpm build`.
 
@@ -61,13 +66,21 @@ Use fixed seeds when randomness is involved.
 For large or risky changes, propose a short plan/spec before implementation.
 
 ## Failure memory loop
-- Track execution failures in `FAIL_MEMORY.md` so recurring mistakes become explicit process improvements.
+- Treat `FAIL_MEMORY.md` as an active process-improvement input, not a passive history log.
 - When a task fails or is blocked, append one short entry with:
   - Date
   - Task
   - What failed
   - Root cause
   - Prevention rule
-  - AGENTS.md update candidate (yes/no + one sentence)
+  - System fix (`none` | `agents_rule` | `script`)
 - Before starting substantial work, scan the most relevant recent entries and apply any matching prevention rules.
-- Promote only repeated or high-impact prevention rules into `AGENTS.md` to keep guidance concise and useful.
+- If the same failure class appears 3+ times, it must trigger a system fix in the same session:
+  - mechanically preventable (`format/import/order/wrap`-style) -> prefer `script`
+  - workflow/architecture/process -> use `agents_rule`
+- Repeated formatting, import-order, and line-wrap failures are process design issues; do not classify them as discipline-only misses.
+- Escalation rule: when repeats persist, update guidance or tooling (or both), not just `FAIL_MEMORY.md`.
+
+## Scene size guardrail behavior
+- When `src/game/scenes/GameScene.ts` (or similar oversized orchestrator files) is near architecture guardrails, default feature work to extraction/compaction.
+- Do not add new inline feature branches in near-threshold scene files unless extraction is explicitly blocked.

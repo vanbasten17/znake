@@ -28,6 +28,7 @@ Prefer extraction and shared adapters over adding complexity to scene files.
 - Keep cross-cutting behavior behind shared adapters in `systems/*`.
 - Prefer data-driven tuning in `core/balance` and config modules, not scene-local constants.
 - If logic appears in 2 places, plan extraction before introducing a 3rd copy.
+- If `GameScene.ts` (or similar oversized scene orchestrators) is near guardrail limits, default to extraction/compaction before adding inline feature logic.
 
 ## Trigger Conditions
 When any condition is true, force explicit simplification planning in the response:
@@ -36,6 +37,15 @@ When any condition is true, force explicit simplification planning in the respon
 - New DOM overlay/card construction is added in a scene with existing similar builders elsewhere.
 - New telemetry event payload shape is added directly in a scene.
 - New gameplay tuning constants are introduced in scenes instead of balance/config.
+- Scene file is close to architecture limit (for example within 100 lines of the enforced ceiling).
+
+## Gate Hygiene Rules
+- For JS/TS work, run pre-gate normalization before strict checks:
+  1) `pnpm exec biome check --write --unsafe .`
+  2) `pnpm format`
+  3) `pnpm check`
+- Do not run strict gate checks immediately after edits without this normalization path.
+- Treat repeated format/import/line-wrap failures as workflow design problems; recommend script automation instead of discipline reminders.
 
 ## Output Contract
 For architecture-sensitive tasks, include these sections in your response:

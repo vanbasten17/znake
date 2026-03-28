@@ -46,8 +46,10 @@ Treat execution as a strict loop system inspired by "single-task-per-loop" orche
 - On any failed validation/test/check:
   - record a concise failure entry in `FAIL_MEMORY.md`,
   - add one prevention rule,
+  - classify `System fix` as `none | agents_rule | script`,
   - apply a fix,
   - re-run the failed gate before continuing.
+- If the same failure class appears 3+ times, escalate in-loop by updating AGENTS/skill guidance or recommending/creating a script before continuing.
 
 4. Loop telemetry:
 - For each loop, record:
@@ -143,8 +145,12 @@ Before first implementation, add a short plan section to the response:
      - risks / unknowns
   3. Apply pending tasks.
   4. Run validation:
-     - `pnpm check`
+     - pre-gate normalization:
+       1) `pnpm exec biome check --write --unsafe .`
+       2) `pnpm format`
+       3) `pnpm check`
      - `pnpm build` only for significant behavior/architecture work
+     - do not run strict checks immediately after edits without formatter/import normalization.
   5. If validation fails, execute failure-domain hardening and retry the failed gate.
   6. Run auto-heal pass before archive (for completed changes).
   7. Mark completed tasks in that change's `tasks.md`.

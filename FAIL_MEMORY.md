@@ -1,11 +1,18 @@
 # FAIL_MEMORY.md
 
-Purpose: capture execution failures and blockers so we can continuously improve process and AGENTS guidance.
+Purpose: capture execution failures and blockers so we can continuously improve process, AGENTS rules, and tooling.
 
 ## Usage
 - Append entries; do not rewrite history.
 - Keep each entry brief and concrete.
 - Add an entry when a task fails, stalls, or needs retries due to avoidable process issues.
+- Treat repeated failures as system signals. Do not classify repeated classes as discipline-only misses.
+
+## System Fix Classification
+- `System fix: script` -> use first for mechanically preventable issues (formatter/import/order/line-wrap/repeatable gates).
+- `System fix: agents_rule` -> use for workflow, architecture, or decision-path failures.
+- `System fix: none` -> reserve for genuinely non-systemic failures.
+- If the same failure class appears 3+ times, a `script` or `agents_rule` update is mandatory.
 
 ## Entry Template
 
@@ -14,7 +21,7 @@ Purpose: capture execution failures and blockers so we can continuously improve 
 - What failed: <clear failure or blocker>
 - Root cause: <why it happened>
 - Prevention rule: <specific rule to avoid repeat>
-- AGENTS.md update candidate: <yes/no> - <one sentence>
+- System fix: <none | agents_rule | script> - <one sentence>
 
 ## Entries
 
