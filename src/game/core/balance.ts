@@ -21,7 +21,7 @@ import type {
 export const BALANCE = {
   run: {
     moveIntervalMs: 160,
-    baseSnakeLength: 4,
+    baseSnakeLength: 3,
     bonusStartLength: 0,
     bonusShields: 0,
     hasMagnet: false,
