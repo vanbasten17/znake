@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import styles from '../../styles/deathOverlay.module.css'
+import { getDepthBandForFloor } from '../core/balance'
 import { STORAGE_KEYS } from '../core/constants'
 import { type DeathRecapBuildLeaning, buildDeathRecap } from '../core/deathRecap'
 import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
@@ -110,6 +111,7 @@ export class DeathScene extends Phaser.Scene {
       score,
       kills: gameState.kills,
       floor: gameState.floor,
+      depthBand: getDepthBandForFloor(gameState.floor),
       reward,
       currencyTotal: goalProgressResult.profile.currency,
       deathReason,

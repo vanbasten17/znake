@@ -1,4 +1,4 @@
-import { BALANCE } from '../core/balance'
+import { BALANCE, getDepthBandForFloor } from '../core/balance'
 import { getFloorObjective } from '../core/objectives'
 import type {
   BiomeId,
@@ -137,6 +137,7 @@ export const buildRunMapNode = (params: {
   return {
     id: params.nodeId,
     depth: parsed.depth,
+    depthBand: getDepthBandForFloor(floor),
     roomType,
     biomeId,
     nextNodeIds,
@@ -191,6 +192,7 @@ export const getRunMapPreview = (params: {
     return {
       nodeId,
       branchLabel: String(index + 1),
+      depthBand: choiceNode.depthBand,
       roomType: choiceNode.roomType,
       biomeId: choiceNode.biomeId,
       previewRoomTypes: collectPreviewRoomTypes({

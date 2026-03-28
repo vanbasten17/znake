@@ -246,6 +246,44 @@
   text-shadow: 0 0 10px rgba(155, 215, 255, 0.28);
 }
 
+.releaseBlock {
+  margin-top: var(--space-3);
+  border: 1px solid rgba(90, 150, 210, 0.38);
+  border-radius: 8px;
+  background: rgba(7, 17, 36, 0.84);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.releaseDiagnostics {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(9px, 1.85vw, 11px);
+  color: var(--color-text-secondary);
+}
+
+.releaseLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.releaseLink {
+  color: var(--color-sem-control);
+  font-family: var(--font-ui);
+  font-size: clamp(9px, 1.85vw, 11px);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.releaseLink:hover,
+.releaseLink:focus-visible {
+  color: var(--color-accent);
+  outline: none;
+}
+
 .devSection {
   margin-top: var(--space-2);
   display: flex;

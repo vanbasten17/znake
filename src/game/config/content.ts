@@ -1,27 +1,27 @@
-import { BALANCE } from '../core/balance'
+import { BALANCE, getPowerupWeightProfileForFloor } from '../core/balance'
 import type { EnemyKind, FloorObjectiveKind, PowerupType } from '../core/types'
 import type { GameRng } from '../simulation/rng'
 
-const POWERUP_POOLS: Record<'standard' | 'kills' | 'boss', ReadonlyArray<PowerupType>> = {
-  standard: ['shield', 'slow', 'ghost', 'score'],
-  kills: ['venom', 'venom', 'venom', 'shield', 'slow', 'ghost', 'score'],
-  boss: ['venom', 'venom', 'shield', 'shield', 'slow', 'ghost', 'score'],
-}
+const WEIGHTED_POWERUPS: ReadonlyArray<PowerupType> = ['shield', 'slow', 'ghost', 'score', 'venom']
 
 export const getPowerupPool = (params: {
+  floor: number
   isBossFloor: boolean
   objectiveType: FloorObjectiveKind
 }): ReadonlyArray<PowerupType> => {
-  if (params.isBossFloor) {
-    return POWERUP_POOLS.boss
-  }
-  if (params.objectiveType === 'kills') {
-    return POWERUP_POOLS.kills
-  }
-  return POWERUP_POOLS.standard
+  const poolKind = params.isBossFloor
+    ? 'boss'
+    : params.objectiveType === 'kills'
+      ? 'kills'
+      : 'standard'
+  const profile = getPowerupWeightProfileForFloor({ floor: params.floor, pool: poolKind })
+  return WEIGHTED_POWERUPS.flatMap((powerup) =>
+    Array.from({ length: Math.max(0, Math.round(profile[powerup])) }, () => powerup),
+  )
 }
 
 export const pickPowerupType = (params: {
+  floor: number
   isBossFloor: boolean
   objectiveType: FloorObjectiveKind
   forcedType?: PowerupType
@@ -30,8 +30,20 @@ export const pickPowerupType = (params: {
   if (params.forcedType) {
     return params.forcedType
   }
-  const pool = getPowerupPool(params)
-  return params.rng.pick(pool) ?? 'shield'
+  const poolKind = params.isBossFloor
+    ? 'boss'
+    : params.objectiveType === 'kills'
+      ? 'kills'
+      : 'standard'
+  const profile = getPowerupWeightProfileForFloor({ floor: params.floor, pool: poolKind })
+  return (
+    params.rng.weightedPick(
+      WEIGHTED_POWERUPS.map((type) => ({
+        value: type,
+        weight: profile[type],
+      })),
+    ) ?? 'shield'
+  )
 }
 
 export const pickEliteKind = (params: {

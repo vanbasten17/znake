@@ -216,3 +216,55 @@ The system SHALL emit stable, bounded telemetry for objective completion and rew
 - **THEN** telemetry emits `reward_picked` with selected reward identifier and pick index context
 - **AND** payload includes bounded objective-window and clean-play resolution context
 
+### Requirement: Production runtime error capture with release tagging
+The system SHALL capture runtime errors in production-targeted builds with release metadata required for triage and rollback decisions.
+
+#### Scenario: Unhandled runtime errors are captured with release context
+- **WHEN** an unhandled runtime error occurs during active gameplay or shell runtime
+- **THEN** observability records an error event with error name/category and bounded stack/context payload
+- **AND** event payload includes `release_version`, `release_channel`, and `build_id`
+
+#### Scenario: Error capture does not mutate gameplay simulation outcomes
+- **WHEN** runtime error capture is active
+- **THEN** capture behavior is non-blocking and best-effort
+- **AND** deterministic simulation resolution order remains unchanged
+
+### Requirement: Minimum release KPI dashboard contract
+The system SHALL define a minimum KPI contract that can be computed from existing gameplay telemetry for release-readiness review.
+
+#### Scenario: KPI contract exposes bounded release health metrics
+- **WHEN** a release candidate dashboard snapshot is generated
+- **THEN** it includes at minimum run starts, run completions, crash/error count, and top run-end failure reasons
+- **AND** metrics are attributable by the release metadata tuple
+
+#### Scenario: KPI contract includes level progression failure insight
+- **WHEN** release telemetry is summarized for tuning review
+- **THEN** dashboard data includes bounded per-level or per-floor fail concentration fields where available from existing telemetry
+- **AND** missing-source fields are explicitly marked as unavailable rather than inferred silently
+
+### Requirement: Per-level fail-point depth telemetry
+The system SHALL emit bounded deterministic fail-point telemetry fields for each run level to support depth-balance tuning.
+
+#### Scenario: Fail events include level and depth-band context
+- **WHEN** a run-ending or major fail-point event is emitted
+- **THEN** payload includes floor/level index, depth-band identifier, and bounded fail-reason context
+- **AND** fields are stable for cross-run aggregation and comparison
+
+#### Scenario: Fail telemetry supports spike and flat-segment diagnostics
+- **WHEN** fail-point telemetry is aggregated for tuning review
+- **THEN** data can identify depth bands with concentrated spike deaths and low-pressure plateaus
+- **AND** missing dimensions are explicitly marked unavailable rather than inferred
+
+### Requirement: Depth-balance tuning outcome telemetry
+The system SHALL emit bounded telemetry describing resolved depth-tuning outcomes for enemy composition and item usefulness.
+
+#### Scenario: Composition and item outcome fields are emitted
+- **WHEN** room/floor setup resolves depth-aware enemy and item tuning
+- **THEN** telemetry includes compact outcome fields for selected role-composition profile and item usefulness profile
+- **AND** payload values align with centralized depth-balance taxonomy
+
+#### Scenario: Outcome telemetry remains deterministic and non-invasive
+- **WHEN** depth-balance outcome telemetry is emitted
+- **THEN** emission is best-effort and non-blocking
+- **AND** telemetry collection does not alter deterministic gameplay resolution
+

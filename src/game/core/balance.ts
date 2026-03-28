@@ -2,11 +2,14 @@ import type {
   BiomeId,
   BiomeRuleDefinition,
   ChallengeMutatorDefinition,
+  DepthBalanceBandId,
   EnemyRole,
   EventChoiceDefinition,
+  FloorObjectiveKind,
   FloorTemplate,
   GoalId,
   NonBossObjectiveKind,
+  PowerupType,
   RewardOption,
   RoomObjectiveKind,
   RunConfig,
@@ -44,6 +47,259 @@ export const BALANCE = {
     enemyIntervalBaseMs: 550,
     enemyIntervalPerFloorMs: 30,
     enemyIntervalMinMs: 350,
+  },
+  depthBalance: {
+    boundedFloorMin: 1,
+    boundedFloorMax: 15,
+    bands: [
+      {
+        id: 'early',
+        minFloor: 1,
+        maxFloor: 5,
+        rolePolicyId: 'early',
+        itemProfileId: 'early',
+        pressure: {
+          enemyCountBonus: 0,
+          enemyIntervalMultiplier: 1,
+        },
+        guardrails: {
+          enemyCountDeltaMin: 0,
+          enemyCountDeltaMax: 1,
+          enemyIntervalDropMinMs: 6,
+          enemyIntervalDropMaxMs: 36,
+        },
+      },
+      {
+        id: 'mid',
+        minFloor: 6,
+        maxFloor: 10,
+        rolePolicyId: 'mid',
+        itemProfileId: 'mid',
+        pressure: {
+          enemyCountBonus: 1,
+          enemyIntervalMultiplier: 0.95,
+        },
+        guardrails: {
+          enemyCountDeltaMin: 0,
+          enemyCountDeltaMax: 1,
+          enemyIntervalDropMinMs: 8,
+          enemyIntervalDropMaxMs: 42,
+        },
+      },
+      {
+        id: 'late',
+        minFloor: 11,
+        maxFloor: 15,
+        rolePolicyId: 'late',
+        itemProfileId: 'late',
+        pressure: {
+          enemyCountBonus: 1,
+          enemyIntervalMultiplier: 0.91,
+        },
+        guardrails: {
+          enemyCountDeltaMin: 0,
+          enemyCountDeltaMax: 1,
+          enemyIntervalDropMinMs: 10,
+          enemyIntervalDropMaxMs: 46,
+        },
+      },
+    ] as const satisfies ReadonlyArray<{
+      id: DepthBalanceBandId
+      minFloor: number
+      maxFloor: number
+      rolePolicyId: 'early' | 'mid' | 'late'
+      itemProfileId: 'early' | 'mid' | 'late'
+      pressure: {
+        enemyCountBonus: number
+        enemyIntervalMultiplier: number
+      }
+      guardrails: {
+        enemyCountDeltaMin: number
+        enemyCountDeltaMax: number
+        enemyIntervalDropMinMs: number
+        enemyIntervalDropMaxMs: number
+      }
+    }>,
+    roleSpawnPolicyById: {
+      early: {
+        weights: {
+          sniper: 0.2,
+          blocker: 0.3,
+          summoner: 0.16,
+          charger: 0.18,
+          leech: 0.16,
+        } satisfies Record<EnemyRole, number>,
+        maxActiveByRole: {
+          sniper: 1,
+          blocker: 3,
+          summoner: 1,
+          charger: 1,
+          leech: 2,
+        } satisfies Record<EnemyRole, number>,
+        minSpawnGapByRole: {
+          sniper: 2,
+          blocker: 0,
+          summoner: 2,
+          charger: 2,
+          leech: 1,
+        } satisfies Record<EnemyRole, number>,
+        fallbackRole: 'blocker' as EnemyRole,
+      },
+      mid: {
+        weights: {
+          sniper: 0.24,
+          blocker: 0.24,
+          summoner: 0.19,
+          charger: 0.21,
+          leech: 0.12,
+        } satisfies Record<EnemyRole, number>,
+        maxActiveByRole: {
+          sniper: 1,
+          blocker: 3,
+          summoner: 1,
+          charger: 1,
+          leech: 2,
+        } satisfies Record<EnemyRole, number>,
+        minSpawnGapByRole: {
+          sniper: 2,
+          blocker: 0,
+          summoner: 2,
+          charger: 2,
+          leech: 1,
+        } satisfies Record<EnemyRole, number>,
+        fallbackRole: 'blocker' as EnemyRole,
+      },
+      late: {
+        weights: {
+          sniper: 0.28,
+          blocker: 0.2,
+          summoner: 0.22,
+          charger: 0.22,
+          leech: 0.08,
+        } satisfies Record<EnemyRole, number>,
+        maxActiveByRole: {
+          sniper: 1,
+          blocker: 3,
+          summoner: 1,
+          charger: 1,
+          leech: 2,
+        } satisfies Record<EnemyRole, number>,
+        minSpawnGapByRole: {
+          sniper: 2,
+          blocker: 0,
+          summoner: 2,
+          charger: 2,
+          leech: 1,
+        } satisfies Record<EnemyRole, number>,
+        fallbackRole: 'blocker' as EnemyRole,
+      },
+    } as const,
+    itemUsefulnessProfiles: {
+      early: {
+        riftBatteryMultiplier: 0.88,
+        portalBeaconMultiplier: 1.08,
+        objectiveMultiplier: {
+          portal: 1.1,
+          score: 1,
+          kills: 0.95,
+          boss: 1.05,
+        } satisfies Record<FloorObjectiveKind, number>,
+        portalNoPortalBoostMultiplier: 1.1,
+      },
+      mid: {
+        riftBatteryMultiplier: 1.05,
+        portalBeaconMultiplier: 1,
+        objectiveMultiplier: {
+          portal: 1.05,
+          score: 1.04,
+          kills: 1,
+          boss: 1.04,
+        } satisfies Record<FloorObjectiveKind, number>,
+        portalNoPortalBoostMultiplier: 1.12,
+      },
+      late: {
+        riftBatteryMultiplier: 1.2,
+        portalBeaconMultiplier: 0.95,
+        objectiveMultiplier: {
+          portal: 1,
+          score: 1.08,
+          kills: 1.06,
+          boss: 1.06,
+        } satisfies Record<FloorObjectiveKind, number>,
+        portalNoPortalBoostMultiplier: 1.14,
+      },
+    } as const,
+    powerupWeightsByItemProfile: {
+      early: {
+        standard: {
+          shield: 2.2,
+          slow: 1.7,
+          ghost: 1.3,
+          score: 1.2,
+          venom: 0.2,
+        } satisfies Record<PowerupType, number>,
+        kills: {
+          shield: 1.6,
+          slow: 1.6,
+          ghost: 1.1,
+          score: 1,
+          venom: 2.8,
+        } satisfies Record<PowerupType, number>,
+        boss: {
+          shield: 2.2,
+          slow: 1.4,
+          ghost: 1.1,
+          score: 0.8,
+          venom: 2,
+        } satisfies Record<PowerupType, number>,
+      },
+      mid: {
+        standard: {
+          shield: 2,
+          slow: 1.6,
+          ghost: 1.4,
+          score: 1.3,
+          venom: 0.28,
+        } satisfies Record<PowerupType, number>,
+        kills: {
+          shield: 1.5,
+          slow: 1.5,
+          ghost: 1.2,
+          score: 1.1,
+          venom: 3,
+        } satisfies Record<PowerupType, number>,
+        boss: {
+          shield: 2,
+          slow: 1.3,
+          ghost: 1.2,
+          score: 0.85,
+          venom: 2.1,
+        } satisfies Record<PowerupType, number>,
+      },
+      late: {
+        standard: {
+          shield: 1.8,
+          slow: 1.4,
+          ghost: 1.5,
+          score: 1.5,
+          venom: 0.34,
+        } satisfies Record<PowerupType, number>,
+        kills: {
+          shield: 1.4,
+          slow: 1.4,
+          ghost: 1.2,
+          score: 1.2,
+          venom: 3.2,
+        } satisfies Record<PowerupType, number>,
+        boss: {
+          shield: 1.9,
+          slow: 1.25,
+          ghost: 1.25,
+          score: 0.9,
+          venom: 2.2,
+        } satisfies Record<PowerupType, number>,
+      },
+    } as const,
   },
   floorTemplate: {
     roomsV1: {
@@ -911,6 +1167,100 @@ export const BALANCE = {
   },
 } as const
 
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value))
+
+const toFloorNumber = (value: number): number => Math.max(1, Math.floor(value))
+
+const resolveDepthBandConfig = (floor: number): (typeof BALANCE.depthBalance.bands)[number] => {
+  const normalizedFloor = toFloorNumber(floor)
+  return (
+    BALANCE.depthBalance.bands.find(
+      (band) => normalizedFloor >= band.minFloor && normalizedFloor <= band.maxFloor,
+    ) ?? BALANCE.depthBalance.bands[BALANCE.depthBalance.bands.length - 1]
+  )
+}
+
+const getBaseEnemyCountForFloor = (floor: number): number =>
+  Math.min(
+    BALANCE.floor.enemyBase + Math.floor(toFloorNumber(floor) / BALANCE.floor.enemyPerFloorStep),
+    BALANCE.floor.enemyCap,
+  )
+
+const getBaseEnemyIntervalForFloor = (floor: number, enemySlowMultiplier: number): number =>
+  Math.max(
+    BALANCE.floor.enemyIntervalMinMs,
+    BALANCE.floor.enemyIntervalBaseMs -
+      toFloorNumber(floor) * BALANCE.floor.enemyIntervalPerFloorMs,
+  ) * enemySlowMultiplier
+
+type RawDepthPressure = {
+  enemyCount: number
+  enemyIntervalMs: number
+}
+
+const getRawDepthPressureForFloor = (
+  floor: number,
+  enemySlowMultiplier: number,
+): RawDepthPressure => {
+  const depthBand = resolveDepthBandConfig(floor)
+  const enemyCount = clamp(
+    getBaseEnemyCountForFloor(floor) + depthBand.pressure.enemyCountBonus,
+    1,
+    BALANCE.floor.enemyCap,
+  )
+  const enemyIntervalMs = Math.max(
+    BALANCE.floor.enemyIntervalMinMs,
+    getBaseEnemyIntervalForFloor(floor, enemySlowMultiplier) *
+      depthBand.pressure.enemyIntervalMultiplier,
+  )
+  return { enemyCount, enemyIntervalMs }
+}
+
+export const getDepthBandForFloor = (floor: number): DepthBalanceBandId =>
+  resolveDepthBandConfig(floor).id
+
+export const getRoleSpawnPolicyForFloor = (floor: number) =>
+  BALANCE.depthBalance.roleSpawnPolicyById[resolveDepthBandConfig(floor).rolePolicyId]
+
+export const getPowerupWeightProfileForFloor = (params: {
+  floor: number
+  pool: 'standard' | 'kills' | 'boss'
+}): Record<PowerupType, number> =>
+  BALANCE.depthBalance.powerupWeightsByItemProfile[
+    resolveDepthBandConfig(params.floor).itemProfileId
+  ][params.pool]
+
+const clampChance = (value: number): number => clamp(value, 0, 1)
+
+export const getItemSpawnConfigForFloor = (params: {
+  floor: number
+  objectiveType: FloorObjectiveKind
+  hasOpenPortals: boolean
+}): { riftBatteryOnFoodChance: number; portalBeaconOnFoodChance: number } => {
+  const floor = toFloorNumber(params.floor)
+  const sorted = [...BALANCE.item.spawnByFloor].sort((a, b) => b.minFloor - a.minFloor)
+  const base = sorted.find((config) => floor >= config.minFloor) ?? BALANCE.item.spawnByFloor[0]
+  const profile =
+    BALANCE.depthBalance.itemUsefulnessProfiles[resolveDepthBandConfig(floor).itemProfileId]
+  const objectiveMultiplier = profile.objectiveMultiplier[params.objectiveType]
+  const portalBoost =
+    params.objectiveType === 'portal' && !params.hasOpenPortals
+      ? profile.portalNoPortalBoostMultiplier
+      : 1
+  return {
+    riftBatteryOnFoodChance: clampChance(
+      base.riftBatteryOnFoodChance * profile.riftBatteryMultiplier * objectiveMultiplier,
+    ),
+    portalBeaconOnFoodChance: clampChance(
+      base.portalBeaconOnFoodChance *
+        profile.portalBeaconMultiplier *
+        objectiveMultiplier *
+        portalBoost,
+    ),
+  }
+}
+
 export const createBaseRunConfig = (): RunConfig => ({
   moveInterval: BALANCE.run.moveIntervalMs,
   bonusStartLength: BALANCE.run.bonusStartLength,
@@ -961,19 +1311,37 @@ export const getFloorSetup = (floor: number, enemySlowMultiplier = 1): FloorSetu
     BALANCE.floor.wallBase + clampedFloor * BALANCE.floor.wallPerFloor,
     BALANCE.floor.wallCap,
   )
-  const enemyCount = Math.min(
-    BALANCE.floor.enemyBase + Math.floor(clampedFloor / BALANCE.floor.enemyPerFloorStep),
-    BALANCE.floor.enemyCap,
-  )
+  const rawDepthPressure = getRawDepthPressureForFloor(clampedFloor, enemySlowMultiplier)
+  let enemyCount = Math.round(rawDepthPressure.enemyCount)
   const progressOffset = (clampedFloor - 1) % BALANCE.biome.boss.floorInterval
   const snakeLengthGoal = isBossFloor
     ? 0
     : BALANCE.floor.lengthGoalBase + progressOffset * BALANCE.floor.lengthGoalPerFloor
-  const enemyIntervalMs =
-    Math.max(
+  let enemyIntervalMs = rawDepthPressure.enemyIntervalMs
+  if (!isBossFloor && clampedFloor > 1) {
+    const previousRaw = getRawDepthPressureForFloor(clampedFloor - 1, enemySlowMultiplier)
+    const guardrails = resolveDepthBandConfig(clampedFloor).guardrails
+    const minEnemyCount = clamp(
+      previousRaw.enemyCount + guardrails.enemyCountDeltaMin,
+      1,
+      BALANCE.floor.enemyCap,
+    )
+    const maxEnemyCount = clamp(
+      previousRaw.enemyCount + guardrails.enemyCountDeltaMax,
+      minEnemyCount,
+      BALANCE.floor.enemyCap,
+    )
+    enemyCount = Math.round(clamp(enemyCount, minEnemyCount, maxEnemyCount))
+
+    const minDrop = Math.max(0, guardrails.enemyIntervalDropMinMs)
+    const maxDrop = Math.max(minDrop, guardrails.enemyIntervalDropMaxMs)
+    const minInterval = Math.max(
       BALANCE.floor.enemyIntervalMinMs,
-      BALANCE.floor.enemyIntervalBaseMs - clampedFloor * BALANCE.floor.enemyIntervalPerFloorMs,
-    ) * enemySlowMultiplier
+      previousRaw.enemyIntervalMs - maxDrop,
+    )
+    const maxInterval = Math.max(minInterval, previousRaw.enemyIntervalMs - minDrop)
+    enemyIntervalMs = clamp(enemyIntervalMs, minInterval, maxInterval)
+  }
   const darknessConfig = BALANCE.modifiers.darkness
   const iceConfig = BALANCE.modifiers.ice
   const sandConfig = BALANCE.modifiers.sand

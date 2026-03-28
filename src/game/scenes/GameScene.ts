@@ -2,7 +2,14 @@ import Phaser from 'phaser'
 import rewardStyles from '../../styles/rewardOverlay.module.css'
 import routeStyles from '../../styles/routeOverlay.module.css'
 import { pickEliteKind, pickPowerupType, pickSpecialEnemyKind } from '../config/content'
-import { BALANCE, createBaseRunConfig, getFloorSetup } from '../core/balance'
+import {
+  BALANCE,
+  createBaseRunConfig,
+  getDepthBandForFloor,
+  getFloorSetup,
+  getItemSpawnConfigForFloor,
+  getRoleSpawnPolicyForFloor,
+} from '../core/balance'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
 import { getDevScenario, isDevMode } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
@@ -702,6 +709,16 @@ export class GameScene extends Phaser.Scene {
       floor: gameState.floor,
       template: this.floorTemplate,
       fallbackUsed: this.floorTemplateFallbackUsed,
+      depthBand: getDepthBandForFloor(gameState.floor),
+    })
+    trackRetentionEvent('depth_balance_resolved', {
+      floor: gameState.floor,
+      depthBand: getDepthBandForFloor(gameState.floor),
+      objectiveType: this.objectiveType,
+      roomType: this.currentRoomType,
+      enemyCount: this.enemyCount,
+      enemyInterval: Math.floor(this.enemyInterval),
+      rolePolicyBand: getDepthBandForFloor(gameState.floor),
     })
     this.emitRoleCompositionTelemetry('room_start')
     this.showRoomRoleContext()
@@ -3631,6 +3648,7 @@ export class GameScene extends Phaser.Scene {
   private spawnPowerup(forcedType?: PowerupType): void {
     const cell = this.pickOpenCell()
     const type = pickPowerupType({
+      floor: gameState.floor,
       isBossFloor: this.isBossFloor,
       objectiveType: this.objectiveType,
       forcedType,
@@ -3678,10 +3696,15 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  private getItemSpawnConfig(): (typeof BALANCE.item.spawnByFloor)[number] {
-    const floor = gameState.floor
-    const sorted = [...BALANCE.item.spawnByFloor].sort((a, b) => b.minFloor - a.minFloor)
-    return sorted.find((config) => floor >= config.minFloor) ?? BALANCE.item.spawnByFloor[0]
+  private getItemSpawnConfig(): {
+    riftBatteryOnFoodChance: number
+    portalBeaconOnFoodChance: number
+  } {
+    return getItemSpawnConfigForFloor({
+      floor: gameState.floor,
+      objectiveType: this.objectiveType,
+      hasOpenPortals: this.portals.length > 0,
+    })
   }
 
   private resolveEliteKind(): EnemyKind | null {
@@ -3994,7 +4017,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy(kind: Enemy['kind'] = 'normal'): void {
-    const rolePolicy = BALANCE.enemyRoles.spawnPolicy
+    const rolePolicy = getRoleSpawnPolicyForFloor(gameState.floor)
     const rolePick =
       kind === 'normal'
         ? pickRoleByPolicy({
@@ -4122,6 +4145,7 @@ export class GameScene extends Phaser.Scene {
       floor: gameState.floor,
       reason: kind === 'normal' ? 'spawn' : 'forced_spawn',
       roles: summarizeActiveRoles(this.enemies),
+      depthBand: getDepthBandForFloor(gameState.floor),
     })
   }
 
@@ -4133,6 +4157,7 @@ export class GameScene extends Phaser.Scene {
       floor: gameState.floor,
       reason,
       roles: summarizeActiveRoles(this.enemies),
+      depthBand: getDepthBandForFloor(gameState.floor),
     })
   }
 
@@ -4657,6 +4682,7 @@ export class GameScene extends Phaser.Scene {
       score: this.score,
       kills: gameState.kills,
       inputMode: getControlMode(),
+      depthBand: getDepthBandForFloor(gameState.floor),
     })
     trackRetentionEvent('time_alive', {
       timeAliveMs,
@@ -4664,6 +4690,16 @@ export class GameScene extends Phaser.Scene {
       score: this.score,
       kills: gameState.kills,
       inputMode: getControlMode(),
+      depthBand: getDepthBandForFloor(gameState.floor),
+    })
+    trackRetentionEvent('level_fail_point', {
+      floor: gameState.floor,
+      depthBand: getDepthBandForFloor(gameState.floor),
+      reason,
+      objectiveType: this.objectiveType,
+      roomType: this.currentRoomType,
+      enemyCount: this.enemyCount,
+      enemyInterval: Math.floor(this.enemyInterval),
     })
     this.time.delayedCall(600, () =>
       transitionToScene(this, 'Death', {

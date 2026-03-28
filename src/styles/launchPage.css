@@ -1,0 +1,107 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Share Tech Mono", monospace;
+  color: #e4f2ff;
+  background: radial-gradient(circle at 18% 15%, rgba(0, 255, 153, 0.12), transparent 30%),
+    radial-gradient(circle at 84% 10%, rgba(36, 117, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, #050b16 0%, #071126 55%, #050912 100%);
+}
+
+#launch-root {
+  padding: 20px;
+}
+
+.launch-shell {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.launch-head h1 {
+  margin: 0;
+  font-family: "Orbitron", sans-serif;
+  font-size: clamp(36px, 8vw, 64px);
+  line-height: 0.92;
+  color: #56ffac;
+  text-shadow: 0 0 24px rgba(0, 255, 145, 0.4);
+}
+
+.launch-kicker {
+  margin: 0;
+  font-size: 13px;
+  color: #93d6ff;
+}
+
+.launch-position {
+  margin: 10px 0 0;
+  font-size: clamp(14px, 2.3vw, 18px);
+  line-height: 1.4;
+}
+
+.launch-card {
+  border: 1px solid rgba(118, 180, 255, 0.35);
+  border-radius: 12px;
+  background: rgba(8, 18, 40, 0.76);
+  padding: 14px;
+}
+
+.launch-card h2 {
+  margin: 0 0 8px;
+  font-family: "Orbitron", sans-serif;
+  font-size: 14px;
+  color: #8fcdff;
+  letter-spacing: 0.5px;
+}
+
+.launch-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.launch-card p + p {
+  margin-top: 8px;
+}
+
+.launch-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.launch-link {
+  color: #56ffac;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 13px;
+}
+
+.launch-empty {
+  color: #9bb5cc;
+}
+
+.launch-footer {
+  font-size: 11px;
+  color: #9bb5cc;
+}
+
+@media (max-width: 540px) {
+  #launch-root {
+    padding: 14px;
+  }
+
+  .launch-shell {
+    gap: 10px;
+  }
+
+  .launch-card {
+    padding: 12px;
+  }
+}

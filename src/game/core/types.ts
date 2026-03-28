@@ -83,6 +83,7 @@ export type RewardOption = {
 }
 
 export type RunMapRoomType = 'combat' | 'elite' | 'shop' | 'rest' | 'event'
+export type DepthBalanceBandId = 'early' | 'mid' | 'late'
 
 export type RunMapResolutionKind = 'objective_reward' | 'noncombat_hook'
 
@@ -161,6 +162,7 @@ export type BiomeRuleResolution = {
 export type RunMapNode = {
   id: string
   depth: number
+  depthBand: DepthBalanceBandId
   roomType: RunMapRoomType
   biomeId: BiomeId
   nextNodeIds: string[]
@@ -171,6 +173,7 @@ export type RunMapNode = {
 export type RunMapPreviewChoice = {
   nodeId: string
   branchLabel: string
+  depthBand: DepthBalanceBandId
   roomType: RunMapRoomType
   biomeId: BiomeId
   previewRoomTypes: RunMapRoomType[]

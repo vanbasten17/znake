@@ -98,3 +98,55 @@ The project SHALL validate replay capture ordering and seed linkage.
 - **THEN** events remain ordered by append sequence and relative time
 - **AND** capture seed remains attached to run metadata
 
+### Requirement: Release candidate gate contract
+The system SHALL define a release candidate gate contract that requires engineering, visual, and asset-quality checks before candidate approval.
+
+#### Scenario: Engineering gate enforces baseline checks
+- **WHEN** a release candidate is evaluated
+- **THEN** gate evaluation requires successful `pnpm check` execution
+- **AND** requires successful production build validation for release-targeted candidates
+- **AND** candidate approval is blocked when any required engineering check fails
+
+#### Scenario: Visual and asset gates require explicit review evidence
+- **WHEN** a release candidate is evaluated for launch readiness
+- **THEN** gate evaluation includes explicit visual-quality checklist results and asset-quality checklist results
+- **AND** each checklist section records reviewer metadata and pass/fail outcome
+- **AND** candidate approval is blocked when required checklist evidence is missing or failed
+
+### Requirement: Release gate metadata consistency
+The release gating flow SHALL require a shared metadata tuple across all gate outputs.
+
+#### Scenario: Gate artifacts include release metadata tuple
+- **WHEN** gate outputs are produced for a release candidate
+- **THEN** outputs include `release_version`, `release_channel`, and `build_id`
+- **AND** missing tuple fields result in gate failure status
+
+### Requirement: Channel-aware packaging workflow contract
+The system SHALL provide a minimal tooling workflow contract for channel-aware distribution packaging.
+
+#### Scenario: Packaging workflow exposes channel-specific execution path
+- **WHEN** a developer triggers a packaging workflow for `dev`, `stage`, or `prod`
+- **THEN** workflow emits artifacts and evidence labeled with the selected release channel
+- **AND** workflow requires release metadata tuple fields for the target channel
+
+### Requirement: Distribution checklist artifacts are tooling-managed
+The system SHALL keep candidate/release checklist artifacts in a stable tooling-visible location.
+
+#### Scenario: Checklist templates are available for candidate and release phases
+- **WHEN** developers prepare candidate or release submissions
+- **THEN** repository tooling/docs expose checklist templates for signing and distribution readiness
+- **AND** checklist templates include reviewer and date metadata fields
+
+### Requirement: Release metadata generation for launch surfaces
+The system SHALL provide deterministic release metadata outputs consumable by menu transparency UI and launch-page surfaces.
+
+#### Scenario: Build metadata includes version and channel
+- **WHEN** launch bundle metadata is generated
+- **THEN** output includes semantic app version and release channel fields
+- **AND** values are consistent between in-app menu display and launch-page display surfaces
+
+#### Scenario: Metadata generation fails clearly on invalid configuration
+- **WHEN** required release metadata inputs are missing or malformed
+- **THEN** tooling reports actionable validation errors before release artifacts are considered ready
+- **AND** failure mode does not alter gameplay build determinism
+

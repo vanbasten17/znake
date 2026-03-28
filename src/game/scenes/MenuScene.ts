@@ -37,6 +37,7 @@ import { setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { getLanguage, t, toggleLanguage } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
+import { getReleaseDisclosureLinks, getReleaseMetadata } from '../systems/release'
 import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
 import {
@@ -114,6 +115,7 @@ export class MenuScene extends Phaser.Scene {
   private glossaryCloseEl: HTMLButtonElement | null = null
   private glossaryTabButtons: Partial<Record<GlossaryCategoryId, HTMLButtonElement>> = {}
   private glossaryListEl: HTMLDivElement | null = null
+  private releaseDiagnosticsEl: HTMLParagraphElement | null = null
   private glossaryCategory: GlossaryCategoryId = 'items'
   private readonly devMode = isDevMode()
 
@@ -398,6 +400,37 @@ export class MenuScene extends Phaser.Scene {
     })
     root.append(objective)
 
+    const releaseBlock = document.createElement('section')
+    releaseBlock.className = styles.releaseBlock
+
+    this.releaseDiagnosticsEl = document.createElement('p')
+    this.releaseDiagnosticsEl.className = styles.releaseDiagnostics
+    releaseBlock.append(this.releaseDiagnosticsEl)
+
+    const releaseLinks = document.createElement('div')
+    releaseLinks.className = styles.releaseLinks
+    const { privacyUrl, telemetryUrl, faqUrl, feedbackUrl, contactUrl } =
+      getReleaseDisclosureLinks()
+    if (privacyUrl) {
+      releaseLinks.append(this.createReleaseLink(privacyUrl, 'menu.privacyPolicy'))
+    }
+    if (telemetryUrl) {
+      releaseLinks.append(this.createReleaseLink(telemetryUrl, 'menu.telemetryDisclosure'))
+    }
+    if (faqUrl) {
+      releaseLinks.append(this.createReleaseLink(faqUrl, 'menu.faq'))
+    }
+    if (feedbackUrl) {
+      releaseLinks.append(this.createReleaseLink(feedbackUrl, 'menu.feedback'))
+    }
+    if (contactUrl) {
+      releaseLinks.append(this.createReleaseLink(contactUrl, 'menu.contact'))
+    }
+    if (releaseLinks.childElementCount > 0) {
+      releaseBlock.append(releaseLinks)
+    }
+    root.append(releaseBlock)
+
     if (this.devMode) {
       const devSection = document.createElement('div')
       devSection.className = styles.devSection
@@ -455,6 +488,7 @@ export class MenuScene extends Phaser.Scene {
     this.glossaryCloseEl = null
     this.glossaryTabButtons = {}
     this.glossaryListEl = null
+    this.releaseDiagnosticsEl = null
     this.glossaryOpen = false
   }
 
@@ -544,7 +578,25 @@ export class MenuScene extends Phaser.Scene {
     for (const refresh of this.accessibilityRefreshers) {
       refresh()
     }
+    if (this.releaseDiagnosticsEl) {
+      const release = getReleaseMetadata()
+      this.releaseDiagnosticsEl.textContent = t('menu.releaseDiagnostics', {
+        version: release.release_version,
+        channel: release.release_channel,
+        buildId: release.build_id,
+      })
+    }
     this.refreshGlossaryUi()
+  }
+
+  private createReleaseLink(url: string, labelKey: string): HTMLAnchorElement {
+    const link = document.createElement('a')
+    link.className = styles.releaseLink
+    link.href = url
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    link.textContent = t(labelKey)
+    return link
   }
 
   private getTalentLabel(talentId: string, fallbackName: string): string {

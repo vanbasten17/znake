@@ -8,6 +8,7 @@ import { getStartHintText, setHintText } from './game/systems/domHud'
 import { setupFeedback } from './game/systems/feedback'
 import { initI18n, t } from './game/systems/i18n'
 import { setupInput } from './game/systems/input'
+import { setupRuntimeErrorCapture } from './game/systems/telemetry'
 import { setupVoiceInput } from './game/systems/voiceInput'
 import { mountShell } from './ui/mountShell'
 
@@ -17,6 +18,7 @@ setupAccessibility()
 setupFeedback()
 setupInput()
 setupVoiceInput()
+setupRuntimeErrorCapture()
 setupRuntimeDevtools()
 
 const boot = async (): Promise<void> => {

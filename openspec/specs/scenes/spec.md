@@ -350,3 +350,45 @@ The system SHALL apply shared semantic token families to key readability cues ac
 - **THEN** cue text remains readable and distinguishable
 - **AND** no gameplay-state ownership moves into scene style logic
 
+### Requirement: Release diagnostics visibility in scene-adjacent surfaces
+The system SHALL make release diagnostics metadata visible in non-gameplay-impacting scene-adjacent surfaces for support and QA workflows.
+
+#### Scenario: Build/channel metadata is visible from menu-adjacent UI
+- **WHEN** a release candidate build is started
+- **THEN** a non-intrusive diagnostics surface exposes `release_version`, `release_channel`, and `build_id`
+- **AND** visibility does not alter scene order, transition behavior, or gameplay rule ownership
+
+#### Scenario: Diagnostics surfaces remain orchestrator-safe
+- **WHEN** scene-adjacent release diagnostics are shown or refreshed
+- **THEN** `GameScene` remains an orchestrator and does not take ownership of release logic or simulation rules
+- **AND** diagnostics rendering does not introduce deterministic state divergence
+
+### Requirement: App-shell lifecycle parity with web gameplay flow
+The system SHALL preserve core gameplay lifecycle semantics between web runtime and packaged app-shell runtime.
+
+#### Scenario: Pause/resume semantics remain parity-safe
+- **WHEN** packaged app lifecycle transitions occur (background, foreground, resume)
+- **THEN** scene flow preserves pause/resume safety and stale-input protections equivalent to web runtime behavior
+- **AND** packaged lifecycle handling does not alter deterministic gameplay resolution rules
+
+### Requirement: Packaged shell scene-flow compatibility
+The system SHALL keep scene order and transition expectations compatible in packaged shell execution.
+
+#### Scenario: Scene sequencing remains equivalent in packaged builds
+- **WHEN** run starts and transitions through menu/game/upgrade/death in packaged shell runtime
+- **THEN** scene sequencing and transition behavior remain equivalent to existing web flow expectations
+- **AND** packaging integration does not move gameplay-rule ownership into scene shell glue
+
+### Requirement: Menu release transparency and support links
+The system SHALL surface release metadata and launch-support links in menu-adjacent scene composition without changing existing scene flow behavior.
+
+#### Scenario: Menu displays version and release channel
+- **WHEN** menu scene is active
+- **THEN** menu overlay includes concise app version and release channel text sourced from release metadata
+- **AND** start, progression, and navigation behavior remain equivalent
+
+#### Scenario: Menu exposes launch support entry points
+- **WHEN** menu scene is active and launch support links are configured
+- **THEN** menu overlay presents privacy/support entry points suitable for support and compliance workflows
+- **AND** link rendering does not interfere with core interaction targets
+

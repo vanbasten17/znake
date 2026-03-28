@@ -111,3 +111,35 @@ This gives a professional launch foundation across engineering, design, and asse
 ## Suggested Next Step
 
 Run `znake-next-steps-openspec-sync` to convert this plan into conflict-aware OpenSpec `propose + apply` prompts (parallel where safe, sequential where required).
+
+## OpenSpec Match Status
+
+Generated: 2026-03-27
+
+### Implemented or Archived
+
+- Objective clarity, reward readability, and telemetry alignment are archived in [2026-03-27-znake-objective-reward-loop-depth-v2](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-27-znake-objective-reward-loop-depth-v2) and reflected in [objective-reward-loop/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/objective-reward-loop/spec.md), [input-hud/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/input-hud/spec.md), and [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md).
+- Combat fairness tuning (telegraph windows, spawn safety, breathing windows) is archived in [2026-03-27-znake-combat-fairness-tuning-v2](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-27-znake-combat-fairness-tuning-v2) and reflected in [gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md), [balance-config/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/balance-config/spec.md), and [enemy-role-taxonomy/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/enemy-role-taxonomy/spec.md).
+- Upgrade family identity/readability improvements are archived in [2026-03-27-znake-upgrade-identity-clarity-v2](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-27-znake-upgrade-identity-clarity-v2) and reflected in [upgrade-identity/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/upgrade-identity/spec.md) and [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md).
+
+### Specced in Base Specs
+
+- Mobile lifecycle and safe-area readiness are covered in [mobile-readiness/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/mobile-readiness/spec.md) (partial against broader store-launch expectations).
+- Observability events are broadly covered in [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md), but production crash capture pipeline and KPI dashboard contract are not yet explicitly defined as release operations requirements.
+- Gameplay depth primitives (objectives, enemies, progression hooks, balance-driven config) are strongly covered in [gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md) and [balance-config/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/balance-config/spec.md), but a bounded “10-15 level rebalance and content-depth pass” is not yet represented as a focused active change.
+
+### In Active Change
+
+- None currently (`openspec list --json` reports no active changes).
+
+### Unmatched
+
+- Release Candidate Gate/checklist contract (engineering + visual + asset quality acceptance) is not explicitly specced.
+- Production crash/error capture and release-tagged monitoring pipeline is not explicitly specced.
+- Store/web compliance baseline (privacy/disclosure/store metadata contract) is not explicitly specced.
+- Mobile packaging/distribution workflow (iOS/Android shell, signing/release channels) is not explicitly specced.
+- Store-ready visual kit and public launch page requirements are not explicitly specced.
+
+### Collapse Note
+
+- Several roadmap bullets collapse into existing OpenSpec concepts: gameplay fairness, telemetry, mobile lifecycle, UI readability, and data-driven balancing. The major remaining gap is release/distribution professionalism and bounded content-depth execution packaging, not foundational gameplay concept absence.
