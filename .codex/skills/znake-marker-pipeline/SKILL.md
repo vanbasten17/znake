@@ -16,8 +16,8 @@ When the user works on **glossary markers**, **sprite export**, **markerRenderer
 - Use this skill as the execution standard for marker rendering/export fidelity.
 - Use `znake-architecture-guardrails` alongside this skill when marker changes touch `GameScene` or shared render architecture.
 - If marker improvements come from backlog planning, sequence through:
-  1. `znake-brainstorming-next-steps` (idea shaping),
-  2. `znake-next-steps-openspec-sync` (priority + execution prompts),
+  1. `znake-brainstorming-openspec-apply` (idea shaping),
+  2. `znake-brainstorming-openspec-apply` (priority + execution prompts),
   3. then apply this marker pipeline skill during implementation.
 - If running autonomous backlog execution, `znake-autoloop-next-steps` may select marker items; apply this skill for the marker-specific implementation details in that cycle.
 

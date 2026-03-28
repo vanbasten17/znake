@@ -1,3 +1,0 @@
-display_name: Znake Brainstorming Next Steps
-short_description: Brainstorm gameplay and system ideas for Znake, then turn them into a prioritized `NEXT_STEPS.md` that fits the repo's OpenSpec-first workflow.
-default_prompt: Brainstorm ideas for Znake, check them against the current repo and OpenSpec context, and update NEXT_STEPS.md with prioritized, actionable next steps.

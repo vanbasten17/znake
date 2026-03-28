@@ -1,0 +1,4 @@
+interface:
+  display_name: "Znake Next Steps Orchestrator"
+  short_description: "OpenSpec-first loop: intake ideas or self-analyze and execute"
+  default_prompt: "Run the unified Znake next-steps loop: accept incoming brainstorming ideas when provided, otherwise analyze the project to propose improvements; keep checkbox ideas/subtasks, prioritize easy-to-hard, sync against OpenSpec, execute a chosen number of ideas with propose/apply, and move fully completed idea blocks to Completed."

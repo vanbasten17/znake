@@ -10,8 +10,8 @@ Apply explicit guardrails that keep the codebase modular, deterministic, and fas
 Prefer extraction and shared adapters over adding complexity to scene files.
 
 ## Skill Relations
-- Use with `znake-brainstorming-next-steps` when converting ideas into actionable, architecture-safe directions.
-- Use with `znake-next-steps-openspec-sync` when selecting next items and generating execution prompts.
+- Use with `znake-brainstorming-openspec-apply` when converting ideas into actionable, architecture-safe directions.
+- Use with `znake-brainstorming-openspec-apply` when selecting next items and generating execution prompts.
 - Use with `znake-autoloop-next-steps` during autonomous cycles as a mandatory boundary check layer.
 
 ## Workflow

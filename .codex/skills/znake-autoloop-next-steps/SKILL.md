@@ -8,9 +8,9 @@ description: Run a full autonomous NEXT_STEPS OpenSpec loop for Znake with minim
 Execute this workflow when the user asks for an autonomous loop over `NEXT_STEPS.md`.
 
 ## Skill Choreography
-- Use `znake-next-steps-openspec-sync` for the sync and prioritization logic each cycle.
+- Use `znake-brainstorming-openspec-apply` for the sync and prioritization logic each cycle.
 - Apply `znake-architecture-guardrails` checks before implementation and before closing each cycle.
-- When the loop reaches completion (no major implementable unmatched items), hand off to `znake-brainstorming-next-steps` to regenerate backlog quality.
+- When the loop reaches completion (no major implementable unmatched items), hand off to `znake-brainstorming-openspec-apply` to regenerate backlog quality.
 
 ## Inputs
 
@@ -29,7 +29,7 @@ Stop only when either:
 ## Loop (one cycle)
 
 1. Sync planning state:
-- Use `znake-next-steps-openspec-sync` behavior to refresh `## OpenSpec Match Status` in `NEXT_STEPS.md`.
+- Use `znake-brainstorming-openspec-apply` behavior to refresh `## OpenSpec Match Status` in `NEXT_STEPS.md`.
 - Build prioritized candidate set from `Unmatched` items.
 
 2. Select the next item:
@@ -92,4 +92,4 @@ When stop condition is reached, output:
 3. completed/archived changes list
 4. remaining blocked items (if any)
 5. recommended next start command
-6. reminder to run `znake-brainstorming-next-steps` if backlog is exhausted
+6. reminder to run `znake-brainstorming-openspec-apply` if backlog is exhausted
