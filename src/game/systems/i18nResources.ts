@@ -113,6 +113,8 @@ export const resources = {
         faq: 'FAQ',
         feedback: 'FEEDBACK',
         contact: 'CONTACT',
+        challengeShareCopyPromptTitle: 'Copy challenge code',
+        challengeSharePastePromptTitle: 'Paste challenge code',
       },
       glossary: {
         title: 'FIELD GUIDE',
@@ -645,6 +647,8 @@ export const resources = {
         faq: 'PMF',
         feedback: 'FEEDBACK',
         contact: 'CONTACTE',
+        challengeShareCopyPromptTitle: 'Copia el codi de repte',
+        challengeSharePastePromptTitle: 'Enganxa el codi de repte',
       },
       glossary: {
         title: 'GUIA DE CAMP',

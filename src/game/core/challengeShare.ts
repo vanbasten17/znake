@@ -39,6 +39,12 @@ const checksum = (raw: string): string => {
   return acc.toString(36).toUpperCase().padStart(3, '0').slice(-3)
 }
 
+export const canonicalizeChallengeShareBody = (rawBody: string): string => {
+  const base64 = rawBody.trim().replaceAll('-', '+').replaceAll('_', '/')
+  const padLength = (4 - (base64.length % 4)) % 4
+  return `${base64}${'='.repeat(padLength)}`
+}
+
 const encodePayload = (payload: ChallengeSharePayload): string => {
   const packed = [
     payload.version,
@@ -95,13 +101,14 @@ export const createChallengeShareCode = (params: {
 export const parseChallengeShareCode = (rawCode: string): ParsedChallengeShare => {
   const normalized = rawCode.trim()
   const [prefix, body, digest] = normalized.split(':')
-  if (prefix !== PREFIX || !body || !digest) {
+  if (prefix?.toUpperCase() !== PREFIX || !body || !digest) {
     return { ok: false, payload: null, reason: 'invalid format' }
   }
-  if (checksum(body) !== digest.toUpperCase()) {
+  const canonicalBody = canonicalizeChallengeShareBody(body)
+  if (checksum(canonicalBody.replaceAll('=', '')) !== digest.toUpperCase()) {
     return { ok: false, payload: null, reason: 'checksum mismatch' }
   }
-  const payload = decodePayload(body)
+  const payload = decodePayload(canonicalBody)
   if (!payload) {
     return { ok: false, payload: null, reason: 'invalid payload' }
   }

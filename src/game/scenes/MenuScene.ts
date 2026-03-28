@@ -49,6 +49,7 @@ import {
   getAudioProfileId,
   updateAccessibilitySettings,
 } from '../systems/accessibility'
+import { resolveChallengeSharePromptCopy } from '../systems/challengeSharePromptCopy'
 import { getControlMode } from '../systems/controlScheme'
 import { createButton, createEl } from '../systems/domFactory'
 import { setSceneChrome } from '../systems/domHud'
@@ -937,23 +938,25 @@ export class MenuScene extends Phaser.Scene {
       floor: latestReplay?.floor ?? latestRun?.floor ?? 0,
       score: latestReplay?.score ?? latestRun?.score ?? 0,
     })
+    const copy = resolveChallengeSharePromptCopy(t)
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(challengeCode)
       } else {
-        window.prompt('Copy challenge code', challengeCode)
+        window.prompt(copy.copyPromptTitle, challengeCode)
       }
       emitFeedback('success')
       trackRetentionEvent('challenge_share_exported', {
         presetId: sourcePreset,
       })
     } catch {
-      window.prompt('Copy challenge code', challengeCode)
+      window.prompt(copy.copyPromptTitle, challengeCode)
     }
   }
 
   private importChallengeCode(): void {
-    const raw = window.prompt('Paste challenge code') ?? ''
+    const copy = resolveChallengeSharePromptCopy(t)
+    const raw = window.prompt(copy.pastePromptTitle) ?? ''
     if (raw.trim().length <= 0) {
       return
     }
