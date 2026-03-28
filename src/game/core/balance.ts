@@ -1250,7 +1250,7 @@ export const BALANCE = {
       growthBonus: 2,
     },
     boss: {
-      floorInterval: 3,
+      floorInterval: 10,
       health: 3,
       length: 4,
       scoreOnDefeat: 140,

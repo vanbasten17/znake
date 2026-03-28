@@ -40,10 +40,10 @@ test('role composition director windows rotate deterministically by spawn index'
 })
 
 test('boss phase remix rotation is deterministic by boss-floor ordinal', () => {
-  assert.equal(getBossPhaseRemixForFloor(3).id, 'standard')
-  assert.equal(getBossPhaseRemixForFloor(6).id, 'assault')
-  assert.equal(getBossPhaseRemixForFloor(9).id, 'siege')
-  assert.equal(getBossPhaseRemixForFloor(12).id, 'standard')
+  assert.equal(getBossPhaseRemixForFloor(10).id, 'standard')
+  assert.equal(getBossPhaseRemixForFloor(20).id, 'assault')
+  assert.equal(getBossPhaseRemixForFloor(30).id, 'siege')
+  assert.equal(getBossPhaseRemixForFloor(40).id, 'standard')
 })
 
 test('late composition window can tighten blocker cap for pressure spikes', () => {

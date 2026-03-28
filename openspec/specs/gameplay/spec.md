@@ -885,3 +885,16 @@ The system SHALL validate reaction-window, recoverability, and no-cheap-hit fair
 - **THEN** reaction, recoverability, and cheap-hit metrics are compared against depth-band thresholds
 - **AND** failures identify specific metric and depth-band context
 
+### Requirement: Deterministic runway boss cadence
+The system SHALL provide a deterministic regular-floor runway where floors `1-9` remain non-boss progression and floor `10` is the first boss cadence milestone.
+
+#### Scenario: Early runway excludes boss floor insertion
+- **WHEN** run progression resolves floors `1` through `9`
+- **THEN** those floors remain non-boss cadence floors
+- **AND** boss progression insertion does not occur before floor `10`
+
+#### Scenario: Boss milestone resolves on floor 10 cadence
+- **WHEN** run progression resolves floor `10`
+- **THEN** floor `10` is resolved as a boss cadence floor
+- **AND** subsequent boss cadence milestones follow the same deterministic interval pattern
+
