@@ -273,3 +273,44 @@ When in completion mode, always return:
 1. `Match summary`
 2. `NEXT_STEPS.md cleanup`
 3. `Brainstorming reminder`
+
+## Autoloop Mode (New)
+
+If user asks to run this as a continuous autonomous loop, run the following cycle until stop condition.
+
+### Autoloop Stop Condition
+
+Stop only when one of these is true:
+
+1. No major `Unmatched` items in `NEXT_STEPS.md` are implementable now.
+2. Remaining unmatched items are blocked by external dependencies/decisions.
+3. User-provided max cycles reached (default 5).
+
+### Autoloop Cycle
+
+1. Refresh `## OpenSpec Match Status` in `NEXT_STEPS.md`.
+2. Pick highest-priority implementable unmatched item.
+3. Create/update OpenSpec change (`proposal.md`, `design.md`, `tasks.md`, required spec deltas).
+4. Apply pending tasks for that change.
+5. Run gates in strict order:
+   - `pnpm check`
+   - `pnpm smoke`
+   - `openspec validate <change> --type change --strict`
+   - `pnpm build` only for significant behavior/architecture changes.
+6. If gates pass:
+   - In manual mode: ask whether to archive.
+   - In explicit auto mode: archive directly.
+7. After archive, always output:
+   - archive path
+   - updated base specs
+   - single-line commit message
+8. Repeat from step 1.
+
+### Autoloop Output Per Cycle
+
+Return:
+- selected item
+- change name
+- gates pass/fail
+- archive decision/result
+- next immediate action

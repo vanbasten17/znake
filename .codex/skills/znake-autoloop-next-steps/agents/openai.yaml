@@ -1,0 +1,3 @@
+display_name: Znake Autoloop Next Steps
+short_description: Autonomous NEXT_STEPS loop until no implementable unmatched items remain.
+default_prompt: Run the autonomous NEXT_STEPS OpenSpec loop with minimal user intervention, including sync, propose/apply, smoke-gated validation, and archive decisions.
