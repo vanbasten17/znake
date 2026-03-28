@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 const STATE_PATH = '.autoloop/state.json'
@@ -34,31 +34,7 @@ const run = (command, args, options = {}) => {
   }
 }
 
-const slugify = (value) =>
-  value
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9\s-]/g, ' ')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-
-const extractUnmatchedItems = (text) => {
-  const sectionStart = text.indexOf('### Unmatched')
-  if (sectionStart === -1) {
-    return []
-  }
-  const nextSection = text.indexOf('\n### ', sectionStart + 1)
-  const body = nextSection === -1 ? text.slice(sectionStart) : text.slice(sectionStart, nextSection)
-  return body
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith('- '))
-    .map((line) => line.replace(/^-\s*/, '').trim())
-    .filter(Boolean)
-}
-
-const buildPromptPack = ({ changeName, unmatchedItems }) => {
+const buildPromptPack = ({ changeName }) => {
   const lines = []
   lines.push('# Autoloop Prompt Pack')
   lines.push('')
@@ -81,20 +57,6 @@ const buildPromptPack = ({ changeName, unmatchedItems }) => {
     lines.push('')
   }
 
-  if (unmatchedItems.length > 0) {
-    lines.push('## Suggested Propose Prompts From NEXT_STEPS')
-    lines.push('')
-    unmatchedItems.slice(0, 3).forEach((item, index) => {
-      const guessName = slugify(item).slice(0, 52) || `next-step-${index + 1}`
-      lines.push(`${index + 1}. \`${guessName}\``)
-      lines.push(`- Goal: ${item}`)
-      lines.push(
-        '- Prompt: Use `openspec-propose` to create proposal/design/tasks/spec deltas for this goal with a bounded MVP scope.',
-      )
-    })
-    lines.push('')
-  }
-
   lines.push('## Archive Prompt')
   lines.push('')
   lines.push(
@@ -111,14 +73,6 @@ const getActiveChanges = () => {
   }
   const parsed = JSON.parse(list.stdout)
   return Array.isArray(parsed.changes) ? parsed.changes : []
-}
-
-const readNextSteps = () => {
-  try {
-    return readFileSync('NEXT_STEPS.md', 'utf8')
-  } catch {
-    return ''
-  }
 }
 
 const stageResult = (name, result) => ({
@@ -141,9 +95,6 @@ const main = () => {
     stages: [],
   }
 
-  const nextSteps = readNextSteps()
-  const unmatchedItems = extractUnmatchedItems(nextSteps)
-
   const changes = getActiveChanges()
   const change =
     (selectedChange && changes.find((entry) => entry.name === selectedChange)) ||
@@ -154,14 +105,13 @@ const main = () => {
     PROMPT_PACK_PATH,
     buildPromptPack({
       changeName: change?.name ?? null,
-      unmatchedItems,
     }),
   )
 
   if (!change) {
     state.finishedAt = new Date().toISOString()
     state.summary =
-      'No active OpenSpec changes found. Prompt pack generated from NEXT_STEPS unmatched items.'
+      'No active OpenSpec changes found. Prompt pack generated for propose/apply flow.'
     writeJson(STATE_PATH, state)
     writeJson(REPORT_PATH, {
       loopVersion: LOOP_VERSION,

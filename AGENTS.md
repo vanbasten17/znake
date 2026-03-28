@@ -47,7 +47,7 @@ For tiny edits or exploratory work, use judgment.
 
 ## Context discipline
 - During apply, read only what is needed: current `tasks.md`, relevant files in `openspec/specs/`, and touched code paths.
-- Avoid full-document planning reads (for example full `NEXT_STEPS.md`) unless the task is explicitly planning-oriented.
+- Avoid broad planning-document reads unless the task is explicitly planning-oriented; prefer active `openspec/changes/*` context.
 
 ## Validation policy
 - Small/localized changes: run `pnpm check`.
