@@ -1,4 +1,5 @@
 import type { Enemy, EnemyKind, SnakeSegment, Vec2 } from '../core/types'
+import { ENEMY_KIND } from '../shared/gameplayIds'
 import type { GameRng } from './rng'
 
 export type EnemyCollisionPart = 'head' | 'body'
@@ -41,6 +42,13 @@ export type EnemyTickResult = {
   hatched: boolean
   rolePressureOutcome: 'leech_food_stolen' | null
 }
+
+const toIdleTickResult = (enemy: Enemy): EnemyTickResult => ({
+  enemy: cloneEnemy(enemy),
+  ateFood: false,
+  hatched: false,
+  rolePressureOutcome: null,
+})
 
 const cloneEnemy = (enemy: Enemy): Enemy => ({
   ...enemy,
@@ -98,7 +106,7 @@ const tickEggEnemy = (enemy: Enemy, hatchLength: number): EnemyTickResult => {
   if (!head) {
     return { enemy: nextEnemy, ateFood: false, hatched: false, rolePressureOutcome: null }
   }
-  nextEnemy.kind = 'normal'
+  nextEnemy.kind = ENEMY_KIND.NORMAL
   nextEnemy.mirrorDelaySteps = 0
   nextEnemy.body = Array.from({ length: hatchLength }, (_, i) => ({
     x: Math.max(0, head.x - i),
@@ -112,13 +120,13 @@ const tickEggEnemy = (enemy: Enemy, hatchLength: number): EnemyTickResult => {
 const tickMirrorEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickResult => {
   const head = enemy.body[0]
   if (!head) {
-    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false, rolePressureOutcome: null }
+    return toIdleTickResult(enemy)
   }
   const delay = Math.max(1, enemy.mirrorDelaySteps)
   const targetIndex = context.playerHeadHistory.length - 1 - delay
   const target = targetIndex >= 0 ? context.playerHeadHistory[targetIndex] : context.playerHead
   if (!target) {
-    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false, rolePressureOutcome: null }
+    return toIdleTickResult(enemy)
   }
   const aligned = head.x === target.x || head.y === target.y
   const laneDistance = aligned
@@ -286,27 +294,37 @@ const tryAmbusherDash = (enemy: Enemy, context: TickEnemyContext): EnemyTickResu
   return { enemy: telegraphEnemy, ateFood: false, hatched: false, rolePressureOutcome: null }
 }
 
+type SpecialTickEnemyKind =
+  | typeof ENEMY_KIND.EGG
+  | typeof ENEMY_KIND.MIRROR
+  | typeof ENEMY_KIND.AMBUSHER
+
+type SpecialTickStrategy = (enemy: Enemy, context: TickEnemyContext) => EnemyTickResult | null
+
+const SPECIAL_TICK_STRATEGIES: Record<SpecialTickEnemyKind, SpecialTickStrategy> = {
+  [ENEMY_KIND.EGG]: (enemy, context) => tickEggEnemy(enemy, context.egg.hatchLength),
+  [ENEMY_KIND.MIRROR]: (enemy, context) => tickMirrorEnemy(enemy, context),
+  [ENEMY_KIND.AMBUSHER]: (enemy, context) => tryAmbusherDash(enemy, context),
+}
+
+const isSpecialTickEnemyKind = (kind: EnemyKind): kind is SpecialTickEnemyKind =>
+  kind === ENEMY_KIND.EGG || kind === ENEMY_KIND.MIRROR || kind === ENEMY_KIND.AMBUSHER
+
 export const tickEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickResult => {
   if (!enemy.alive) {
-    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false, rolePressureOutcome: null }
+    return toIdleTickResult(enemy)
   }
-  if (enemy.kind === 'egg') {
-    return tickEggEnemy(enemy, context.egg.hatchLength)
-  }
-  if (enemy.kind === 'mirror') {
-    return tickMirrorEnemy(enemy, context)
+
+  if (isSpecialTickEnemyKind(enemy.kind)) {
+    const specialResult = SPECIAL_TICK_STRATEGIES[enemy.kind](enemy, context)
+    if (specialResult) {
+      return specialResult
+    }
   }
   const playerHead = context.playerHead
   const head = enemy.body[0]
   if (!playerHead || !head) {
-    return { enemy: cloneEnemy(enemy), ateFood: false, hatched: false, rolePressureOutcome: null }
-  }
-
-  if (enemy.kind === 'ambusher') {
-    const dash = tryAmbusherDash(enemy, context)
-    if (dash) {
-      return dash
-    }
+    return toIdleTickResult(enemy)
   }
 
   const dirs: Vec2[] = [
@@ -321,7 +339,7 @@ export const tickEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickRes
     const sa = a.x * Math.sign(dx) + a.y * Math.sign(dy)
     const sb = b.x * Math.sign(dx) + b.y * Math.sign(dy)
     const randomness =
-      enemy.kind === 'stalker' || enemy.kind === 'ambusher'
+      enemy.kind === ENEMY_KIND.STALKER || enemy.kind === ENEMY_KIND.AMBUSHER
         ? 0
         : (context.rng.nextFloat() - 0.5) * 0.5
     return sb - sa + randomness
@@ -356,7 +374,7 @@ export const applyStalkerExtraStep = (
   enemyKind: EnemyKind,
   rng: GameRng,
   speedMultiplier: number,
-): boolean => enemyKind === 'stalker' && rng.nextFloat() < 1 - speedMultiplier
+): boolean => enemyKind === ENEMY_KIND.STALKER && rng.nextFloat() < 1 - speedMultiplier
 
 export const detectEnemyCollision = (
   snakeHead: SnakeSegment | null,
@@ -390,7 +408,7 @@ export const resolveEnemyCollisionDamage = (params: {
   bossHeadDamageSegments: number
   bossBodyDamageSegments: number
 }): number => {
-  if (params.kind === 'boss') {
+  if (params.kind === ENEMY_KIND.BOSS) {
     return params.part === 'head' ? params.bossHeadDamageSegments : params.bossBodyDamageSegments
   }
   return params.part === 'head' ? params.headDamageSegments : params.bodyDamageSegments

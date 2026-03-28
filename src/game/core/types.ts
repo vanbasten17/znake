@@ -1,4 +1,6 @@
-export type DirectionName = 'up' | 'down' | 'left' | 'right'
+import type { DirectionId, EnemyKindId, PowerupTypeId } from '../shared/gameplayIds'
+
+export type DirectionName = DirectionId
 
 export type Vec2 = {
   x: number
@@ -7,8 +9,8 @@ export type Vec2 = {
 
 export type SnakeSegment = Vec2
 
-export type PowerupType = 'shield' | 'slow' | 'ghost' | 'score' | 'venom'
-export type EnemyKind = 'normal' | 'stalker' | 'ambusher' | 'boss' | 'egg' | 'mirror'
+export type PowerupType = PowerupTypeId
+export type EnemyKind = EnemyKindId
 export type EnemyRole = 'sniper' | 'blocker' | 'summoner' | 'charger' | 'leech'
 export type WorldItemType = 'core' | 'rift_battery' | 'portal_beacon'
 export type EliteMinibossPatternPhase = 'telegraph' | 'commit' | 'recovery'

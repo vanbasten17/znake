@@ -1,5 +1,6 @@
 import { BALANCE } from '../core/balance'
 import type { EnemyKind, FloorObjectiveKind, PowerupType } from '../core/types'
+import { ENEMY_KIND, POWERUP_TYPE } from '../shared/gameplayIds'
 import type { GameRng } from '../simulation/rng'
 import {
   buildWeightedPowerupEntries,
@@ -36,7 +37,7 @@ export const pickPowerupType = (params: {
   const poolKind = resolvePowerupPoolKind(params)
   return (
     params.rng.weightedPick(buildWeightedPowerupEntries({ floor: params.floor, pool: poolKind })) ??
-    'shield'
+    POWERUP_TYPE.SHIELD
   )
 }
 
@@ -55,8 +56,8 @@ export const pickEliteKind = (params: {
     return null
   }
   const weighted = params.rng.weightedPick([
-    { value: 'stalker' as const, weight: config.kindWeights.stalker },
-    { value: 'ambusher' as const, weight: config.kindWeights.ambusher },
+    { value: ENEMY_KIND.STALKER, weight: config.kindWeights.stalker },
+    { value: ENEMY_KIND.AMBUSHER, weight: config.kindWeights.ambusher },
   ])
   return weighted
 }
@@ -78,7 +79,7 @@ export const pickSpecialEnemyKind = (params: {
     return null
   }
   return params.rng.weightedPick([
-    { value: 'egg' as const, weight: eggChance },
-    { value: 'mirror' as const, weight: mirrorChance },
+    { value: ENEMY_KIND.EGG, weight: eggChance },
+    { value: ENEMY_KIND.MIRROR, weight: mirrorChance },
   ])
 }

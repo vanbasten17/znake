@@ -1,5 +1,11 @@
 import type { VirtualInput } from '../core/types'
+import {
+  INPUT_TOUCH_DIAGONAL_AMBIGUITY_RATIO,
+  INPUT_TOUCH_DOUBLE_TAP_WINDOW_MS,
+  INPUT_TOUCH_MIN_SWIPE_DISTANCE_PX,
+} from '../shared/inputConstants'
 import { emitFeedback } from './feedback'
+import { interpretTouchGesture } from './input/gestureInterpreter'
 
 declare global {
   interface Window {
@@ -31,8 +37,6 @@ const setupRelativeSwipe = (): void => {
   let startY = 0
   let active = false
   let lastTapAt = 0
-  const minDistance = 16
-  const doubleTapWindowMs = 280
 
   const shouldCapture = (event: Event): boolean => {
     if (document.body.dataset.uiShell !== 'run') {
@@ -85,24 +89,27 @@ const setupRelativeSwipe = (): void => {
     const dx = point.clientX - startX
     const dy = point.clientY - startY
     active = false
-    if (Math.hypot(dx, dy) < minDistance) {
-      const now = performance.now()
-      if (now - lastTapAt <= doubleTapWindowMs) {
-        window.virtualInput.ability = true
-        emitFeedback('tap')
-        lastTapAt = 0
-        return
-      }
-      lastTapAt = now
-      return
-    }
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      window.virtualInput.dir = dx > 0 ? 'right' : 'left'
+    const interpreted = interpretTouchGesture({
+      startX,
+      startY,
+      endX: point.clientX,
+      endY: point.clientY,
+      nowMs: performance.now(),
+      lastTapAt,
+      minSwipeDistancePx: INPUT_TOUCH_MIN_SWIPE_DISTANCE_PX,
+      doubleTapWindowMs: INPUT_TOUCH_DOUBLE_TAP_WINDOW_MS,
+      diagonalAmbiguityRatio: INPUT_TOUCH_DIAGONAL_AMBIGUITY_RATIO,
+    })
+    lastTapAt = interpreted.nextTapAt
+    if (interpreted.ability) {
+      window.virtualInput.ability = true
       emitFeedback('tap')
       return
     }
-    window.virtualInput.dir = dy > 0 ? 'down' : 'up'
-    emitFeedback('tap')
+    if (interpreted.dir) {
+      window.virtualInput.dir = interpreted.dir
+      emitFeedback('tap')
+    }
   }
 
   gameArea.addEventListener('touchstart', onTouchStart, { passive: true })
