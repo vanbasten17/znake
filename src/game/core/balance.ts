@@ -997,6 +997,36 @@ export const BALANCE = {
       minOpenNeighborCount: 3,
     },
   },
+  validation: {
+    fairnessSuite: {
+      seeds: [11, 29, 47, 83, 131],
+      sampleSpawnAttemptsPerBand: 48,
+      byDepthBand: {
+        early: {
+          minReactionWindowMs: 900,
+          minRecoverabilityRate: 0.55,
+          maxCheapHitRate: 0.33,
+        },
+        mid: {
+          minReactionWindowMs: 850,
+          minRecoverabilityRate: 0.5,
+          maxCheapHitRate: 0.34,
+        },
+        late: {
+          minReactionWindowMs: 800,
+          minRecoverabilityRate: 0.45,
+          maxCheapHitRate: 0.25,
+        },
+      } as const satisfies Record<
+        DepthBalanceBandId,
+        {
+          minReactionWindowMs: number
+          minRecoverabilityRate: number
+          maxCheapHitRate: number
+        }
+      >,
+    },
+  },
   predatorPreyPacing: {
     phaseTicks: {
       openingHunt: 4,
