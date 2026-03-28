@@ -1,5 +1,8 @@
 :root {
   color-scheme: dark;
+  --launch-shell-gap: 14px;
+  --launch-card-padding: 14px;
+  --touch-target-min-interactive: 24px;
 }
 
 body {
@@ -21,7 +24,7 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--launch-shell-gap);
 }
 
 .launch-head h1 {
@@ -49,7 +52,7 @@ body {
   border: 1px solid rgba(118, 180, 255, 0.35);
   border-radius: 12px;
   background: rgba(8, 18, 40, 0.76);
-  padding: 14px;
+  padding: var(--launch-card-padding);
 }
 
 .launch-card h2 {
@@ -81,6 +84,10 @@ body {
   text-decoration: underline;
   text-underline-offset: 2px;
   font-size: 13px;
+  min-width: var(--touch-target-min-interactive);
+  min-height: var(--touch-target-min-interactive);
+  display: inline-flex;
+  align-items: center;
 }
 
 .launch-empty {

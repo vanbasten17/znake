@@ -17,3 +17,12 @@ The system SHALL persist a bounded local history of recent run summaries for men
 - **THEN** loader returns an empty history set
 - **AND** menu rendering remains stable
 
+### Requirement: Run history entries keep stable persisted shape
+
+The system SHALL enforce this contract as part of the znake-run-history-entry-shape-contract-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+

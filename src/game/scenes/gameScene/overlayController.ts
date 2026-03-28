@@ -73,14 +73,21 @@ export const createRouteOverlayShell = (params: RouteOverlayShellParams): RouteO
     className: params.styles.panel,
     titleClassName: params.styles.title,
     titleText: params.titleText,
+    contentClassName: params.styles.cards,
   })
   const panel = panelShell.section
   root.append(panel)
 
   panel.append(createEl('p', params.styles.subtitle, params.subtitleText))
-  panel.append(createStatusChip({ className: params.styles.body, text: params.legendText }))
+  panel.append(
+    createStatusChip({
+      className: params.styles.body,
+      text: params.legendText,
+      variant: 'muted',
+    }),
+  )
 
-  const cards = createEl('div', params.styles.cards)
+  const cards = panelShell.content
   panel.append(cards)
 
   return { root, cards }

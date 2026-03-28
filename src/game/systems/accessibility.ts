@@ -45,6 +45,7 @@ const PRESET_SETTINGS: Record<
 let settings: AccessibilitySettings = { ...DEFAULT_SETTINGS }
 let systemReducedMotion = false
 let reducedMotionMediaQuery: MediaQueryList | null = null
+let reducedMotionOnChange: ((event: MediaQueryListEvent) => void) | null = null
 
 const parseSettings = (raw: string | null): AccessibilitySettings => {
   if (!raw) {
@@ -105,16 +106,23 @@ const syncSystemReducedMotionPreference = (): void => {
     systemReducedMotion = false
     return
   }
+  if (reducedMotionMediaQuery && reducedMotionOnChange) {
+    if (typeof reducedMotionMediaQuery.removeEventListener === 'function') {
+      reducedMotionMediaQuery.removeEventListener('change', reducedMotionOnChange)
+    } else {
+      reducedMotionMediaQuery.removeListener(reducedMotionOnChange)
+    }
+  }
   reducedMotionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   systemReducedMotion = reducedMotionMediaQuery.matches
-  const onChange = (event: MediaQueryListEvent): void => {
+  reducedMotionOnChange = (event: MediaQueryListEvent): void => {
     systemReducedMotion = event.matches
     applySettings()
   }
   if (typeof reducedMotionMediaQuery.addEventListener === 'function') {
-    reducedMotionMediaQuery.addEventListener('change', onChange)
+    reducedMotionMediaQuery.addEventListener('change', reducedMotionOnChange)
   } else {
-    reducedMotionMediaQuery.addListener(onChange)
+    reducedMotionMediaQuery.addListener(reducedMotionOnChange)
   }
 }
 

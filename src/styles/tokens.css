@@ -49,6 +49,9 @@
   --space-8: 16px;
   --space-12: 24px;
   --touch-target-min: 24px;
+  --touch-target-min-interactive: var(--touch-target-min);
+  --launch-shell-gap: 14px;
+  --launch-card-padding: 14px;
 
   /* Radius */
   --radius-sm: 8px;

@@ -5,19 +5,21 @@ type ActionButtonParams = {
   text: string
   onClick?: () => void
   ariaLabel?: string
-  minTargetPx?: number
+  minTargetCss?: string
 }
 
 export const createActionButton = (params: ActionButtonParams): HTMLButtonElement => {
-  const button = createButton(params.className, params.text)
+  const button = createButton(params.className, params.text, {
+    'data-ui-component': 'action-button',
+  })
   if (params.onClick) {
     button.addEventListener('click', params.onClick)
   }
   if (params.ariaLabel) {
     button.setAttribute('aria-label', params.ariaLabel)
   }
-  const minTargetPx = params.minTargetPx ?? 24
-  button.style.minWidth = `${minTargetPx}px`
-  button.style.minHeight = `${minTargetPx}px`
+  const minTarget = params.minTargetCss ?? 'var(--touch-target-min, 24px)'
+  button.style.minWidth = minTarget
+  button.style.minHeight = minTarget
   return button
 }

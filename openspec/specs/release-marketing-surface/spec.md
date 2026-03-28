@@ -55,3 +55,48 @@ The system SHALL define the localization boundary and fallback behavior for stor
 - **THEN** localization obligations remain limited to store-facing and launch-page domains
 - **AND** core gameplay copy expansion is tracked independently of this capability
 
+### Requirement: Launch sections expose semantic regions
+
+The system SHALL enforce this contract as part of the znake-web-launch-aria-regions-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: External launch links enforce safe target semantics
+
+The system SHALL enforce this contract as part of the znake-web-launch-link-safety-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: Launch locale selection supports deterministic fallback
+
+The system SHALL enforce this contract as part of the znake-web-launch-locale-fallback-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: Launch link rendering escapes labels consistently
+
+The system SHALL enforce this contract as part of the znake-refactor-launch-link-renderer-safety-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: Release disclosure links expose deterministic fallback text
+
+The system SHALL enforce this contract as part of the znake-release-disclosure-link-contract-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+

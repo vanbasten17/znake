@@ -136,3 +136,13 @@ Game-core content selection helpers SHALL preserve deterministic outcomes for eq
 - **WHEN** helper internals are extracted/reorganized
 - **THEN** returned picks for equivalent RNG sequences and floor inputs SHALL remain stable
 - **AND** behavior SHALL be covered by automated deterministic tests
+
+### Requirement: Replay payloads include explicit version tags
+
+The system SHALL enforce this contract as part of the znake-simulation-replay-version-tag-contract-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+

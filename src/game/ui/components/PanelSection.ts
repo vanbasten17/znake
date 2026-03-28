@@ -4,6 +4,7 @@ type PanelSectionParams = {
   className: string
   titleClassName?: string
   titleText?: string
+  contentClassName?: string
 }
 
 export const createPanelSection = (
@@ -16,7 +17,7 @@ export const createPanelSection = (
   if (params.titleText) {
     section.append(createEl('h2', params.titleClassName, params.titleText))
   }
-  const content = createEl('div')
+  const content = createEl('div', params.contentClassName)
   section.append(content)
   return { section, content }
 }

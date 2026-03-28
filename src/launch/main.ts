@@ -1,4 +1,5 @@
 import '../styles/launchPage.css'
+import { applyElementAttrs } from '../game/systems/domFactory'
 import { getReleaseDisclosureLinks, getReleaseMetadata } from '../game/systems/release'
 
 type LaunchLocale = 'en' | 'ca'
@@ -74,13 +75,49 @@ const copyByLocale: Record<LaunchLocale, LaunchCopy> = {
 }
 
 const normalizeLocale = (value: string): LaunchLocale => {
-  if (value.toLowerCase().startsWith('ca')) {
+  const lowered = value.toLowerCase().trim()
+  if (lowered.startsWith('ca')) {
     return 'ca'
   }
   return 'en'
 }
 
-const locale = normalizeLocale(navigator.language || 'en')
+const resolvePreferredLocale = (preferred: string[]): LaunchLocale => {
+  for (const locale of preferred) {
+    const normalized = normalizeLocale(locale)
+    if (normalized in copyByLocale) {
+      return normalized
+    }
+  }
+  return 'en'
+}
+
+const escapeHtml = (value: string): string =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+
+const renderLinks = (items: Array<{ href: string; label: string }>, emptyLabel: string): string => {
+  if (items.length === 0) {
+    return `<p class="launch-empty">${escapeHtml(emptyLabel)}</p>`
+  }
+  return items
+    .map((item) => {
+      const href = escapeHtml(item.href)
+      const label = escapeHtml(item.label)
+      return `<a class="launch-link" href="${href}" target="_blank" rel="noopener noreferrer external">${label}</a>`
+    })
+    .join('')
+}
+
+const locale = resolvePreferredLocale(
+  (Array.isArray(navigator.languages) && navigator.languages.length > 0
+    ? navigator.languages
+    : [navigator.language || 'en']) as string[],
+)
 const copy = copyByLocale[locale]
 
 const release = getReleaseMetadata()
@@ -100,45 +137,38 @@ const platformLinks = [
   { href: links.androidStoreUrl, label: copy.links.androidStore },
 ].filter((item): item is { href: string; label: string } => Boolean(item.href))
 
-const renderLinks = (items: Array<{ href: string; label: string }>, emptyLabel: string): string => {
-  if (items.length === 0) {
-    return `<p class="launch-empty">${emptyLabel}</p>`
-  }
-  return items
-    .map(
-      (item) =>
-        `<a class="launch-link" href="${item.href}" target="_blank" rel="noopener noreferrer">${item.label}</a>`,
-    )
-    .join('')
-}
-
 const root = document.getElementById('launch-root')
 if (root) {
+  applyElementAttrs(root, {
+    role: 'main',
+    'aria-live': 'polite',
+    'aria-label': 'Znake launch page',
+  })
   root.innerHTML = `
-    <section class="launch-shell">
-      <header class="launch-head">
-        <p class="launch-kicker">${copy.subtitle}</p>
-        <h1>${copy.title}</h1>
-        <p class="launch-position">${copy.position}</p>
+    <section class="launch-shell" aria-label="${escapeHtml(copy.title)}">
+      <header class="launch-head" aria-labelledby="launch-title">
+        <p class="launch-kicker">${escapeHtml(copy.subtitle)}</p>
+        <h1 id="launch-title">${escapeHtml(copy.title)}</h1>
+        <p class="launch-position">${escapeHtml(copy.position)}</p>
       </header>
 
-      <section class="launch-card">
-        <h2>${copy.controlsTitle}</h2>
-        <p>${copy.controlsKeyboard}</p>
-        <p>${copy.controlsTouch}</p>
+      <section class="launch-card" aria-labelledby="launch-controls-title">
+        <h2 id="launch-controls-title">${escapeHtml(copy.controlsTitle)}</h2>
+        <p>${escapeHtml(copy.controlsKeyboard)}</p>
+        <p>${escapeHtml(copy.controlsTouch)}</p>
       </section>
 
-      <section class="launch-card">
-        <h2>${copy.supportTitle}</h2>
+      <section class="launch-card" aria-labelledby="launch-support-title">
+        <h2 id="launch-support-title">${escapeHtml(copy.supportTitle)}</h2>
         <div class="launch-links">${renderLinks(supportLinks, 'Support links will be available soon.')}</div>
       </section>
 
-      <section class="launch-card">
-        <h2>${copy.platformsTitle}</h2>
+      <section class="launch-card" aria-labelledby="launch-platforms-title">
+        <h2 id="launch-platforms-title">${escapeHtml(copy.platformsTitle)}</h2>
         <div class="launch-links">${renderLinks(platformLinks, 'Platform links will be published at launch.')}</div>
       </section>
 
-      <footer class="launch-footer">${copy.version} ${release.release_version} · ${release.release_channel} · ${release.build_id}</footer>
+      <footer class="launch-footer">${escapeHtml(copy.version)} ${escapeHtml(release.release_version)} · ${escapeHtml(release.release_channel)} · ${escapeHtml(release.build_id)}</footer>
     </section>
   `
 }

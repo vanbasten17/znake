@@ -182,3 +182,39 @@ The system SHALL provide a deterministic, seed-based fairness validation suite t
 - **THEN** output includes per-depth-band pass/fail summaries and bounded metric values
 - **AND** artifact is concise and machine-readable for tuning loops
 
+### Requirement: Check pipeline emits stable stage labels
+
+The system SHALL enforce this contract as part of the znake-tooling-check-output-contract-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: Loop telemetry records retries and gate outcomes
+
+The system SHALL enforce this contract as part of the znake-tooling-loop-telemetry-schema-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: Runtime devtools state stays isolated from simulation state
+
+The system SHALL enforce this contract as part of the znake-devtools-runtime-state-boundaries-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: Failure memory entries follow concise standard template
+
+The system SHALL enforce this contract as part of the znake-tooling-failure-memory-entry-standard-v1 scope.
+
+#### Scenario: Contract is applied
+- **WHEN** the relevant runtime or UI path executes
+- **THEN** the defined contract behavior is applied consistently
+- **AND** deterministic simulation behavior remains unchanged.
+
