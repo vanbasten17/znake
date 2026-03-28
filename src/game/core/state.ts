@@ -17,6 +17,8 @@ export const gameState: GameState = {
   currentRunMapNodeId: null,
   pendingRunMapNodeId: null,
   currentRunMutators: [],
+  currentChallengePresetId: 'standard',
+  currentChallengePresetForcedMutatorId: null,
   biomeRuleSummary: {
     activationEvents: 0,
     transitionEvents: 0,

@@ -188,6 +188,7 @@ export type RunMapPreview = {
 export type ChallengeMutatorDomain = 'pressure' | 'constraint' | 'economy' | 'routing'
 
 export type ChallengeMutatorId = 'tempo_spike' | 'tight_turns' | 'lean_market' | 'route_tension'
+export type ChallengePresetId = 'standard' | 'daily' | 'weekly'
 
 export type ChallengeMutatorEffects = {
   moveIntervalMultiplier?: number
@@ -389,6 +390,8 @@ export type GameState = {
   predatorPreyPacingSummary: PredatorPreyPacingSummary
   routeMasterySummary: RouteMasterySummary
   currentRunMutators: ChallengeMutatorRuntime[]
+  currentChallengePresetId: ChallengePresetId
+  currentChallengePresetForcedMutatorId: ChallengeMutatorId | null
   biomeRuleSummary: BiomeRuleRunSummary
 }
 

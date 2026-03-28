@@ -10,6 +10,7 @@ import {
   getItemSpawnConfigForFloor,
   getRoleSpawnPolicyForFloor,
 } from '../core/balance'
+import { resolvePresetMutatorRuntime } from '../core/challengePresets'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
 import { getDevScenario, isDevMode } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
@@ -501,7 +502,25 @@ export class GameScene extends Phaser.Scene {
       baseConfig: this.cfg,
       baseEnemyInterval: floorSetup.enemyIntervalMs,
     })
-    this.challengeMutators = mutatorResolution.active
+    this.challengeMutators = [...mutatorResolution.active]
+    const presetMutator = resolvePresetMutatorRuntime(
+      gameState.currentChallengePresetForcedMutatorId,
+      gameState.floor,
+    )
+    if (
+      presetMutator &&
+      !this.challengeMutators.some((existing) => existing.id === presetMutator.id)
+    ) {
+      this.challengeMutators.push(presetMutator)
+      trackRetentionEvent('activated', {
+        system: 'challenge_preset',
+        mutatorId: presetMutator.id,
+        domain: presetMutator.domain,
+        floor: gameState.floor,
+        runSeed: this.runSeed,
+        challengePresetId: gameState.currentChallengePresetId,
+      })
+    }
     gameState.currentRunMutators = this.challengeMutators.map((mutator) => ({
       ...mutator,
       effects: { ...mutator.effects },

@@ -105,3 +105,33 @@ This creates immediate player-facing replayability while preserving architectura
 ## Suggested Next Step
 
 Run `znake-next-steps-openspec-sync` to map this refreshed backlog against current specs, mark unmatched items, and generate the safest `propose + apply` execution prompts.
+
+## OpenSpec Match Status
+
+Generated: 2026-03-28
+
+### Implemented or Archived
+
+- Run-seed challenge presets and bounded preset modifier packs are now archived in [2026-03-28-znake-daily-weekly-challenge-presets-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-daily-weekly-challenge-presets-v1) and reflected in [challenge-presets/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/challenge-presets/spec.md), [gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md), [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md), and [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md).
+
+### Specced in Base Specs
+
+- Post-run recap and failure telemetry context are substantially covered in [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md) and [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md), but a player-facing trend panel for recurring death causes is only partially specified.
+- Mastery and route-learning telemetry primitives are covered in [route-mastery-readability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/route-mastery-readability/spec.md) and [observability/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/observability/spec.md), but a menu-facing rotating mastery-goal surface remains partially specified.
+- Upgrade identity/readability contracts are covered in [upgrade-identity/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/upgrade-identity/spec.md), but contextual synergy/conflict hint overlays in draft UI remain unmatched as a concrete behavior contract.
+
+### In Active Change
+
+- None currently (`openspec list --json` reports no active changes after cycle 1 archive).
+
+### Unmatched
+
+- Lightweight run-history timeline in menu (recent seed/depth/build/death snapshots for learning loops).
+- Explicit player-facing “why you died” trend panel beyond single-run recap.
+- Rotating mastery goal tracks surfaced directly in menu.
+- Upgrade draft synergy/conflict hint badges in choice UI.
+- Enemy composition director contracts for depth-band variety packaging.
+
+### Collapse Note
+
+- Several backlog bullets collapse into existing concepts (telemetry, recap, route mastery, upgrade readability). The remaining high-value gap is menu-level learning surfaces that turn existing telemetry into actionable player feedback.

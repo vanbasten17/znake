@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import styles from '../../styles/menuOverlay.module.css'
+import { resolveChallengePreset } from '../core/challengePresets'
 import { STORAGE_KEYS } from '../core/constants'
 import { DEV_SCENARIOS, type DevScenarioId, isDevMode } from '../core/devScenarios'
 import {
@@ -18,7 +19,7 @@ import {
 } from '../core/meta'
 import { getRoomObjective, getRunObjectiveOffsetForSeed } from '../core/objectives'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
-import type { GoalId } from '../core/types'
+import type { ChallengePresetId, GoalId } from '../core/types'
 import { drawMarkerSpriteCanvas } from '../render/markerBitmapDraw'
 import { ensureMarkerBitmapsLoaded } from '../render/markerBitmaps'
 import {
@@ -29,7 +30,6 @@ import {
   MARKER_EXPORT_SCALE_DEFAULT,
 } from '../render/markerExportSpec'
 import { createEmptyBossEncounterSummary } from '../simulation/eliteMiniboss'
-import { deriveRunSeed } from '../simulation/rng'
 import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
 import { getAccessibilitySettings, updateAccessibilitySettings } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
@@ -508,6 +508,14 @@ export class MenuScene extends Phaser.Scene {
       this.startRun()
       return
     }
+    if (event.code === 'KeyD') {
+      this.startRunWithPreset('daily')
+      return
+    }
+    if (event.code === 'KeyW') {
+      this.startRunWithPreset('weekly')
+      return
+    }
     if (event.code === 'KeyL') {
       void this.switchLanguage()
       return
@@ -669,11 +677,18 @@ export class MenuScene extends Phaser.Scene {
     this.startRunInternal()
   }
 
-  private startDevScenario(scenarioId: DevScenarioId): void {
-    this.startRunInternal(scenarioId)
+  private startRunWithPreset(presetId: ChallengePresetId): void {
+    this.startRunInternal(undefined, presetId)
   }
 
-  private startRunInternal(devScenarioId?: DevScenarioId): void {
+  private startDevScenario(scenarioId: DevScenarioId): void {
+    this.startRunInternal(scenarioId, 'standard')
+  }
+
+  private startRunInternal(
+    devScenarioId?: DevScenarioId,
+    presetId: ChallengePresetId = 'standard',
+  ): void {
     if (!this.waiting) {
       return
     }
@@ -687,9 +702,16 @@ export class MenuScene extends Phaser.Scene {
     gameState.kills = 0
     gameState.eliteKills = 0
     gameState.floor = 1
-    const runSeed = deriveRunSeed([Date.now(), gameState.run, playerProfile.currency])
-    gameState.currentRunSeed = runSeed
-    gameState.runObjectiveOffset = getRunObjectiveOffsetForSeed(runSeed)
+    const nowMs = Date.now()
+    const resolvedPreset = resolveChallengePreset({
+      presetId: devScenarioId ? 'standard' : presetId,
+      nowMs,
+      fallbackSeedParts: [nowMs, gameState.run, playerProfile.currency],
+    })
+    gameState.currentRunSeed = resolvedPreset.runSeed
+    gameState.currentChallengePresetId = resolvedPreset.presetId
+    gameState.currentChallengePresetForcedMutatorId = resolvedPreset.forcedMutatorId
+    gameState.runObjectiveOffset = getRunObjectiveOffsetForSeed(resolvedPreset.runSeed)
     gameState.persistentUpgrades = []
     gameState.persistentRewards = []
     gameState.selectedRelicId = null
@@ -749,6 +771,8 @@ export class MenuScene extends Phaser.Scene {
       currency: playerProfile.currency,
       unlockedTalents: playerProfile.unlockedTalents.length,
       devScenarioId: devScenarioId ?? null,
+      challengePresetId: resolvedPreset.presetId,
+      challengePresetMutatorId: resolvedPreset.forcedMutatorId,
     })
     trackRetentionEvent('input_mode', {
       mode: getControlMode(),

@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import styles from '../../styles/deathOverlay.module.css'
 import { getDepthBandForFloor } from '../core/balance'
+import { resolveChallengePreset } from '../core/challengePresets'
 import { STORAGE_KEYS } from '../core/constants'
 import { type DeathRecapBuildLeaning, buildDeathRecap } from '../core/deathRecap'
 import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
@@ -9,7 +10,6 @@ import { gameState, playerProfile, setPlayerProfile } from '../core/state'
 import type { UpgradeFamily } from '../core/types'
 import { UPGRADE_FAMILIES } from '../core/upgrades'
 import { createEmptyBossEncounterSummary } from '../simulation/eliteMiniboss'
-import { deriveRunSeed } from '../simulation/rng'
 import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
 import { getControlMode } from '../systems/controlScheme'
 import {
@@ -170,6 +170,8 @@ export class DeathScene extends Phaser.Scene {
       routeMasteryNonCombatChoices: gameState.routeMasterySummary.nonCombatChoices,
       routeMasteryBiomePivots: gameState.routeMasterySummary.biomePivotChoices,
       routeMasteryPreviewEliteSeen: gameState.routeMasterySummary.previewEliteSeen,
+      challengePresetId: gameState.currentChallengePresetId,
+      challengePresetMutatorId: gameState.currentChallengePresetForcedMutatorId,
     })
 
     const best = Math.max(
@@ -440,9 +442,16 @@ export class DeathScene extends Phaser.Scene {
     gameState.kills = 0
     gameState.eliteKills = 0
     gameState.floor = 1
-    const runSeed = deriveRunSeed([Date.now(), gameState.run, playerProfile.currency])
-    gameState.currentRunSeed = runSeed
-    gameState.runObjectiveOffset = getRunObjectiveOffsetForSeed(runSeed)
+    const nowMs = Date.now()
+    const resolvedPreset = resolveChallengePreset({
+      presetId: gameState.currentChallengePresetId,
+      nowMs,
+      fallbackSeedParts: [nowMs, gameState.run, playerProfile.currency],
+    })
+    gameState.currentRunSeed = resolvedPreset.runSeed
+    gameState.currentChallengePresetId = resolvedPreset.presetId
+    gameState.currentChallengePresetForcedMutatorId = resolvedPreset.forcedMutatorId
+    gameState.runObjectiveOffset = getRunObjectiveOffsetForSeed(resolvedPreset.runSeed)
     gameState.persistentUpgrades = []
     gameState.persistentRewards = []
     gameState.selectedRelicId = null
@@ -501,6 +510,8 @@ export class DeathScene extends Phaser.Scene {
       source: 'death_restart',
       currency: playerProfile.currency,
       unlockedTalents: playerProfile.unlockedTalents.length,
+      challengePresetId: resolvedPreset.presetId,
+      challengePresetMutatorId: resolvedPreset.forcedMutatorId,
     })
     trackRetentionEvent('input_mode', {
       mode: getControlMode(),
