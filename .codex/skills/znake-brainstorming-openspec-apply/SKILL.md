@@ -1,6 +1,6 @@
 ---
 name: znake-brainstorming-openspec-apply
-description: Unified OpenSpec-first Znake backlog orchestrator. Use when Codex should maintain NEXT_STEPS.md end-to-end by accepting incoming brainstorming ideas when provided, or internally analyzing the project to propose refactors/improvements when no ideas are provided; then prioritize easy-to-hard checkbox ideas, sync against OpenSpec, auto-loop implementation for a chosen number of ideas, and move fully completed ideas into a Completed section.
+description: Unified OpenSpec-first Znake backlog orchestrator. Use when Codex should maintain NEXT_STEPS.md end-to-end by accepting incoming brainstorming ideas when provided, or internally analyzing the project to propose refactors/improvements when no ideas are provided; then prioritize easy-to-hard checkbox ideas, sync against OpenSpec, continuously implement active ideas until none remain (unless blocked), archive completed changes, and finish with a commit step plus message.
 ---
 
 # Znake Brainstorming OpenSpec Apply
@@ -20,7 +20,8 @@ Use this as the single skill for brainstorming, prioritization, OpenSpec sync, a
 - Prioritize active ideas from simple/low-impact/fast to harder/deeper work.
 - When an idea and all its tasks are done, move the full idea block to `## Completed` at the bottom.
 - Preserve completed history; never delete completed items.
-- If no active ideas remain after processing, instruct the user to trigger this skill again.
+- Continue execution cycles in the same run until `## Active Ideas` is empty or a real blocker is reached.
+- After active ideas are implemented and validated, proceed with archive, then commit flow (`apply -> archive -> commit`).
 
 ## Required NEXT_STEPS.md Structure
 
@@ -75,9 +76,9 @@ Formatting rules:
   - `Unmatched`
 - Refresh `## OpenSpec Match Status` with concise evidence paths.
 
-5. Execute autoloop for a chosen number of ideas.
-- Input: `ideas_to_implement` (default `1`).
-- Select up to `ideas_to_implement` highest-priority active ideas.
+5. Execute autoloop continuously until no active ideas remain.
+- Input: `ideas_to_implement` (default `all` active ideas).
+- Select the highest-priority active idea, execute it, then refresh `NEXT_STEPS.md` and repeat.
 - For each selected idea, run this sequence:
   1. Create/update OpenSpec change (`proposal.md`, `design.md`, `tasks.md`, relevant spec deltas).
   2. Ensure `proposal.md` and `design.md` include `Key Points (Codex-style)` with:
@@ -91,16 +92,25 @@ Formatting rules:
      - `pnpm build` only for significant behavior/architecture work
   5. Mark completed tasks in `NEXT_STEPS.md`.
   6. Move fully completed idea blocks to `## Completed`.
+  7. Re-prioritize remaining `## Active Ideas` before starting the next iteration.
 
-6. End-of-run behavior.
-- If active ideas remain: report the next recommended idea.
-- If no active ideas remain: ask the user to trigger this skill again to start a new brainstorming cycle.
+6. Archive phase (after active ideas are done).
+- Archive all completed active changes.
+- Confirm archive path(s) and affected base spec files.
+
+7. Commit phase (after archive).
+- Create a single commit that captures the implemented + archived work using a concise conventional commit message.
+- If repository policy requires manual commits, provide the exact ready-to-copy commit command and single-line commit message instead of executing commit.
+
+8. End-of-run behavior.
+- If active ideas remain because of blockers: report blocker details, what was completed, and the next recommended unblocked idea.
+- If no active ideas remain: report completion, archive result, commit result, and what the user should test.
 
 ## Constraints
 
 - Keep simulation deterministic and keep rendering/presentation separate from gameplay rules.
 - Keep changes focused and minimal.
-- Do not archive automatically unless the user explicitly asks.
+- Follow `apply -> archive -> commit` once no active ideas remain, unless blocked by explicit repo/user policy.
 
 ## Output Format
 
@@ -108,11 +118,14 @@ Always return:
 
 1. `Mode` (brainstorm + plan, plan-only, or execute-loop)
 2. `Backlog update` (what changed in `NEXT_STEPS.md`)
-3. `Selected ideas` (up to requested count)
+3. `Selected ideas` (full ordered list processed this run)
 4. `Execution status` (per-idea propose/apply/check/build)
 5. `Completed moved` (idea blocks moved to `## Completed`)
 6. `Next step`
+7. `Archive status` (done/blocked + archive paths + affected base specs)
+8. `Commit status` (commit hash or manual-commit handoff)
+9. `Commit message` (single-line, ready to copy)
 
 If no active ideas remain, end with:
 
-- `No active ideas remain. Trigger this skill again to start a new brainstorming cycle.`
+- `No active ideas remain.`
