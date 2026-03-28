@@ -8,28 +8,35 @@ No active ideas.
 
 Generated: 2026-03-28
 
-- `Challenge share-code deterministic integrity contract and telemetry`
-  - Status: `In Active Change`
-  - Change: `openspec/changes/2026-03-28-znake-challenge-share-code-contract-v1/`
+- `Route choice risk forecast readability`
+  - Status: `Implemented`
+  - Change: `openspec/changes/archive/2026-03-28-2026-03-28-znake-route-risk-forecast-v1/`
   - Evidence:
-    - `openspec/changes/2026-03-28-znake-challenge-share-code-contract-v1/proposal.md`
-    - `openspec/changes/2026-03-28-znake-challenge-share-code-contract-v1/design.md`
-    - `openspec/changes/2026-03-28-znake-challenge-share-code-contract-v1/tasks.md`
-    - `openspec/changes/2026-03-28-znake-challenge-share-code-contract-v1/specs/challenge-presets/spec.md`
-    - `openspec/changes/2026-03-28-znake-challenge-share-code-contract-v1/specs/observability/spec.md`
+    - `openspec/changes/archive/2026-03-28-2026-03-28-znake-route-risk-forecast-v1/proposal.md`
+    - `openspec/changes/archive/2026-03-28-2026-03-28-znake-route-risk-forecast-v1/design.md`
+    - `openspec/changes/archive/2026-03-28-2026-03-28-znake-route-risk-forecast-v1/tasks.md`
+    - `openspec/specs/run-map/spec.md`
+    - `src/game/simulation/routeRiskForecast.ts`
+    - `src/game/scenes/GameScene.ts`
+    - `src/game/systems/i18nResources.ts`
+    - `tests/route-risk-forecast.test.ts`
+
+- `Challenge share-code deterministic integrity contract and telemetry`
+  - Status: `Implemented`
+  - Change: `openspec/changes/archive/2026-03-28-2026-03-28-znake-challenge-share-code-contract-v1/`
+  - Evidence:
+    - `openspec/specs/challenge-presets/spec.md`
+    - `openspec/specs/observability/spec.md`
     - `src/game/core/challengeShare.ts`
     - `tests/challenge-share-code.test.ts`
 
 - `Localized challenge-share prompt copy + URL-safe body compatibility`
-  - Status: `In Active Change`
-  - Change: `openspec/changes/2026-03-28-znake-challenge-share-menu-compat-v1/`
+  - Status: `Implemented`
+  - Change: `openspec/changes/archive/2026-03-28-2026-03-28-znake-challenge-share-menu-compat-v1/`
   - Evidence:
-    - `openspec/changes/2026-03-28-znake-challenge-share-menu-compat-v1/proposal.md`
-    - `openspec/changes/2026-03-28-znake-challenge-share-menu-compat-v1/design.md`
-    - `openspec/changes/2026-03-28-znake-challenge-share-menu-compat-v1/tasks.md`
-    - `openspec/changes/2026-03-28-znake-challenge-share-menu-compat-v1/specs/input-hud/spec.md`
-    - `openspec/changes/2026-03-28-znake-challenge-share-menu-compat-v1/specs/scenes/spec.md`
-    - `openspec/changes/2026-03-28-znake-challenge-share-menu-compat-v1/specs/challenge-presets/spec.md`
+    - `openspec/specs/input-hud/spec.md`
+    - `openspec/specs/scenes/spec.md`
+    - `openspec/specs/challenge-presets/spec.md`
     - `src/game/scenes/MenuScene.ts`
     - `src/game/systems/challengeSharePromptCopy.ts`
     - `src/game/systems/i18nResources.ts`
@@ -37,6 +44,17 @@ Generated: 2026-03-28
     - `tests/challenge-share-prompt-copy.test.ts`
 
 ## Completed
+
+- [x] Add route-choice risk forecast readability
+  - Why: Improves route commit clarity and fairness by making immediate pressure legible before players lock in a path.
+  - OpenSpec change: `2026-03-28-znake-route-risk-forecast-v1`
+  - [x] Research fit with modern roguelite/tactics readability patterns and map it to Znake route cards.
+  - [x] Create OpenSpec artifacts (`proposal.md`, `design.md`, `tasks.md`) with Key Points section.
+  - [x] Add run-map spec delta for deterministic route risk forecast readability.
+  - [x] Add deterministic helper and route-card forecast line (`LOW`/`MEDIUM`/`HIGH`).
+  - [x] Add deterministic tests for risk scoring thresholds.
+  - [x] Run validation (`pnpm check`).
+  - [x] Archive completed change and confirm updated base spec.
 
 - [x] Challenge share-code contract + deterministic parser coverage
   - Why: Protects player challenge-sharing reliability and fairness diagnostics with explicit integrity rules and deterministic tests.
@@ -63,4 +81,4 @@ Generated: 2026-03-28
 
 ## Suggested Next Step
 
-No active ideas remain. Trigger this skill again to start a new brainstorming cycle.
+No active ideas remain. Trigger this skill again to start another brainstorming cycle.

@@ -185,6 +185,7 @@ import {
 } from '../simulation/replay'
 import { type GameRng, createSeededRng, deriveRunSeed } from '../simulation/rng'
 import { getRouteMasteryReadout, recordRouteMasteryDecision } from '../simulation/routeMastery'
+import { type RouteRiskLevel, resolveRouteRiskForecast } from '../simulation/routeRiskForecast'
 import {
   createDefaultRunMapNodeIdForFloor,
   getRunMapPreview,
@@ -2279,6 +2280,16 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  private getRouteRiskLevelLabel(level: RouteRiskLevel): string {
+    if (level === 'high') {
+      return t('game.routeRiskHigh')
+    }
+    if (level === 'medium') {
+      return t('game.routeRiskMedium')
+    }
+    return t('game.routeRiskLow')
+  }
+
   private resolveActiveBiomeRules(roomObjectiveKind: RoomObjectiveKind | null): void {
     const previousBiomeId =
       gameState.biomeRuleSummary.activatedBiomeIds[
@@ -2912,6 +2923,17 @@ export class GameScene extends Phaser.Scene {
         `${this.getRoomTypeDescription(choice.roomType)} · ${this.getBiomeLabel(choice.biomeId)}`,
       )
       content.append(detail)
+
+      const riskForecast = resolveRouteRiskForecast(choice)
+      const riskLine = createEl(
+        'span',
+        routeStyles.preview,
+        t('game.routeChoiceRiskForecast', {
+          level: this.getRouteRiskLevelLabel(riskForecast.level),
+          score: riskForecast.score,
+        }),
+      )
+      content.append(riskLine)
 
       const nextPreview = choice.previewRoomTypes[1]
       if (nextPreview) {
