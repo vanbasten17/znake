@@ -1,0 +1,4 @@
+interface:
+  display_name: "Znake Ralph Prompt"
+  short_description: "Build parameterized Ralph-strict OpenSpec prompts."
+  default_prompt: "Create a reusable proposal-first Ralph strict prompt from my game request."

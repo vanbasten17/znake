@@ -237,6 +237,22 @@ The system SHALL render snake head and all remaining body segments in every fram
 - **WHEN** snake length is greater than one
 - **THEN** at least one non-head body segment is visible in the rendered frame
 
+### Requirement: Combat motion cues include anticipation and follow-through
+
+The system SHALL render deterministic anticipation and follow-through cues for moving combat entities without modifying simulation timing.
+
+#### Scenario: Snake head receives motion cue from movement cycle
+
+- **WHEN** a frame is rendered during the snake movement cycle
+- **THEN** head draw bounds and forward offset are derived from deterministic cycle progress
+- **AND** collision, movement interval, and input timing remain unchanged.
+
+#### Scenario: Enemy head receives motion cue from enemy movement cycle
+
+- **WHEN** a frame is rendered during the enemy movement cycle
+- **THEN** non-egg enemy head draw bounds and forward offset are derived from deterministic cycle progress
+- **AND** cue intensity is reduced when reduced-effects accessibility mode is active.
+
 ### Requirement: Run modifiers from persistent meta
 
 The system SHALL apply persistent talent effects and selected relic effects before in-run upgrade effects when composing run behavior, and in-run upgrades SHALL be able to alter timing, routing, zoning, or recovery rules.
@@ -953,3 +969,19 @@ The system SHALL route special enemy tick behavior through explicit strategy sel
 - **WHEN** an enemy tick starts for a known special kind
 - **THEN** the matching strategy handler is selected deterministically
 - **AND** normal chase fallback executes only when no special strategy result applies.
+
+### Requirement: Companion drone support trigger cadence
+
+The system SHALL support a deterministic companion-drone support trigger with bounded cooldown cadence.
+
+#### Scenario: Drone support trigger is cooldown-gated on enemy defeats
+
+- **WHEN** enemy defeat resolves while drone support cooldown is ready
+- **THEN** support trigger resolves once, applies bounded support payout, and resets cooldown
+- **AND** subsequent defeats during cooldown do not retrigger support.
+
+#### Scenario: Drone cooldown ticks deterministically
+
+- **WHEN** cooldown ticker receives identical cooldown and delta inputs
+- **THEN** resulting cooldown output remains identical and clamps at zero
+- **AND** support cadence does not depend on nondeterministic state.

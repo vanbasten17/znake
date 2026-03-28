@@ -71,3 +71,15 @@ The system SHALL maintain at least four curated upgrades per family with explici
 - **THEN** each family includes at least four upgrades with distinct gameplay pivots
 - **AND** each added upgrade includes bounded tradeoff language to prevent hidden snowball assumptions
 
+### Requirement: Upgrade effects are resolved via strategy registry
+Runtime config mutation for upgrade picks SHALL resolve through an explicit strategy registry keyed by upgrade id.
+
+#### Scenario: Known upgrade id resolves registered strategy
+- **WHEN** runtime resolves an upgrade strategy for a known upgrade id
+- **THEN** registry returns a deterministic strategy function
+- **AND** strategy semantics match the corresponding upgrade definition effect.
+
+#### Scenario: Game scene applies picked upgrades through registry helper
+- **WHEN** run config is composed from persistent picked upgrades
+- **THEN** scene uses strategy-registry helper for each upgrade
+- **AND** resulting config mutation remains equivalent to prior upgrade effects.

@@ -215,3 +215,26 @@ test('event choice consequence partition and resolution apply deterministic dela
   assert.equal(resolved.nextEnemyInterval, 400)
   assert.equal(resolved.nextMoveInterval, 160)
 })
+
+test('shrine choice exposes immediate cost and deterministic delayed payoff', () => {
+  const definition = BALANCE.eventChoices.definitions.find(
+    (entry) => entry.id === 'risky_trade_molt',
+  )
+  assert.ok(definition)
+  const shrine = definition?.options.find((entry) => entry.id === 'shrine_blood_oath')
+  assert.ok(shrine)
+  if (!shrine) {
+    throw new Error('Expected shrine_blood_oath option')
+  }
+  assert.equal((shrine.effects.lengthDelta ?? 0) < 0 || (shrine.effects.scoreDelta ?? 0) < 0, true)
+  assert.equal((shrine.effects.shieldDelta ?? 0) > 0, true)
+
+  const consequence = draftEventChoiceConsequence({
+    runSeed: 77,
+    floor: 4,
+    optionId: shrine.id,
+    pendingCount: 0,
+  })
+  assert.ok(consequence)
+  assert.equal(consequence?.id, 'shrine_blood_oath_boon')
+})

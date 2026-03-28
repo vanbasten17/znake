@@ -258,6 +258,32 @@ The system SHALL emit bounded deterministic fail-point telemetry fields for each
 ### Requirement: Depth-balance tuning outcome telemetry
 The system SHALL emit bounded telemetry describing resolved depth-tuning outcomes for enemy composition and item usefulness.
 
+### Requirement: Telemetry emission uses gateway interfaces and contract checks
+Telemetry event helpers SHALL emit through a gateway interface so transport dependencies remain replaceable and payload contracts remain deterministic.
+
+#### Scenario: Event helper emits through active gateway
+- **WHEN** telemetry helper functions emit run/objective/reward events
+- **THEN** they route through the active telemetry gateway interface
+- **AND** event names and normalized payload keys remain stable.
+
+#### Scenario: Payload contract normalizes nullable fields
+- **WHEN** telemetry helpers receive payload values with `undefined`
+- **THEN** payload normalization converts those fields to `null`
+- **AND** emitted payload shape remains deterministic for downstream aggregation.
+
+### Requirement: Domain events are typed and ordered deterministically
+Telemetry-capable domain events SHALL be published through a typed event bus that preserves deterministic sequence order.
+
+#### Scenario: Domain event subscribers observe increasing sequence numbers
+- **WHEN** multiple domain events are published during runtime
+- **THEN** subscribers receive monotonically increasing sequence numbers
+- **AND** publish return values match observed sequence ordering.
+
+#### Scenario: Event stream can be unsubscribed safely
+- **WHEN** a subscriber unregisters from the domain event bus
+- **THEN** subsequent events are no longer delivered to that listener
+- **AND** active telemetry emission behavior remains unchanged.
+
 #### Scenario: Composition and item outcome fields are emitted
 - **WHEN** room/floor setup resolves depth-aware enemy and item tuning
 - **THEN** telemetry includes compact outcome fields for selected role-composition profile and item usefulness profile
@@ -381,4 +407,3 @@ The system SHALL enforce this contract as part of the znake-observability-ui-eve
 - **WHEN** the relevant runtime or UI path executes
 - **THEN** the defined contract behavior is applied consistently
 - **AND** deterministic simulation behavior remains unchanged.
-

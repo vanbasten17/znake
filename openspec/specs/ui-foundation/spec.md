@@ -80,6 +80,11 @@ The system SHALL provide token/class-driven accessibility presets that can be ap
 - **THEN** non-essential glow/shake/flash intensity is reduced
 - **AND** gameplay-critical state feedback remains visible
 
+#### Scenario: Preset identity stays deterministic across menu and run surfaces
+- **WHEN** visual accessibility settings match canonical default/clarity/comfort tuples
+- **THEN** preset identity resolves deterministically without scene-dependent divergence
+- **AND** the same preset state applies shared classes on both menu and gameplay shell surfaces
+
 ### Requirement: Gameplay color semantics contract
 
 The system SHALL define stable color families for gameplay meaning and forbid conflicting semantic reuse in the same context.
@@ -253,6 +258,19 @@ The system SHALL enforce this contract as part of the znake-ui-action-button-tar
 - **THEN** the defined contract behavior is applied consistently
 - **AND** deterministic simulation behavior remains unchanged.
 
+### Requirement: UI rendering consumes dedicated view-model presenters
+HUD rendering paths SHALL consume dedicated view-model presenter helpers instead of inline mapping logic.
+
+#### Scenario: Score HUD fields are mapped through presenter
+- **WHEN** score/floor/kills/run HUD values are updated
+- **THEN** renderer consumes a score HUD view-model from presenter helper
+- **AND** displayed text values remain behaviorally equivalent.
+
+#### Scenario: Run-status normalization routes through status presenter
+- **WHEN** run status text is updated
+- **THEN** renderer consumes normalized run-status view-model output from presenter helper
+- **AND** active/idle emphasis semantics remain unchanged.
+
 ### Requirement: Panel sections provide typed content slot class
 
 The system SHALL enforce this contract as part of the znake-ui-panel-section-content-slot-v1 scope.
@@ -261,6 +279,48 @@ The system SHALL enforce this contract as part of the znake-ui-panel-section-con
 - **WHEN** the relevant runtime or UI path executes
 - **THEN** the defined contract behavior is applied consistently
 - **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: Menu shell provides bottom navigation between core sections
+
+The system SHALL provide bottom-tab navigation for core menu surfaces (play, progress, settings, accessibility) without changing deterministic gameplay rules.
+
+#### Scenario: Bottom navigation switches visible menu panel
+- **WHEN** the user activates a menu navigation tab
+- **THEN** the matching content panel becomes visible and non-selected panels are hidden
+- **AND** run-start behavior remains bound to the play panel
+
+#### Scenario: Keyboard navigation can change active menu tab deterministically
+- **WHEN** left/right arrows or mapped numeric hotkeys are used in menu shell
+- **THEN** active tab changes according to deterministic tab ordering and hotkey mapping
+- **AND** run start shortcuts outside play tab first focus play tab instead of launching a run
+
+### Requirement: Menu background motion is subtle, layered, and optional
+
+The system SHALL render menu background parallax as a subtle layered effect with deterministic on/off behavior tied to accessibility reduction settings.
+
+#### Scenario: Layered parallax remains low-intensity
+- **WHEN** menu overlay is active with motion effects enabled
+- **THEN** background layers animate with bounded low-amplitude transforms
+- **AND** foreground controls remain visually dominant and readable
+
+#### Scenario: Reduced effects disables active parallax motion
+- **WHEN** reduced-effects accessibility mode is enabled
+- **THEN** menu parallax animations are disabled
+- **AND** background layers remain static at reduced opacity
+
+### Requirement: Floating feedback labels remain legible under combat density
+
+The UI foundation SHALL provide readable floating combat feedback labels with bounded on-screen density.
+
+#### Scenario: Damage and reward labels remain readable
+- **WHEN** combat feedback labels are emitted for damage/block/pickup/reward events
+- **THEN** labels use high-contrast text styling with outline support for readability
+- **AND** label timing/motion remains short and scannable during combat flow
+
+#### Scenario: Label density stays bounded
+- **WHEN** many feedback events occur in a short time window
+- **THEN** the system caps visible floating labels to a deterministic maximum
+- **AND** oldest labels are evicted first to avoid clutter accumulation
 
 ### Requirement: Status chip creation supports optional tone variants
 
@@ -333,4 +393,3 @@ The system SHALL enforce this contract as part of the znake-style-launch-card-sp
 - **WHEN** the relevant runtime or UI path executes
 - **THEN** the defined contract behavior is applied consistently
 - **AND** deterministic simulation behavior remains unchanged.
-

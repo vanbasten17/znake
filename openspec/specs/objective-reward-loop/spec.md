@@ -105,3 +105,28 @@ The system SHALL align event-choice option outcomes with existing reward identit
 - **THEN** its upside and downside are both surfaced in player-facing copy
 - **AND** option wording does not imply pure additive gain without cost
 
+### Requirement: Streak bounties grant capped bonus rewards
+Combat kill streaks SHALL grant bounded bonus rewards at deterministic thresholds and remain capped per streak cycle.
+
+#### Scenario: Thresholded streak bounty grants one-shot tier reward
+- **WHEN** kill streak reaches the next configured threshold tier
+- **THEN** player receives one bounded bonus score payout for that tier
+- **AND** tier award advances so the same tier is not awarded repeatedly.
+
+#### Scenario: Damage resets active streak bounty chain
+- **WHEN** player receives damage feedback during run
+- **THEN** active streak counter and pending bounty tier progress reset
+- **AND** next bounty requires rebuilding streak from reset state.
+
+### Requirement: Route branch previews expose objective and reward clarity
+Run map branch previews SHALL include objective and reward context so players can compare route intent before committing.
+
+#### Scenario: Route branch preview includes objective and reward tags
+- **WHEN** route choices are displayed in run-map HUD copy
+- **THEN** each branch preview includes objective context and reward profile tags
+- **AND** the preview still includes branch/room progression context.
+
+#### Scenario: Route branch preview text is deterministic
+- **WHEN** route preview generation receives identical floor, branch, and objective offset inputs
+- **THEN** resulting preview text stays identical across runs
+- **AND** no randomization alters branch messaging.

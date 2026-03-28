@@ -103,3 +103,32 @@ test('body pulse target collection is deterministic and ignores boss targets', (
   })
   assert.deepEqual(hits, [0])
 })
+
+test('panic recovery window triggers deterministically at low health', () => {
+  const cfg = createBaseRunConfig()
+  const low = resolveBodyPulseSpend({
+    snakeLength: cfg.bodySpendMinLength + 1,
+    state: createInitialBodyEconomyRuntimeState(),
+    config: cfg,
+  })
+  assert.equal(low.outcome.status, 'blocked')
+  assert.equal(low.state.panicRecoveryActiveMs > 0, true)
+  assert.equal(low.state.panicRecoveryCooldownMs > 0, true)
+})
+
+test('panic recovery allows one emergency body pulse below floor then expires', () => {
+  const cfg = createBaseRunConfig()
+  const armed = {
+    ...createInitialBodyEconomyRuntimeState(),
+    panicRecoveryActiveMs: 1200,
+    panicRecoveryCooldownMs: 8000,
+  }
+  const spend = resolveBodyPulseSpend({
+    snakeLength: cfg.bodySpendMinLength,
+    state: armed,
+    config: cfg,
+  })
+  assert.equal(spend.outcome.status, 'applied')
+  assert.equal(spend.outcome.spentSegments, 0)
+  assert.equal(spend.state.panicRecoveryActiveMs, 0)
+})

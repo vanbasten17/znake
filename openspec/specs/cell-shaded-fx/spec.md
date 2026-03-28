@@ -17,3 +17,16 @@ The PostFX pipeline MUST incorporate a "Laplacian" or "Sobel" filter (or a simil
 - **WHEN** a collision occurs or screen shake is active
 - **THEN** the ink outlines MUST momentarily "jitter" and thicken to 4px to signal impact.
 
+### Requirement: Combat feedback VFX uses distinct semantic channels
+
+Combat feedback VFX SHALL distinguish danger, block, pickup, and reward channels with readable ring profile differences.
+
+#### Scenario: Danger and reward channels are visually distinguishable
+- **WHEN** danger and reward pulses are emitted during the same run
+- **THEN** ring alpha/width profiles remain semantically distinct
+- **AND** readability does not rely only on color differences
+
+#### Scenario: Reduced-effects mode lowers VFX intensity while preserving channel identity
+- **WHEN** reduced-effects is enabled
+- **THEN** pulse intensity is reduced
+- **AND** relative channel differences remain preserved for readability

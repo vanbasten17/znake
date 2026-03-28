@@ -84,7 +84,7 @@ body.a11y-reduced-effects {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: var(--space-2);
+  gap: var(--space-1);
   padding: calc(6px + env(safe-area-inset-top) * 0.15) 12px 4px;
   background: var(--color-surface-900);
   border-bottom: 1px solid var(--color-line);
@@ -94,15 +94,18 @@ body.a11y-reduced-effects {
 #hud-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: var(--space-3);
 }
 
 #objective-status {
   min-height: 18px;
-  font-size: clamp(12px, 2.6vw, 14px);
+  font-size: clamp(13px, 2.8vw, 15px);
+  font-weight: 700;
+  line-height: 1.2;
   color: var(--color-sem-control);
-  letter-spacing: 0.7px;
-  text-shadow: 0 0 10px rgba(155, 215, 255, 0.22);
+  letter-spacing: 0.55px;
+  text-shadow: 0 0 12px rgba(155, 215, 255, 0.3);
   transition: color 120ms ease, text-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
 }
 
@@ -118,15 +121,19 @@ body.a11y-reduced-effects {
 #title-text {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: var(--font-size-title);
+  font-size: clamp(13px, 3.6vw, 17px);
   color: var(--color-accent);
   text-shadow: var(--glow-accent-title);
-  letter-spacing: 2.4px;
+  letter-spacing: 1.4px;
 }
 
 #stats-bar {
   display: flex;
-  gap: clamp(8px, 3vw, 18px);
+  gap: clamp(6px, 2.4vw, 12px);
+  padding: 2px 6px;
+  border-radius: 9px;
+  background: rgba(7, 16, 36, 0.72);
+  border: 1px solid rgba(84, 138, 196, 0.24);
 }
 
 .stat {
@@ -136,16 +143,37 @@ body.a11y-reduced-effects {
   gap: 1px;
 }
 
+.stat[data-priority="primary"] .stat-val {
+  font-size: clamp(13px, 3.2vw, 17px);
+}
+
+.stat[data-priority="secondary"] .stat-label {
+  opacity: 0.85;
+}
+
 .stat-label {
-  color: var(--color-text-dim);
-  font-size: var(--font-size-stat-label);
-  letter-spacing: 1.1px;
+  color: var(--color-text-tertiary);
+  font-size: clamp(8px, 1.8vw, 10px);
+  letter-spacing: 0.8px;
   text-transform: uppercase;
 }
 
 .stat-val {
-  color: var(--color-accent);
-  font-size: var(--font-size-stat-value);
+  color: var(--color-text-primary);
+  font-size: clamp(12px, 3vw, 16px);
+  font-weight: 700;
+}
+
+#run-num {
+  color: var(--color-sem-control);
+}
+
+#score-disp {
+  color: var(--color-sem-economy);
+}
+
+#floor-disp {
+  color: var(--color-sem-heal);
 }
 
 #game-area {
@@ -342,9 +370,18 @@ button:focus-visible {
   font-family: var(--font-ui);
   font-size: clamp(9px, 1.9vw, 11px);
   color: var(--color-sem-control-muted);
-  letter-spacing: 0.8px;
+  letter-spacing: 0.6px;
   min-height: 12px;
+  opacity: 0.94;
   transition: color 120ms ease, text-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
+}
+
+#run-status[data-state="idle"] {
+  opacity: 0.72;
+}
+
+#run-status[data-state="active"] {
+  opacity: 0.98;
 }
 
 #objective-status[data-juice="danger"],

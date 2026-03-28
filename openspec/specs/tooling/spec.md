@@ -218,3 +218,15 @@ The system SHALL enforce this contract as part of the znake-tooling-failure-memo
 - **THEN** the defined contract behavior is applied consistently
 - **AND** deterministic simulation behavior remains unchanged.
 
+### Requirement: Content consumers depend on repository interfaces, not concrete loaders
+Runtime content consumers SHALL resolve content packs through repository ports so loaders remain replaceable in tests and future tooling flows.
+
+#### Scenario: Default repository preserves existing pack resolution
+- **WHEN** runtime requests a content pack through the repository port without custom injection
+- **THEN** resolution behavior and fallback semantics match the current default content-pack resolver
+- **AND** deterministic run setup remains unchanged.
+
+#### Scenario: Injected repository can override content source in deterministic tests
+- **WHEN** a custom repository implementation is injected into the content resolution port
+- **THEN** runtime consumers receive the injected resolved pack payload
+- **AND** the port contract keeps stable `pack` and `fallbackApplied` fields.

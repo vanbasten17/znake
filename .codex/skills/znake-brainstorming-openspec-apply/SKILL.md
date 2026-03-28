@@ -20,6 +20,9 @@ Use this as the single skill for proposal-first change creation, OpenSpec sync, 
 - Use active OpenSpec change directories under `openspec/changes/` as the only temporary queue.
 - Prioritize active changes from simple/low-impact/fast to harder/deeper work.
 - Continue execution cycles in the same run until active OpenSpec changes are empty or a real blocker is reached.
+- Do not stop autoloop by assistant judgment while active changes remain.
+- Do not emit a terminal/final completion message while active changes remain.
+- Interim progress reporting MUST stay in-loop (status + next loop) unless the user explicitly asks to pause.
 - After active ideas are implemented and validated, proceed with archive, then commit flow (`apply -> archive -> commit`).
 - Do not collapse large backlogs into one umbrella change unless the user explicitly asks for a single combined change.
 - When user provides an explicit count (N), prioritize producing N concrete OpenSpec changes over maintaining a separate ideation backlog layer.
@@ -37,6 +40,7 @@ Treat execution as a strict loop system inspired by "single-task-per-loop" orche
   - behavior changes are non-trivial, or
   - archive is about to run.
 - For low-risk internal refactors, continue automatically unless the user requested manual gating.
+- If the user explicitly requests "continue until finish" or equivalent, do not pause for confirmation between loops unless a real blocker is reached.
 
 3. Failure-domain hardening:
 - On any failed validation/test/check:

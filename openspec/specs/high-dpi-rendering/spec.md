@@ -27,3 +27,15 @@ The CRT scanline and bloom effects SHALL adapt to the high-resolution canvas by 
 - **THEN** the horizontal scanline frequency must increase proportionally to `uResolution.y`
 - **AND** the resulting scanlines must be thinner than at the previous 40px scale, providing a "High-Definition Retro" look.
 
+### Requirement: Particle Effects Respect Deterministic Per-Frame Budgets
+The system SHALL cap particle emission with deterministic frame and active-pool budgets so high-density rendering keeps stable visual feedback.
+
+#### Scenario: Reduced effects tier lowers particle density without disabling feedback
+- **WHEN** reduced effects mode is enabled
+- **THEN** particle bursts MUST use a lower density scale and tighter frame budget than balanced mode
+- **AND** at least one particle can still render when budget is available.
+
+#### Scenario: Per-frame allocation prevents burst overflow
+- **WHEN** multiple particle bursts happen during the same update cycle
+- **THEN** emission MUST stop when the per-frame cap is exhausted
+- **AND** remaining particles in the same cycle are deferred by returning zero allocation.

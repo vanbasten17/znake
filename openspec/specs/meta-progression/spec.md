@@ -127,3 +127,17 @@ The system SHALL expose branching meta-board status derived from deterministic p
 - **THEN** branch status is derived from existing unlocked progression elements
 - **AND** scene code remains presentation/orchestration only
 
+
+### Requirement: Specialization lane state contract
+
+The system SHALL expose deterministic specialization-lane states derived from unlocked meta talent progression.
+
+#### Scenario: Lane states map to progression tiers
+- **WHEN** unlocked talents are grouped by lane branch
+- **THEN** each branch resolves into bounded specialization states (`locked`, `balanced`, `committed`)
+- **AND** equivalent profile inputs produce equivalent lane outputs.
+
+#### Scenario: Dominant lane detection is tie-safe
+- **WHEN** lane tier counts are evaluated
+- **THEN** dominant marker is emitted only when one branch is uniquely highest
+- **AND** ties do not emit dominant branch.

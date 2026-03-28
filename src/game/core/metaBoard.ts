@@ -16,6 +16,13 @@ export type MetaBoardBranchStatus = {
   nextNodeLabel: string
 }
 
+export type MetaSpecializationLane = {
+  branch: MetaBoardBranchId
+  unlockedTiers: number
+  specialization: 'locked' | 'balanced' | 'committed'
+  dominant: boolean
+}
+
 const TALENT_TO_BRANCH: Record<TalentId, MetaBoardBranchId> = {
   speed_1: 'tempo',
   speed_2: 'tempo',
@@ -53,9 +60,9 @@ const META_BOARD_NODES: ReadonlyArray<MetaBoardNode> = [
 
 export const getMetaBoardNodes = (): ReadonlyArray<MetaBoardNode> => META_BOARD_NODES
 
-export const getMetaBoardBranchStatus = (
+export const getMetaSpecializationLanes = (
   profile: PlayerProfile,
-): ReadonlyArray<MetaBoardBranchStatus> => {
+): ReadonlyArray<MetaSpecializationLane> => {
   const unlockedByBranch: Record<MetaBoardBranchId, number> = {
     tempo: 0,
     stability: 0,
@@ -64,12 +71,30 @@ export const getMetaBoardBranchStatus = (
   for (const talentId of profile.unlockedTalents) {
     unlockedByBranch[TALENT_TO_BRANCH[talentId]] += 1
   }
+  const tiersByBranch = BRANCH_ORDER.map((branch) => Math.min(2, unlockedByBranch[branch]))
+  const maxTiers = Math.max(...tiersByBranch)
+  const dominantCount = tiersByBranch.filter((value) => value === maxTiers && value > 0).length
   return BRANCH_ORDER.map((branch) => {
     const unlockedTiers = Math.min(2, unlockedByBranch[branch])
-    const node = META_BOARD_NODES.find((candidate) => candidate.branch === branch)
     return {
       branch,
       unlockedTiers,
+      specialization:
+        unlockedTiers >= 2 ? 'committed' : unlockedTiers === 1 ? 'balanced' : 'locked',
+      dominant: dominantCount === 1 && unlockedTiers === maxTiers && unlockedTiers > 0,
+    }
+  })
+}
+
+export const getMetaBoardBranchStatus = (
+  profile: PlayerProfile,
+): ReadonlyArray<MetaBoardBranchStatus> => {
+  const lanes = getMetaSpecializationLanes(profile)
+  return lanes.map((lane) => {
+    const node = META_BOARD_NODES.find((candidate) => candidate.branch === lane.branch)
+    return {
+      branch: lane.branch,
+      unlockedTiers: lane.unlockedTiers,
       nextNodeLabel: node?.label ?? 'Branch',
     }
   })

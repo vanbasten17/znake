@@ -60,3 +60,17 @@ The system SHALL accept URL-safe challenge-share body variants by canonical norm
 - **THEN** parser returns deterministic failure reason
 - **AND** malformed share code does not trigger run start
 
+
+### Requirement: Heat tier mutator ladder contract
+
+The system SHALL support deterministic heat-tier mutator stacking derived from preset mutator context.
+
+#### Scenario: Heat-tier stack derivation is deterministic
+- **WHEN** forced mutator context and heat-tier input are provided
+- **THEN** mutator stack order resolves deterministically from canonical pool rotation
+- **AND** equivalent inputs produce equivalent stack results.
+
+#### Scenario: Heat-tier bounds are explicit and safe
+- **WHEN** heat-tier input falls outside supported bounds
+- **THEN** input is clamped before stack derivation
+- **AND** stack output remains valid and bounded.

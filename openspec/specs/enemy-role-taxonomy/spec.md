@@ -82,3 +82,28 @@ Role cadence outcomes SHALL remain deterministic for identical seed, depth-band 
 - **THEN** role composition cadence outcomes match across floors
 - **AND** scene render/update ordering does not alter role cadence resolution
 
+### Requirement: Enemy pathfinding uses strategy service interfaces
+Enemy chase-path preference resolution SHALL be routed through a dedicated strategy service interface.
+
+#### Scenario: Default strategy preserves deterministic chase preference ordering
+- **WHEN** enemy pathfinding resolves preferred directions through default service
+- **THEN** returned directions remain cardinal and deterministically prioritized from simulation inputs
+- **AND** behavior remains equivalent to prior enemy chase intent.
+
+#### Scenario: Strategy interface allows deterministic override in tests
+- **WHEN** a custom pathfinding strategy service is provided
+- **THEN** preferred-direction resolution uses that service output
+- **AND** simulation callers preserve deterministic ordering semantics.
+
+### Requirement: Dangerous enemy actions are telegraphed before execution
+High-risk enemy actions SHALL expose deterministic telegraph state before commit.
+
+#### Scenario: Ambusher dash telegraph appears before movement commit
+- **WHEN** ambusher dash intent is triggered
+- **THEN** enemy enters `ambusher_dash` telegraph state with remaining ticks
+- **AND** readability state reports active telegraph window before dash execution.
+
+#### Scenario: Egg hatch countdown remains telegraphed while pending
+- **WHEN** egg hatch countdown is still above zero
+- **THEN** enemy readability telegraph state stays active with bounded remaining counterplay ticks
+- **AND** hatch conversion is deferred until countdown reaches zero.

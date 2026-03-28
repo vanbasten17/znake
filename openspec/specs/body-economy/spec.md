@@ -53,3 +53,16 @@ Body spend validation SHALL include deterministic terrain-aware recoverability c
 - **THEN** spend validation includes terrain recoverability checks before spend is applied
 - **AND** successful spends remain deterministic and bounded by existing usage limits
 
+
+### Requirement: Panic recovery guard window
+Body economy SHALL expose a bounded low-health panic recovery window with deterministic cooldown gating.
+
+#### Scenario: Panic window arms at low-health threshold
+- **WHEN** runtime body economy tick observes snake length near spend floor and cooldown is clear
+- **THEN** panic-recovery window arms for a short bounded duration
+- **AND** cooldown begins to prevent immediate rearming.
+
+#### Scenario: Emergency spend fallback is one-shot per panic window
+- **WHEN** body pulse spend would fail at spend floor while panic window is active
+- **THEN** emergency fallback allows one deterministic pulse without additional segment spend
+- **AND** panic active window is consumed before subsequent spend attempts.

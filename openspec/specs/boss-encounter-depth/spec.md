@@ -36,3 +36,15 @@ The system SHALL expose boss identity context that includes deterministic phase-
 - **THEN** identity payload includes stable remix context in addition to base boss identity
 - **AND** equivalent runs produce equivalent identity+remix tuples
 
+### Requirement: Boss counterplay cue text maps phase to punish guidance
+The system SHALL map deterministic boss/elite phase state into explicit counterplay-window and punish-loop cue copy.
+
+#### Scenario: Boss cue copy includes identity and phase guidance
+- **WHEN** boss cue text is resolved for telegraph, commit, or recovery state
+- **THEN** output includes boss identity/remix context and phase-specific window or punish guidance
+- **AND** equivalent state inputs resolve identical cue text.
+
+#### Scenario: Elite cue copy reuses deterministic phase mapping
+- **WHEN** elite miniboss cue text is resolved from phase state
+- **THEN** phase labels map to stable counterplay/punish wording
+- **AND** cue output does not depend on nondeterministic state.

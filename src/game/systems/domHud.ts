@@ -1,6 +1,7 @@
 import { gameState } from '../core/state'
 import { isKeyboardMode } from './controlScheme'
 import { t } from './i18n'
+import { buildScoreHudViewModel, buildStatusHudViewModel } from './uiViewModelPresenter'
 
 const byId = <T extends HTMLElement>(id: string): T => {
   const node = document.getElementById(id)
@@ -50,6 +51,10 @@ const setShellClasses = (mode: UiShellMode): void => {
 }
 
 let lastRunStatusText = ''
+const setRunStatusEmphasis = (hasContent: boolean): void => {
+  const runStatus = resolveHudNodes().runStatus
+  runStatus.dataset.state = hasContent ? 'active' : 'idle'
+}
 
 export const setUiShell = (mode: UiShellMode): void => {
   document.body.dataset.uiShell = mode
@@ -58,6 +63,7 @@ export const setUiShell = (mode: UiShellMode): void => {
     lastRunStatusText = ''
     resolveHudNodes().runStatus.textContent = ''
     resolveHudNodes().routeStatus.textContent = ''
+    setRunStatusEmphasis(false)
   }
 }
 
@@ -85,11 +91,17 @@ export const setHintText = (value: string): void => {
 }
 
 export const setRunStatusText = (value: string): void => {
-  if (value === lastRunStatusText) {
+  const viewModel = buildStatusHudViewModel({
+    runStatusText: value,
+    objectiveStatusText: '',
+    routeStatusText: '',
+  })
+  if (viewModel.runStatusText === lastRunStatusText) {
     return
   }
-  lastRunStatusText = value
-  resolveHudNodes().runStatus.textContent = value
+  lastRunStatusText = viewModel.runStatusText
+  resolveHudNodes().runStatus.textContent = viewModel.runStatusText
+  setRunStatusEmphasis(viewModel.runStatusActive)
 }
 
 export const setObjectiveStatusText = (value: string): void => {
@@ -147,9 +159,15 @@ export const getRewardHintText = (): string =>
   isKeyboardMode() ? t('hint.rewardKeyboard') : t('hint.rewardTouch')
 
 export const updateHud = (score: number): void => {
+  const viewModel = buildScoreHudViewModel({
+    score,
+    floor: gameState.floor,
+    kills: gameState.kills,
+    run: gameState.run,
+  })
   const { scoreDisp, floorDisp, killsDisp, runNum } = resolveHudNodes()
-  scoreDisp.textContent = String(score)
-  floorDisp.textContent = String(gameState.floor)
-  killsDisp.textContent = String(gameState.kills)
-  runNum.textContent = String(gameState.run)
+  scoreDisp.textContent = viewModel.scoreText
+  floorDisp.textContent = viewModel.floorText
+  killsDisp.textContent = viewModel.killsText
+  runNum.textContent = viewModel.runText
 }

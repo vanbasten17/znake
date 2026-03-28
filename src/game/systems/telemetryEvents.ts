@@ -1,49 +1,37 @@
-import { trackRetentionEvent } from './telemetry'
-
-type TelemetryValue = number | string | boolean | null | undefined
-
-type TelemetryPayload = {
-  [key: string]: TelemetryValue
-}
-
-const normalizePayload = (
-  payload: TelemetryPayload,
-): Record<string, number | string | boolean | null> => {
-  const normalized: Record<string, number | string | boolean | null> = {}
-  for (const [key, value] of Object.entries(payload)) {
-    normalized[key] = value ?? null
-  }
-  return normalized
-}
+import {
+  type TelemetryPayload,
+  emitTelemetryEvent,
+  normalizeTelemetryPayload,
+} from './telemetryGateway'
 
 export const trackRunStart = (payload: TelemetryPayload): void => {
-  trackRetentionEvent('run_start', normalizePayload(payload))
+  emitTelemetryEvent('run_start', normalizeTelemetryPayload(payload))
 }
 
 export const trackInputMode = (payload: TelemetryPayload): void => {
-  trackRetentionEvent('input_mode', normalizePayload(payload))
+  emitTelemetryEvent('input_mode', normalizeTelemetryPayload(payload))
 }
 
 export const trackGoalProgressed = (payload: TelemetryPayload): void => {
-  trackRetentionEvent('goal_progressed', normalizePayload(payload))
+  emitTelemetryEvent('goal_progressed', normalizeTelemetryPayload(payload))
 }
 
 export const trackRewardPicked = (payload: TelemetryPayload): void => {
-  trackRetentionEvent('reward_picked', normalizePayload(payload))
+  emitTelemetryEvent('reward_picked', normalizeTelemetryPayload(payload))
 }
 
 export const trackObjectiveCompleted = (payload: TelemetryPayload): void => {
-  trackRetentionEvent('objective_completed', normalizePayload(payload))
+  emitTelemetryEvent('objective_completed', normalizeTelemetryPayload(payload))
 }
 
 export const trackRouteMasteryDecision = (payload: TelemetryPayload): void => {
-  trackRetentionEvent('route_mastery_decision', normalizePayload(payload))
+  emitTelemetryEvent('route_mastery_decision', normalizeTelemetryPayload(payload))
 }
 
 export const trackRunRewardBreakdown = (payload: TelemetryPayload): void => {
-  trackRetentionEvent('run_reward_breakdown', normalizePayload(payload))
+  emitTelemetryEvent('run_reward_breakdown', normalizeTelemetryPayload(payload))
 }
 
 export const trackRunEnd = (payload: TelemetryPayload): void => {
-  trackRetentionEvent('run_end', normalizePayload(payload))
+  emitTelemetryEvent('run_end', normalizeTelemetryPayload(payload))
 }

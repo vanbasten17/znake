@@ -53,10 +53,15 @@ const canSpendBodySegments = (params: {
 }): boolean =>
   params.snakeLength - Math.max(1, Math.floor(params.spendCost)) >= params.minSpendableLength
 
+const PANIC_RECOVERY_ACTIVE_MS = 1500
+const PANIC_RECOVERY_COOLDOWN_MS = 12000
+
 export const createInitialBodyEconomyRuntimeState = (): BodyEconomyRuntimeState => ({
   bodyPulseCooldownMs: 0,
   bodyPulseActiveMs: 0,
   rewardOverclockUsesInWindow: 0,
+  panicRecoveryActiveMs: 0,
+  panicRecoveryCooldownMs: 0,
 })
 
 export const tickBodyEconomyRuntimeState = (
@@ -68,6 +73,8 @@ export const tickBodyEconomyRuntimeState = (
     ...state,
     bodyPulseCooldownMs: Math.max(0, state.bodyPulseCooldownMs - decayMs),
     bodyPulseActiveMs: Math.max(0, state.bodyPulseActiveMs - decayMs),
+    panicRecoveryActiveMs: Math.max(0, state.panicRecoveryActiveMs - decayMs),
+    panicRecoveryCooldownMs: Math.max(0, state.panicRecoveryCooldownMs - decayMs),
   }
 }
 
@@ -97,6 +104,33 @@ export const resolveBodyPulseSpend = (
       minSpendableLength: params.config.bodySpendMinLength,
     })
   ) {
+    if (params.state.panicRecoveryActiveMs > 0) {
+      return {
+        outcome: {
+          status: 'applied',
+          source: 'body_pulse',
+          spentSegments: 0,
+          blockedReason: null,
+        },
+        state: {
+          ...params.state,
+          panicRecoveryActiveMs: 0,
+          bodyPulseCooldownMs: Math.max(0, params.config.bodyPulseCooldownMs),
+          bodyPulseActiveMs: Math.max(0, params.config.bodyPulseDurationMs),
+        },
+      }
+    }
+    const panicTriggerLength = Math.max(1, params.config.bodySpendMinLength + 1)
+    if (params.snakeLength <= panicTriggerLength && params.state.panicRecoveryCooldownMs <= 0) {
+      return {
+        outcome: buildBlockedOutcome('body_pulse', 'below_floor'),
+        state: {
+          ...params.state,
+          panicRecoveryActiveMs: PANIC_RECOVERY_ACTIVE_MS,
+          panicRecoveryCooldownMs: PANIC_RECOVERY_COOLDOWN_MS,
+        },
+      }
+    }
     return {
       outcome: buildBlockedOutcome('body_pulse', 'below_floor'),
       state: params.state,

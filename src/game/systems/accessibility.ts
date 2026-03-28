@@ -1,4 +1,9 @@
 import { STORAGE_KEYS } from '../core/constants'
+import {
+  PRESET_VISUAL_SETTINGS,
+  resolveAccessibilityPresetIdFromSettings,
+  resolveVisualAccessibilityClasses,
+} from './accessibilityVisualProfiles'
 
 export type AccessibilitySettings = {
   highContrast: boolean
@@ -20,27 +25,6 @@ const DEFAULT_SETTINGS: AccessibilitySettings = {
 }
 
 const VISUAL_ACCESSIBILITY_MENU_ENABLED = true
-
-const PRESET_SETTINGS: Record<
-  Exclude<AccessibilityPresetId, 'custom'>,
-  Omit<AccessibilitySettings, 'voiceEnabled' | 'audioProfile'>
-> = {
-  default: {
-    highContrast: false,
-    largeText: false,
-    reducedEffects: false,
-  },
-  clarity: {
-    highContrast: true,
-    largeText: true,
-    reducedEffects: false,
-  },
-  comfort: {
-    highContrast: false,
-    largeText: true,
-    reducedEffects: true,
-  },
-}
 
 let settings: AccessibilitySettings = { ...DEFAULT_SETTINGS }
 let systemReducedMotion = false
@@ -68,19 +52,6 @@ const parseSettings = (raw: string | null): AccessibilitySettings => {
   }
 }
 
-const resolvePresetFromSettings = (value: AccessibilitySettings): AccessibilityPresetId => {
-  for (const [presetId, preset] of Object.entries(PRESET_SETTINGS)) {
-    if (
-      value.highContrast === preset.highContrast &&
-      value.largeText === preset.largeText &&
-      value.reducedEffects === preset.reducedEffects
-    ) {
-      return presetId as AccessibilityPresetId
-    }
-  }
-  return 'custom'
-}
-
 const saveSettings = (): void => {
   try {
     localStorage.setItem(STORAGE_KEYS.accessibility, JSON.stringify(settings))
@@ -91,14 +62,15 @@ const saveSettings = (): void => {
 
 const applySettings = (): void => {
   const body = document.body
-  const visualEnabled = VISUAL_ACCESSIBILITY_MENU_ENABLED
-  body.classList.toggle('a11y-high-contrast', visualEnabled && settings.highContrast)
-  body.classList.toggle('a11y-large-text', visualEnabled && settings.largeText)
-  body.classList.toggle(
-    'a11y-reduced-effects',
-    visualEnabled && (settings.reducedEffects || systemReducedMotion),
-  )
-  body.classList.toggle('a11y-system-reduced-motion', visualEnabled && systemReducedMotion)
+  const classes = resolveVisualAccessibilityClasses({
+    settings,
+    visualEnabled: VISUAL_ACCESSIBILITY_MENU_ENABLED,
+    systemReducedMotion,
+  })
+  body.classList.toggle('a11y-high-contrast', classes.highContrast)
+  body.classList.toggle('a11y-large-text', classes.largeText)
+  body.classList.toggle('a11y-reduced-effects', classes.reducedEffects)
+  body.classList.toggle('a11y-system-reduced-motion', classes.systemReducedMotion)
 }
 
 const syncSystemReducedMotionPreference = (): void => {
@@ -144,7 +116,7 @@ export const updateAccessibilitySettings = (patch: Partial<AccessibilitySettings
 }
 
 export const getAccessibilityPresetId = (): AccessibilityPresetId =>
-  resolvePresetFromSettings(settings)
+  resolveAccessibilityPresetIdFromSettings(settings)
 
 export const cycleAccessibilityPreset = (): AccessibilityPresetId => {
   const sequence: Array<Exclude<AccessibilityPresetId, 'custom'>> = [
@@ -157,7 +129,7 @@ export const cycleAccessibilityPreset = (): AccessibilityPresetId => {
   const nextId = sequence[(baseIndex + 1) % sequence.length] ?? 'default'
   settings = {
     ...settings,
-    ...PRESET_SETTINGS[nextId],
+    ...PRESET_VISUAL_SETTINGS[nextId],
   }
   saveSettings()
   applySettings()

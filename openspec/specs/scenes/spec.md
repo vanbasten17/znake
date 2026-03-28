@@ -49,6 +49,14 @@ The system SHALL render gameplay UI text in the active locale and orchestrate lo
 - **THEN** scene code uses shared overlay/copy presenter helpers instead of repeating near-identical builders
 - **AND** UX behavior remains equivalent unless explicitly changed by a separate gameplay/UI proposal
 
+### Requirement: Scene assets are loaded through a centralized facade
+Scene-level asset bootstrapping SHALL route through a reusable loading facade so scene orchestration stays modular.
+
+#### Scenario: Game scene delegates core asset bootstrap to facade
+- **WHEN** `GameScene` starts runtime setup for marker textures
+- **THEN** it calls the shared scene asset-loading facade instead of directly invoking concrete texture registration functions
+- **AND** resulting texture availability and gameplay behavior remain equivalent.
+
 ### Requirement: Dev reference board marker preview
 
 When the **dev reference board** scenario is active, the system SHALL render each glossary marker preview cell using the same **hi-res marker textures** (`marker_hi_<tone>`) used for gameplay world markers, so optional `marker_<tone>.png` bitmaps and procedural fallbacks match guide and in-game appearance.
@@ -230,6 +238,19 @@ The system SHALL provide short deterministic feedback cues after event resolutio
 - **WHEN** an event option resolves
 - **THEN** the overlay or HUD shows a short summary of applied costs and benefits
 - **AND** the summary text matches the configured deterministic outcome payload
+
+### Requirement: Scene transitions are routed through a dedicated state machine
+Game-scene update flow SHALL resolve a deterministic loop phase before routing scene actions.
+
+#### Scenario: Loop phase resolution preserves branch priority
+- **WHEN** paused/reference/hit-stop/overlay-blocked conditions overlap
+- **THEN** the scene loop resolves a single phase with stable priority ordering
+- **AND** simulation advances only in the simulation-ready phase.
+
+#### Scenario: Overlay and hit-stop branches remain non-simulating
+- **WHEN** loop phase is `hit_stop` or `overlay_blocked`
+- **THEN** scene draws background/frame without running simulation step updates
+- **AND** behavior remains equivalent to pre-refactor branch outcomes.
 
 ### Requirement: Mutator readability surfaces in game scene
 
@@ -553,4 +574,3 @@ The system SHALL enforce this contract as part of the znake-scene-flow-transitio
 - **WHEN** the relevant runtime or UI path executes
 - **THEN** the defined contract behavior is applied consistently
 - **AND** deterministic simulation behavior remains unchanged.
-

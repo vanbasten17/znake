@@ -382,6 +382,8 @@ export type BodyEconomyRuntimeState = {
   bodyPulseCooldownMs: number
   bodyPulseActiveMs: number
   rewardOverclockUsesInWindow: number
+  panicRecoveryActiveMs: number
+  panicRecoveryCooldownMs: number
 }
 
 export type Enemy = {

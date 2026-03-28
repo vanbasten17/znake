@@ -1,5 +1,5 @@
 import { createSeededRng, deriveRunSeed } from '../simulation/rng'
-import type { Upgrade, UpgradeFamily, UpgradeFamilyDefinition } from './types'
+import type { RunConfig, Upgrade, UpgradeFamily, UpgradeFamilyDefinition } from './types'
 
 export const UPGRADE_FAMILIES: Record<UpgradeFamily, UpgradeFamilyDefinition> = {
   aggro: {
@@ -221,6 +221,26 @@ export const UPGRADE_POOL: Upgrade[] = [
     },
   },
 ]
+
+export type UpgradeApplyStrategy = (cfg: RunConfig) => void
+
+const buildUpgradeStrategyRegistry = (
+  pool: ReadonlyArray<Upgrade>,
+): Record<string, UpgradeApplyStrategy> =>
+  pool.reduce<Record<string, UpgradeApplyStrategy>>((registry, upgrade) => {
+    registry[upgrade.id] = upgrade.apply
+    return registry
+  }, {})
+
+const UPGRADE_STRATEGY_REGISTRY = buildUpgradeStrategyRegistry(UPGRADE_POOL)
+
+export const resolveUpgradeStrategy = (upgradeId: string): UpgradeApplyStrategy | null =>
+  UPGRADE_STRATEGY_REGISTRY[upgradeId] ?? null
+
+export const applyUpgradeStrategy = (cfg: RunConfig, upgrade: Upgrade): void => {
+  const strategy = resolveUpgradeStrategy(upgrade.id) ?? upgrade.apply
+  strategy(cfg)
+}
 
 const pickUpgradeForFamily = (
   family: UpgradeFamily,

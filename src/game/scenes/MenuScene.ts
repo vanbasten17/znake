@@ -56,6 +56,13 @@ import { setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { getLanguage, t, toggleLanguage } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
+import {
+  type MenuNavTab,
+  canStartRunFromMenuTab,
+  resolveMenuTabByOffset,
+  resolveMenuTabHotkey,
+} from '../systems/menuNavigation'
+import { isMenuParallaxEnabled } from '../systems/menuParallax'
 import { getObjectivePreviewText } from '../systems/objectivePresenter'
 import { getReleaseDisclosureLinks, getReleaseMetadata } from '../systems/release'
 import { transitionToScene } from '../systems/sceneFlow'
@@ -141,6 +148,9 @@ export class MenuScene extends Phaser.Scene {
   private glossaryListEl: HTMLDivElement | null = null
   private releaseDiagnosticsEl: HTMLParagraphElement | null = null
   private onboardingActionButtons: HTMLButtonElement[] = []
+  private activeMenuTab: MenuNavTab = 'play'
+  private menuNavButtons: Partial<Record<MenuNavTab, HTMLButtonElement>> = {}
+  private menuPanels: Partial<Record<MenuNavTab, HTMLDivElement>> = {}
   private glossaryCategory: GlossaryCategoryId = 'items'
   private readonly devMode = isDevMode()
 
@@ -162,6 +172,9 @@ export class MenuScene extends Phaser.Scene {
     this.glossaryCategory = 'items'
     this.glossaryTabButtons = {}
     this.onboardingActionButtons = []
+    this.activeMenuTab = 'play'
+    this.menuNavButtons = {}
+    this.menuPanels = {}
     if (!Number.isFinite(gameState.runObjectiveOffset)) {
       gameState.runObjectiveOffset = 0
     }
@@ -235,13 +248,27 @@ export class MenuScene extends Phaser.Scene {
     currencyText.append(this.currencyValueEl)
     stats.append(currencyText)
 
-    const playSectionTitle = document.createElement('p')
-    playSectionTitle.className = styles.sectionLabel
-    playSectionTitle.textContent = t('menu.sectionPlay')
-    root.append(playSectionTitle)
+    const contentPanels = createEl('div', styles.contentPanels)
+    root.append(contentPanels)
+
+    const createPanel = (tab: MenuNavTab, labelKey: string): HTMLDivElement => {
+      const panel = createEl('div', styles.contentPanel)
+      const panelTitle = document.createElement('p')
+      panelTitle.className = styles.sectionLabel
+      panelTitle.textContent = t(labelKey)
+      panel.append(panelTitle)
+      contentPanels.append(panel)
+      this.menuPanels[tab] = panel
+      return panel
+    }
+
+    const playPanel = createPanel('play', 'menu.sectionPlay')
+    const progressPanel = createPanel('progress', 'menu.sectionHistory')
+    const settingsPanel = createPanel('settings', 'menu.sectionBuild')
+    const accessibilityPanel = createPanel('accessibility', 'menu.accessibility')
 
     const playSection = createEl('div', styles.playSection)
-    root.append(playSection)
+    playPanel.append(playSection)
 
     const objective = document.createElement('p')
     objective.className = styles.nextObjective
@@ -291,24 +318,14 @@ export class MenuScene extends Phaser.Scene {
     })
     challengeActions.append(importChallenge)
 
-    const historySectionTitle = document.createElement('p')
-    historySectionTitle.className = styles.sectionLabel
-    historySectionTitle.textContent = t('menu.sectionHistory')
-    root.append(historySectionTitle)
-
     const history = document.createElement('div')
     history.className = styles.runHistory
-    root.append(history)
+    progressPanel.append(history)
     this.runHistoryEl = history
-
-    const buildSectionTitle = document.createElement('p')
-    buildSectionTitle.className = styles.sectionLabel
-    buildSectionTitle.textContent = t('menu.sectionBuild')
-    root.append(buildSectionTitle)
 
     const accessibility = document.createElement('div')
     accessibility.className = styles.accessibility
-    root.append(accessibility)
+    accessibilityPanel.append(accessibility)
 
     const accessibilityTitle = document.createElement('p')
     accessibilityTitle.className = styles.accessibilityTitle
@@ -455,11 +472,11 @@ export class MenuScene extends Phaser.Scene {
     const talentTitle = document.createElement('p')
     talentTitle.className = styles.shopTitle
     talentTitle.textContent = t('menu.talentShop')
-    root.append(talentTitle)
+    settingsPanel.append(talentTitle)
 
     const talentList = document.createElement('div')
     talentList.className = styles.talents
-    root.append(talentList)
+    settingsPanel.append(talentList)
     for (const [index, talent] of TALENT_TREE.entries()) {
       const row = document.createElement('button')
       row.type = 'button'
@@ -511,15 +528,15 @@ export class MenuScene extends Phaser.Scene {
 
     this.goalsTitleEl = document.createElement('p')
     this.goalsTitleEl.className = styles.goalsTitle
-    root.append(this.goalsTitleEl)
+    progressPanel.append(this.goalsTitleEl)
 
     this.masteryFocusEl = document.createElement('p')
     this.masteryFocusEl.className = styles.masteryFocus
-    root.append(this.masteryFocusEl)
+    progressPanel.append(this.masteryFocusEl)
 
     const goals = document.createElement('div')
     goals.className = styles.goals
-    root.append(goals)
+    progressPanel.append(goals)
     for (const goal of PROGRESSION_GOALS) {
       const goalEl = document.createElement('button')
       goalEl.type = 'button'
@@ -578,7 +595,7 @@ export class MenuScene extends Phaser.Scene {
     if (releaseLinks.childElementCount > 0) {
       releaseBlock.append(releaseLinks)
     }
-    root.append(releaseBlock)
+    settingsPanel.append(releaseBlock)
 
     if (this.devMode) {
       const devSection = document.createElement('div')
@@ -604,13 +621,29 @@ export class MenuScene extends Phaser.Scene {
         devRows.append(button)
       }
 
-      root.append(devSection)
+      settingsPanel.append(devSection)
+    }
+
+    const nav = createEl('div', styles.bottomNav)
+    root.append(nav)
+    const navTabs: Array<[MenuNavTab, string]> = [
+      ['play', 'menu.tabPlay'],
+      ['progress', 'menu.tabProgress'],
+      ['settings', 'menu.tabSettings'],
+      ['accessibility', 'menu.tabAccessibility'],
+    ]
+    for (const [tab, labelKey] of navTabs) {
+      const navButton = createButton(styles.bottomNavButton, t(labelKey))
+      navButton.addEventListener('click', () => this.setActiveMenuTab(tab))
+      nav.append(navButton)
+      this.menuNavButtons[tab] = navButton
     }
 
     this.mountGlossaryModal(root)
 
     gameArea.append(root)
     this.overlayRoot = root
+    this.setActiveMenuTab(this.activeMenuTab, { silent: true })
     this.refreshMetaUi()
   }
 
@@ -640,7 +673,29 @@ export class MenuScene extends Phaser.Scene {
     this.glossaryListEl = null
     this.releaseDiagnosticsEl = null
     this.onboardingActionButtons = []
+    this.menuNavButtons = {}
+    this.menuPanels = {}
     this.glossaryOpen = false
+  }
+
+  private setActiveMenuTab(nextTab: MenuNavTab, options?: { silent?: boolean }): void {
+    this.activeMenuTab = nextTab
+    for (const [tab, panel] of Object.entries(this.menuPanels) as Array<
+      [MenuNavTab, HTMLDivElement | undefined]
+    >) {
+      if (!panel) continue
+      panel.classList.toggle(styles.contentPanelActive, tab === nextTab)
+    }
+    for (const [tab, button] of Object.entries(this.menuNavButtons) as Array<
+      [MenuNavTab, HTMLButtonElement | undefined]
+    >) {
+      if (!button) continue
+      button.classList.toggle(styles.bottomNavButtonActive, tab === nextTab)
+      button.setAttribute('aria-pressed', tab === nextTab ? 'true' : 'false')
+    }
+    if (!options?.silent) {
+      emitFeedback('tap')
+    }
   }
 
   private onKeyDown(event: KeyboardEvent): void {
@@ -655,15 +710,40 @@ export class MenuScene extends Phaser.Scene {
     if (this.glossaryOpen) {
       return
     }
+    if (event.code === 'ArrowLeft') {
+      event.preventDefault()
+      this.cycleMenuTab(-1)
+      return
+    }
+    if (event.code === 'ArrowRight') {
+      event.preventDefault()
+      this.cycleMenuTab(1)
+      return
+    }
+    const hotkeyTab = resolveMenuTabHotkey(event.code)
+    if (hotkeyTab) {
+      this.setActiveMenuTab(hotkeyTab)
+      return
+    }
     if (event.code === 'Enter' || event.code === 'Space') {
+      if (!canStartRunFromMenuTab(this.activeMenuTab)) {
+        this.setActiveMenuTab('play')
+        return
+      }
       this.startRun()
       return
     }
     if (event.code === 'KeyD') {
+      if (this.activeMenuTab !== 'play') {
+        return
+      }
       this.startRunWithPreset('daily')
       return
     }
     if (event.code === 'KeyW') {
+      if (this.activeMenuTab !== 'play') {
+        return
+      }
       this.startRunWithPreset('weekly')
       return
     }
@@ -690,6 +770,10 @@ export class MenuScene extends Phaser.Scene {
     if (index !== undefined) {
       this.tryUnlockByIndex(index)
     }
+  }
+
+  private cycleMenuTab(direction: -1 | 1): void {
+    this.setActiveMenuTab(resolveMenuTabByOffset(this.activeMenuTab, direction))
   }
 
   private tryUnlockByIndex(index: number): void {
@@ -730,6 +814,32 @@ export class MenuScene extends Phaser.Scene {
     }
     if (this.guideButtonEl) {
       this.guideButtonEl.textContent = t('menu.guide')
+    }
+    if (this.overlayRoot) {
+      this.overlayRoot.dataset.parallax = isMenuParallaxEnabled(
+        getAccessibilitySettings().reducedEffects,
+      )
+        ? 'on'
+        : 'off'
+    }
+    if (this.menuNavButtons.play) this.menuNavButtons.play.textContent = t('menu.tabPlay')
+    if (this.menuNavButtons.progress)
+      this.menuNavButtons.progress.textContent = t('menu.tabProgress')
+    if (this.menuNavButtons.settings)
+      this.menuNavButtons.settings.textContent = t('menu.tabSettings')
+    if (this.menuNavButtons.accessibility)
+      this.menuNavButtons.accessibility.textContent = t('menu.tabAccessibility')
+    if (this.menuPanels.play?.firstElementChild) {
+      this.menuPanels.play.firstElementChild.textContent = t('menu.sectionPlay')
+    }
+    if (this.menuPanels.progress?.firstElementChild) {
+      this.menuPanels.progress.firstElementChild.textContent = t('menu.sectionHistory')
+    }
+    if (this.menuPanels.settings?.firstElementChild) {
+      this.menuPanels.settings.firstElementChild.textContent = t('menu.sectionBuild')
+    }
+    if (this.menuPanels.accessibility?.firstElementChild) {
+      this.menuPanels.accessibility.firstElementChild.textContent = t('menu.accessibility')
     }
     this.refreshRunHistoryUi()
     for (const refresh of this.talentRowRefreshers) {

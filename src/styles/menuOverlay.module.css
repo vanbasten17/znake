@@ -26,6 +26,64 @@
       rgba(18, 72, 150, 0.24) calc(var(--space-8) - 1px),
       rgba(18, 72, 150, 0.24) var(--space-8)
     );
+  isolation: isolate;
+}
+
+.overlay::before,
+.overlay::after {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.32;
+}
+
+.overlay::before {
+  background: radial-gradient(circle at 20% 26%, rgba(74, 214, 255, 0.2), transparent 54%),
+    radial-gradient(circle at 76% 72%, rgba(95, 255, 182, 0.14), transparent 56%);
+  animation: menuParallaxLayerA 14s ease-in-out infinite alternate;
+}
+
+.overlay::after {
+  background: radial-gradient(circle at 78% 24%, rgba(82, 146, 255, 0.18), transparent 52%),
+    radial-gradient(circle at 32% 78%, rgba(128, 232, 255, 0.16), transparent 58%);
+  animation: menuParallaxLayerB 18s ease-in-out infinite alternate;
+}
+
+.overlay > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes menuParallaxLayerA {
+  0% {
+    transform: translate3d(-1.2%, -0.8%, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(1.2%, 0.9%, 0) scale(1.03);
+  }
+}
+
+@keyframes menuParallaxLayerB {
+  0% {
+    transform: translate3d(1%, -0.7%, 0) scale(1.01);
+  }
+  100% {
+    transform: translate3d(-0.9%, 0.8%, 0) scale(1.035);
+  }
+}
+
+body.a11y-reduced-effects .overlay::before,
+body.a11y-reduced-effects .overlay::after {
+  animation: none;
+  opacity: 0.16;
+}
+
+.overlay[data-parallax="off"]::before,
+.overlay[data-parallax="off"]::after {
+  animation: none;
+  opacity: 0.12;
 }
 
 .top {
@@ -84,6 +142,22 @@
   flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-3);
+}
+
+.contentPanels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.contentPanel {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.contentPanelActive {
+  display: flex;
 }
 
 .runHistory {
@@ -952,6 +1026,49 @@
   line-height: 1.2;
 }
 
+.bottomNav {
+  position: sticky;
+  bottom: 0;
+  z-index: calc(var(--z-overlay) + 1);
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid rgba(92, 149, 203, 0.42);
+  border-radius: 12px;
+  background: linear-gradient(rgba(5, 14, 31, 0.94), rgba(4, 10, 24, 0.96));
+  backdrop-filter: blur(4px);
+}
+
+.bottomNavButton {
+  border: 1px solid rgba(120, 170, 230, 0.48);
+  border-radius: 9px;
+  min-height: 44px;
+  background: rgba(9, 21, 44, 0.92);
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: clamp(9px, 1.9vw, 11px);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.bottomNavButton:hover,
+.bottomNavButton:focus-visible {
+  outline: none;
+  border-color: rgba(145, 212, 255, 0.82);
+  color: var(--color-text-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.bottomNavButtonActive {
+  border-color: rgba(98, 245, 199, 0.92);
+  background: rgba(8, 35, 42, 0.96);
+  color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px rgba(69, 255, 186, 0.26);
+}
+
 @media (max-width: 420px) {
   .playActions {
     grid-template-columns: 1fr;
@@ -959,5 +1076,9 @@
 
   .challengeActions {
     grid-template-columns: 1fr;
+  }
+
+  .bottomNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

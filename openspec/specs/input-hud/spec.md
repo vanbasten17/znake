@@ -259,6 +259,50 @@ The system SHALL expose an ability trigger through virtual input for combat acti
 - **WHEN** player double-taps gameplay area in touch mode
 - **THEN** virtual input exposes one-shot ability intent for scene consumption
 
+### Requirement: Input commands are validated before simulation mutation
+
+Input command ingestion SHALL validate directional command shape and queue constraints before mutating movement state.
+
+#### Scenario: Invalid direction command is rejected
+
+- **WHEN** a direction command is non-cardinal or direct reverse of the latest movement direction
+- **THEN** the command pipeline rejects it
+- **AND** move-queue state remains unchanged.
+
+#### Scenario: Valid direction command is accepted within queue cap
+
+- **WHEN** a cardinal non-reverse direction command arrives and queue has available capacity
+- **THEN** command pipeline appends it to move queue deterministically
+- **AND** replay logging preserves accepted input ordering.
+
+### Requirement: HUD hierarchy prioritizes critical status over secondary info
+
+The system SHALL maintain a HUD hierarchy that emphasizes objective/run state clarity over secondary counters while preserving deterministic gameplay behavior.
+
+#### Scenario: Objective and run status retain primary attention
+- **WHEN** HUD is rendered during a run
+- **THEN** objective and run status rows present primary readability emphasis
+- **AND** secondary stats remain readable without visually overpowering primary status
+
+#### Scenario: Run status emphasis follows content presence
+- **WHEN** run status text is empty or whitespace
+- **THEN** run status renders in reduced-emphasis idle state
+- **AND** non-empty status text restores active emphasis deterministically
+
+### Requirement: Screen shake intensity follows accessibility-safe profiles
+
+The system SHALL apply accessibility-safe screen shake profiles that scale or disable camera shake deterministically from active accessibility/audio context.
+
+#### Scenario: Reduced effects disables screen shake
+- **WHEN** reduced-effects mode is active
+- **THEN** camera shake duration and amplitude resolve to zero
+- **AND** active shake state is reset safely
+
+#### Scenario: Low-fatigue profile softens shake while preserving feedback
+- **WHEN** reduced-effects is off and low-fatigue profile is active
+- **THEN** shake duration and amplitude use reduced multipliers
+- **AND** gameplay-critical feedback remains visible without full-intensity shake
+
 ### Requirement: HUD support for meaningful moment emphasis
 
 The system SHALL support short-lived HUD emphasis for major success/readability moments without introducing a broader HUD redesign.

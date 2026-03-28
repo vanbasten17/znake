@@ -14,6 +14,8 @@ export type ChallengePresetResolution = {
   forcedMutatorId: ChallengeMutatorId | null
 }
 
+export type HeatTier = 0 | 1 | 2 | 3
+
 const DAY_MS = 24 * 60 * 60 * 1000
 const DAILY_SEED_SALT = 0x44415931
 const WEEKLY_SEED_SALT = 0x57454531
@@ -34,6 +36,33 @@ const getUtcWeekIndex = (nowMs: number): number => Math.floor(getUtcDayIndex(now
 const pickPresetMutatorId = (bucketIndex: number, salt: number): ChallengeMutatorId | null => {
   const rng = createSeededRng(deriveRunSeed([bucketIndex, salt]))
   return rng.pick(PRESET_MUTATOR_POOL)
+}
+
+export const clampHeatTier = (value: number): HeatTier => {
+  const tier = Math.max(0, Math.min(3, Math.floor(value)))
+  return tier as HeatTier
+}
+
+export const resolveHeatTierMutatorStack = (params: {
+  heatTier: number
+  forcedMutatorId: ChallengeMutatorId | null
+}): ReadonlyArray<ChallengeMutatorId> => {
+  const tier = clampHeatTier(params.heatTier)
+  if (tier <= 0 || !params.forcedMutatorId) {
+    return []
+  }
+  const baseIndex = PRESET_MUTATOR_POOL.indexOf(params.forcedMutatorId)
+  if (baseIndex < 0) {
+    return []
+  }
+  const stack: ChallengeMutatorId[] = []
+  for (let offset = 0; offset < tier; offset += 1) {
+    const id = PRESET_MUTATOR_POOL[(baseIndex + offset) % PRESET_MUTATOR_POOL.length]
+    if (id && !stack.includes(id)) {
+      stack.push(id)
+    }
+  }
+  return stack
 }
 
 export const resolveChallengePreset = (

@@ -9,11 +9,12 @@ import {
   getDepthBandForFloor,
   getFloorSetup,
   getItemSpawnConfigForFloor,
+  getProgressionDirectorSnapshot,
   getRoleSpawnPolicyWindowForFloor,
 } from '../core/balance'
 import { resolvePresetMutatorRuntime } from '../core/challengePresets'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
-import { resolveContentPack } from '../core/contentPacks'
+import { resolveContentPackFromRepository } from '../core/contentRepository'
 import { getDevScenario, isDevMode } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
 import type { GlossaryMarkerTone } from '../core/glossary'
@@ -62,6 +63,7 @@ import type {
   Vec2,
   WorldItemType,
 } from '../core/types'
+import { applyUpgradeStrategy } from '../core/upgrades'
 import { setupRuntimeDevtools } from '../devtools/runtime'
 import {
   bindReplayCaptureGetter,
@@ -69,15 +71,16 @@ import {
   getSlowMotionFactor,
   setDevRunSeed,
 } from '../devtools/runtime'
-import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerHiRes'
+import { markerTextureKey } from '../render/markerHiRes'
 import { PAINT_BY_TONE, drawPremiumSegmentPhaser } from '../render/markerVectorArt'
 import { ArcadeEffectsPipeline } from '../render/shaders'
-import { runCombatLoopStep } from '../scenes/gameScene/combatLoop'
+import { resolveGameLoopPhase } from '../scenes/gameScene/loopStateMachine'
 import {
   createRewardOverlayShell,
   createRouteOverlayShell,
 } from '../scenes/gameScene/overlayController'
 import { shouldBlockSimulationForOverlay } from '../scenes/gameScene/runFlow'
+import { runSimulationStep } from '../scenes/gameScene/simulationStepService'
 import {
   trackGameGoalProgressed,
   trackGameObjectiveCompleted,
@@ -193,8 +196,19 @@ import {
   isCombatRunMapRoomType,
 } from '../simulation/runMap'
 import { pickOpenCell } from '../simulation/spawn'
-import { isReducedEffectsEnabled } from '../systems/accessibility'
+import { getAccessibilitySettings, isReducedEffectsEnabled } from '../systems/accessibility'
+import { resolveAdaptiveRoomPressure } from '../systems/adaptiveRoomDirector'
+import { resolveCycleProgress, resolveMotionCue } from '../systems/animationAnticipation'
+import { loadCoreSceneAssets } from '../systems/assetLoadingFacade'
+import { resolveBiomeColorScript } from '../systems/biomeColorScript'
+import { formatBossCounterplayCue, formatEliteCounterplayCue } from '../systems/bossCounterplayCue'
+import { resolveCompanionDroneSupport, tickCompanionDroneCooldown } from '../systems/companionDrone'
 import { getControlMode } from '../systems/controlScheme'
+import {
+  type DamageLabelKind,
+  resolveDamageLabelSpec,
+  resolveOverflowLabelsToDrop,
+} from '../systems/damageNumberLegibility'
 import { createButton, createEl } from '../systems/domFactory'
 import {
   getMoveHintText,
@@ -208,9 +222,15 @@ import {
   updateHud,
 } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
+import { type FeedbackVfxChannel, resolveFeedbackVfxRender } from '../systems/feedbackVfxChannels'
 import { t } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
+import { resolveDirectionCommand } from '../systems/inputCommandPipeline'
+import { resolveParticleBudgetProfile, resolveParticleSpawnBudget } from '../systems/particleBudget'
+import { formatRouteBranchPreview } from '../systems/routeBranchObjectivePresenter'
 import { transitionToScene } from '../systems/sceneFlow'
+import { applyShakeDuration, resolveScreenShakeProfile } from '../systems/screenShakeProfile'
+import { resolveStreakBounty } from '../systems/streakBounty'
 import { trackRetentionEvent } from '../systems/telemetry'
 import { formatRouteRiskCue } from '../ui/formatters/routeRisk'
 import { allowsMarkerGlow } from '../visual/visualLanguage'
@@ -240,9 +260,17 @@ type FeedbackPulse = {
   x: number
   y: number
   color: number
+  channel: FeedbackVfxChannel
   elapsed: number
   duration: number
   maxRadius: number
+}
+
+type FeedbackLabel = {
+  node: Phaser.GameObjects.Text
+  elapsedMs: number
+  durationMs: number
+  risePxPerSec: number
 }
 
 type ObjectiveTerminal = Vec2 & {
@@ -276,8 +304,11 @@ export class GameScene extends Phaser.Scene {
   private currentDir: Vec2 = { x: 1, y: 0 }
   private moveTimer = 0
   private particles: Particle[] = []
+  private particleSpawnedThisFrame = 0
   private feedbackPulses: FeedbackPulse[] = []
+  private feedbackLabels: FeedbackLabel[] = []
   private shakeTimer = 0
+  private shakeIntensity = 1
   private flashTimer = 0
   private flashColor = 0xffffff
   private hitStopMsRemaining = 0
@@ -299,6 +330,7 @@ export class GameScene extends Phaser.Scene {
   private pendingGrowth = 0
   private venomCharges = 0
   private venomCooldownMs = 0
+  private companionDroneCooldownMs = 0
   private venomProjectiles: VenomProjectile[] = []
   private bodyEconomyState: BodyEconomyRuntimeState = createInitialBodyEconomyRuntimeState()
   private bodyTerrainSnapshot: BodyTerrainSnapshot = createEmptyBodyTerrainSnapshot()
@@ -352,6 +384,8 @@ export class GameScene extends Phaser.Scene {
   private bossSupportRespawnIntervalMs: number = BALANCE.biome.boss.supportShieldRespawnMs
   private contactGraceMsRemaining = 0
   private enemyMoveTimer = 0
+  private killStreak = 0
+  private streakBountyAwards = 0
   private enemyInterval = 400
   private riftTimer = 0
   private riftSuppressionMsRemaining = 0
@@ -498,7 +532,7 @@ export class GameScene extends Phaser.Scene {
     this.fxRng = createSeededRng(deriveRunSeed([this.runSeed, 0x9e3779b9]))
     this.replayCapture = createRunReplayCapture(this.runSeed, this.time.now)
     const requestedPackId = data.contentPackId ?? gameState.activeContentPackId
-    const resolvedPack = resolveContentPack(requestedPackId)
+    const resolvedPack = resolveContentPackFromRepository(requestedPackId)
     gameState.activeContentPackId = resolvedPack.pack.id
     if (resolvedPack.fallbackApplied) {
       trackRetentionEvent('content_pack_fallback', {
@@ -524,7 +558,7 @@ export class GameScene extends Phaser.Scene {
     applyTalentEffects(this.cfg, playerProfile)
     applyRelicEffect(this.cfg, gameState.selectedRelicId)
     for (const upgrade of gameState.persistentUpgrades) {
-      upgrade.apply(this.cfg)
+      applyUpgradeStrategy(this.cfg, upgrade)
     }
     for (const reward of gameState.persistentRewards) {
       applyRewardEffectsToConfig(this.cfg, reward.effects)
@@ -596,11 +630,22 @@ export class GameScene extends Phaser.Scene {
     }
     applyChallengeMutatorsToRunConfig(this.cfg, this.challengeMutators)
     this.wallCount = floorSetup.wallCount
-    this.enemyCount = floorSetup.enemyCount
-    this.enemyInterval = applyChallengeMutatorsToEnemyInterval(
+    const baseEnemyCount = floorSetup.enemyCount
+    const baseEnemyInterval = applyChallengeMutatorsToEnemyInterval(
       floorSetup.enemyIntervalMs,
       this.challengeMutators,
     )
+    const adaptivePressure = resolveAdaptiveRoomPressure({
+      snapshot: getProgressionDirectorSnapshot({
+        floor: gameState.floor,
+        spawnIndex: 1,
+      }),
+      baseEnemyCount,
+      baseEnemyIntervalMs: baseEnemyInterval,
+      shields: this.shields,
+    })
+    this.enemyCount = adaptivePressure.enemyCount
+    this.enemyInterval = adaptivePressure.enemyIntervalMs
     this.darknessActive = floorSetup.darknessActive
     this.darknessRadius = floorSetup.darknessRadius
     this.darknessEdgeFalloff = floorSetup.darknessEdgeFalloff
@@ -642,7 +687,6 @@ export class GameScene extends Phaser.Scene {
       )
     }
     if (this.isBossFloor) {
-      // Boss floors must start without preloaded shields; shield access comes from pickups.
       this.shields = 0
     }
     const floorObjective = getFloorObjective(gameState.floor, gameState.runObjectiveOffset)
@@ -687,7 +731,7 @@ export class GameScene extends Phaser.Scene {
       ) as ArcadeEffectsPipeline
     }
 
-    await registerMarkerHiResTextures(this)
+    await loadCoreSceneAssets(this)
     const markerDepth = 8
     const mk = (tone: Parameters<typeof markerTextureKey>[0]) =>
       this.add
@@ -913,6 +957,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.gameCreateComplete) {
       return
     }
+    this.particleSpawnedThisFrame = 0
 
     if (window.virtualInput.pause) {
       window.virtualInput.pause = false
@@ -952,12 +997,26 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.updateFeedbackPulses(delta / 1000)
+    this.updateFeedbackLabels(delta)
 
-    if (this.paused) {
+    const overlayBlocked = shouldBlockSimulationForOverlay({
+      rewardPending: this.rewardPending,
+      hasRouteOverlay: this.routeOverlayRoot !== null,
+      hasEventChoiceOverlay: this.eventChoiceOverlayRoot !== null,
+      hasRoomResolveOverlay: this.roomResolveOverlayRoot !== null,
+    })
+    const loopPhase = resolveGameLoopPhase({
+      paused: this.paused,
+      referenceBoardMode: this.referenceBoardMode,
+      hitStopMsRemaining: this.hitStopMsRemaining,
+      overlayBlocked,
+    })
+
+    if (loopPhase === 'paused') {
       return
     }
 
-    if (this.referenceBoardMode) {
+    if (loopPhase === 'reference_board') {
       this.updateReferenceBoardHover()
       const status = this.referenceHoverLabel
         ? `DEV REFERENCE · ${this.referenceHoverLabel}`
@@ -969,7 +1028,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.updateCameraShake(delta / 1000)
-    if (this.hitStopMsRemaining > 0) {
+    if (loopPhase === 'hit_stop') {
       this.hitStopMsRemaining = Math.max(0, this.hitStopMsRemaining - delta)
       this.drawBackground()
       this.drawFrame()
@@ -982,20 +1041,13 @@ export class GameScene extends Phaser.Scene {
     this.refreshBodyTerrainSnapshot()
     this.refreshObjectiveHud()
     this.refreshRunMapHud()
-    if (
-      shouldBlockSimulationForOverlay({
-        rewardPending: this.rewardPending,
-        hasRouteOverlay: this.routeOverlayRoot !== null,
-        hasEventChoiceOverlay: this.eventChoiceOverlayRoot !== null,
-        hasRoomResolveOverlay: this.roomResolveOverlayRoot !== null,
-      })
-    ) {
+    if (loopPhase === 'overlay_blocked') {
       this.drawBackground()
       this.drawFrame()
       return
     }
     this.drawBackground()
-    runCombatLoopStep({
+    runSimulationStep({
       updateEnemyMovement: () => this.updateEnemyMovement(simDelta),
       ensureObjectiveEnemyAvailability: () => this.ensureObjectiveEnemyAvailability(),
       ensureRoomObjectiveAvailability: () => this.ensureRoomObjectiveAvailability(),
@@ -1086,7 +1138,12 @@ export class GameScene extends Phaser.Scene {
     this.moveTimer = 0
     this.particles = []
     this.feedbackPulses = []
+    for (const label of this.feedbackLabels) {
+      label.node.destroy()
+    }
+    this.feedbackLabels = []
     this.shakeTimer = 0
+    this.shakeIntensity = 1
     this.flashTimer = 0
     this.flashColor = 0xffffff
     this.hitStopMsRemaining = 0
@@ -1099,7 +1156,7 @@ export class GameScene extends Phaser.Scene {
     this.pendingGrowth = 0
     this.replayCapture = null
     this.venomCharges = 0
-    this.venomCooldownMs = 0
+    this.venomCooldownMs = this.companionDroneCooldownMs = 0
     this.venomProjectiles = []
     this.bodyEconomyState = createInitialBodyEconomyRuntimeState()
     this.bodyTerrainSnapshot = createEmptyBodyTerrainSnapshot()
@@ -1142,6 +1199,7 @@ export class GameScene extends Phaser.Scene {
     this.predatorPreyTick = 0
     this.lastPredatorPreyPressureTick = -9999
     this.enemyMoveTimer = 0
+    this.killStreak = this.streakBountyAwards = 0
     this.roleSpawnCadence = createInitialRoleSpawnCadenceState()
     this.riftTimer = 0
     this.riftSuppressionMsRemaining = 0
@@ -1184,15 +1242,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private pushDirection(next: Vec2): void {
-    const last =
-      this.moveQueue.length > 0 ? this.moveQueue[this.moveQueue.length - 1] : this.currentDir
-    if (next.x === -last.x && next.y === -last.y) {
+    const resolved = resolveDirectionCommand({
+      next,
+      currentDir: this.currentDir,
+      moveQueue: this.moveQueue,
+      maxTurnQueue: this.cfg.maxTurnQueue,
+    })
+    if (!resolved.accepted) {
       return
     }
-    if (this.moveQueue.length < this.cfg.maxTurnQueue) {
-      this.moveQueue.push(next)
-      this.recordReplayInput('dir', this.vectorToInputLabel(next))
-    }
+    this.moveQueue = resolved.nextQueue
+    this.recordReplayInput('dir', this.vectorToInputLabel(next))
   }
 
   private vectorToInputLabel(vec: Vec2): string {
@@ -1251,8 +1311,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateCameraShake(dt: number): void {
-    if (isReducedEffectsEnabled()) {
+    const profile = resolveScreenShakeProfile({
+      reducedEffects: isReducedEffectsEnabled(),
+      audioProfile: getAccessibilitySettings().audioProfile,
+    })
+    if (profile.id === 'off') {
       this.shakeTimer = 0
+      this.shakeIntensity = 1
       this.cameras.main.setScroll(0, 0)
       return
     }
@@ -1260,11 +1325,12 @@ export class GameScene extends Phaser.Scene {
       return
     }
     this.cameras.main.setScroll(
-      (this.fxRng.nextFloat() - 0.5) * this.shakeTimer * 5,
-      (this.fxRng.nextFloat() - 0.5) * this.shakeTimer * 5,
+      (this.fxRng.nextFloat() - 0.5) * this.shakeTimer * 5 * this.shakeIntensity,
+      (this.fxRng.nextFloat() - 0.5) * this.shakeTimer * 5 * this.shakeIntensity,
     )
     this.shakeTimer -= dt
     if (this.shakeTimer <= 0) {
+      this.shakeIntensity = 1
       this.cameras.main.setScroll(0, 0)
     }
   }
@@ -1430,9 +1496,6 @@ export class GameScene extends Phaser.Scene {
     if (this.bossSupportShieldRespawnMs > 0) {
       return
     }
-    // Keep boss fights supplied with actionable pickups.
-    // If the player has no shield, prioritize survival support.
-    // If shielded already, prioritize venom so offense keeps flowing.
     if (this.shields <= 0) {
       this.spawnPowerup(this.rng.nextFloat() < 0.65 ? 'shield' : 'venom')
     } else {
@@ -1528,6 +1591,27 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  private updateFeedbackLabels(deltaMs: number): void {
+    if (this.feedbackLabels.length <= 0) {
+      return
+    }
+    const dtSec = deltaMs / 1000
+    const next: FeedbackLabel[] = []
+    for (const label of this.feedbackLabels) {
+      label.elapsedMs += deltaMs
+      const progress = Math.min(1, label.elapsedMs / label.durationMs)
+      label.node.y -= label.risePxPerSec * dtSec
+      label.node.alpha = 1 - progress
+      label.node.scale = 1 + (1 - progress) * 0.04
+      if (progress < 1) {
+        next.push(label)
+      } else {
+        label.node.destroy()
+      }
+    }
+    this.feedbackLabels = next
+  }
+
   private queueHitStop(durationMs: number): void {
     if (isReducedEffectsEnabled()) {
       return
@@ -1541,22 +1625,61 @@ export class GameScene extends Phaser.Scene {
     color: number,
     duration: number,
     radiusCells: number,
+    channel: FeedbackVfxChannel,
   ): void {
     this.feedbackPulses.push({
       x,
       y,
       color,
+      channel,
       elapsed: 0,
       duration,
       maxRadius: CELL * radiusCells,
     })
   }
 
+  private spawnFeedbackLabel(x: number, y: number, kind: DamageLabelKind): void {
+    const spec = resolveDamageLabelSpec(kind, isReducedEffectsEnabled())
+    const labelsToDrop = resolveOverflowLabelsToDrop(this.feedbackLabels.length, 1)
+    for (let i = 0; i < labelsToDrop; i += 1) {
+      const oldest = this.feedbackLabels.shift()
+      oldest?.node.destroy()
+    }
+    const text = this.add
+      .text(x * CELL + CELL / 2, y * CELL + CELL / 2 - cellPx(6), spec.text, {
+        fontFamily: 'Orbitron, sans-serif',
+        fontSize: `${spec.fontPx}px`,
+        fontStyle: '700',
+        color: spec.color,
+        stroke: '#041018',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(2500)
+      .setAlpha(1)
+
+    this.feedbackLabels.push({
+      node: text,
+      elapsedMs: 0,
+      durationMs: spec.durationMs,
+      risePxPerSec: spec.risePxPerSec,
+    })
+  }
+
   private triggerDamageFeedback(x: number, y: number, color: number, shieldOnly = false): void {
+    this.killStreak = this.streakBountyAwards = 0
     const profile = shieldOnly ? BALANCE.feedback.shieldDamage : BALANCE.feedback.damage
+    const shakeProfile = resolveScreenShakeProfile({
+      reducedEffects: isReducedEffectsEnabled(),
+      audioProfile: getAccessibilitySettings().audioProfile,
+    })
     this.flashColor = color
     this.flashTimer = Math.max(this.flashTimer, profile.flashSeconds)
-    this.shakeTimer = Math.max(this.shakeTimer, profile.shakeSeconds)
+    this.shakeTimer = Math.max(
+      this.shakeTimer,
+      applyShakeDuration(profile.shakeSeconds, shakeProfile),
+    )
+    this.shakeIntensity = Math.max(this.shakeIntensity, shakeProfile.amplitudeMultiplier)
     this.queueHitStop(profile.hitStopMs)
     this.addFeedbackPulse(
       x * CELL + CELL / 2,
@@ -1564,17 +1687,27 @@ export class GameScene extends Phaser.Scene {
       color,
       profile.pulseSeconds,
       profile.pulseRadiusCells,
+      shieldOnly ? 'block' : 'danger',
     )
     pulseHudNode('run', 'danger', BALANCE.feedback.hudPulseMs)
     pulseHudNode('objective', 'danger', BALANCE.feedback.hudPulseMs)
+    this.spawnFeedbackLabel(x, y, shieldOnly ? 'block' : 'damage')
     emitFeedback('danger')
   }
 
   private triggerPickupFeedback(x: number, y: number, color: number, major = false): void {
     const profile = major ? BALANCE.feedback.pickupMajor : BALANCE.feedback.pickupMinor
+    const shakeProfile = resolveScreenShakeProfile({
+      reducedEffects: isReducedEffectsEnabled(),
+      audioProfile: getAccessibilitySettings().audioProfile,
+    })
     this.flashColor = color
     this.flashTimer = Math.max(this.flashTimer, profile.flashSeconds)
-    this.shakeTimer = Math.max(this.shakeTimer, profile.shakeSeconds)
+    this.shakeTimer = Math.max(
+      this.shakeTimer,
+      applyShakeDuration(profile.shakeSeconds, shakeProfile),
+    )
+    this.shakeIntensity = Math.max(this.shakeIntensity, shakeProfile.amplitudeMultiplier)
     this.queueHitStop(profile.hitStopMs)
     this.addFeedbackPulse(
       x * CELL + CELL / 2,
@@ -1582,8 +1715,10 @@ export class GameScene extends Phaser.Scene {
       color,
       profile.pulseSeconds,
       profile.pulseRadiusCells,
+      major ? 'reward' : 'pickup',
     )
     pulseHudNode('run', 'pickup', BALANCE.feedback.hudPulseMs)
+    this.spawnFeedbackLabel(x, y, major ? 'reward' : 'pickup')
     emitFeedback(major ? 'success' : 'pickup')
   }
 
@@ -1591,9 +1726,17 @@ export class GameScene extends Phaser.Scene {
     const profile = completedFloorObjective
       ? BALANCE.feedback.objectiveComplete
       : BALANCE.feedback.objectiveReady
+    const shakeProfile = resolveScreenShakeProfile({
+      reducedEffects: isReducedEffectsEnabled(),
+      audioProfile: getAccessibilitySettings().audioProfile,
+    })
     this.flashColor = COLORS.beacon
     this.flashTimer = Math.max(this.flashTimer, profile.flashSeconds)
-    this.shakeTimer = Math.max(this.shakeTimer, profile.shakeSeconds)
+    this.shakeTimer = Math.max(
+      this.shakeTimer,
+      applyShakeDuration(profile.shakeSeconds, shakeProfile),
+    )
+    this.shakeIntensity = Math.max(this.shakeIntensity, shakeProfile.amplitudeMultiplier)
     this.queueHitStop(profile.hitStopMs)
     this.addFeedbackPulse(
       WIDTH / 2,
@@ -1601,9 +1744,11 @@ export class GameScene extends Phaser.Scene {
       COLORS.beacon,
       profile.pulseSeconds,
       profile.pulseRadiusCells,
+      'reward',
     )
     pulseHudNode('objective', 'reward', profile.hudPulseMs)
     pulseHudNode('run', 'reward', profile.hudPulseMs)
+    this.spawnFeedbackLabel(Math.floor(BASE_COLS / 2), Math.floor(BASE_ROWS / 2), 'reward')
     emitFeedback('reward')
   }
 
@@ -1948,6 +2093,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateVenomState(delta: number): void {
     this.venomCooldownMs = Math.max(0, this.venomCooldownMs - delta)
+    this.companionDroneCooldownMs = tickCompanionDroneCooldown(this.companionDroneCooldownMs, delta)
     if (this.venomProjectiles.length === 0) {
       return
     }
@@ -2389,26 +2535,6 @@ export class GameScene extends Phaser.Scene {
     this.cfg.bodySpendMinLength = adjusted.bodySpendMinLength
   }
 
-  private formatRouteChoicePreview(choice: RunMapPreviewChoice): string {
-    const biome = this.getBiomeLabel(choice.biomeId)
-    const firstFuture = choice.previewRoomTypes[1]
-    if (!firstFuture) {
-      const room = t('game.routeChoiceCompact', {
-        index: choice.branchLabel,
-        room: this.getRoomTypeLabel(choice.roomType),
-      })
-      return `${room} · ${biome}`
-    }
-    const room = t('game.routePreviewCompact', {
-      room: t('game.routeChoiceCompact', {
-        index: choice.branchLabel,
-        room: this.getRoomTypeLabel(choice.roomType),
-      }),
-      next: this.getRoomTypeLabel(firstFuture),
-    })
-    return `${room} · ${biome}`
-  }
-
   private refreshRunMapHud(): void {
     const mastery = getRouteMasteryReadout(gameState.routeMasterySummary)
     const currentRoom = t('game.routeCurrentRoom', {
@@ -2422,13 +2548,29 @@ export class GameScene extends Phaser.Scene {
     if (this.routeChoices.length === 1) {
       setRouteStatusText(
         `${current} · ${t('game.routeNextOne', {
-          choice: this.formatRouteChoicePreview(this.routeChoices[0]),
+          choice: formatRouteBranchPreview({
+            choice: this.routeChoices[0],
+            floor: gameState.floor,
+            runObjectiveOffset: gameState.runObjectiveOffset,
+            getBiomeLabel: (biomeId) => this.getBiomeLabel(biomeId),
+            getRoomTypeLabel: (roomType) => this.getRoomTypeLabel(roomType),
+            t,
+          }),
         })}`,
       )
       return
     }
     const choices = this.routeChoices
-      .map((choice) => this.formatRouteChoicePreview(choice))
+      .map((choice) =>
+        formatRouteBranchPreview({
+          choice,
+          floor: gameState.floor,
+          runObjectiveOffset: gameState.runObjectiveOffset,
+          getBiomeLabel: (biomeId) => this.getBiomeLabel(biomeId),
+          getRoomTypeLabel: (roomType) => this.getRoomTypeLabel(roomType),
+          t,
+        }),
+      )
       .join(' · ')
     setRouteStatusText(`${current} · ${t('game.routeNextMany', { choices })}`)
   }
@@ -4020,7 +4162,7 @@ export class GameScene extends Phaser.Scene {
         continue
       }
       if (phase === 'telegraph') {
-        return 'ELITE WINDOW: TELEGRAPH'
+        return formatEliteCounterplayCue('telegraph')
       }
       if (phase === 'commit') {
         bestPhase = 'commit'
@@ -4028,22 +4170,14 @@ export class GameScene extends Phaser.Scene {
         bestPhase = 'recovery'
       }
     }
-    if (bossPhase === 'telegraph') {
-      return `BOSS ${BALANCE.biome.boss.identity.cueLabel} ${this.bossPhaseRemixCueLabel}: TELEGRAPH`
+    if (bossPhase) {
+      return formatBossCounterplayCue({
+        phase: bossPhase,
+        identityCueLabel: BALANCE.biome.boss.identity.cueLabel,
+        remixCueLabel: this.bossPhaseRemixCueLabel,
+      })
     }
-    if (bossPhase === 'commit') {
-      return `BOSS ${BALANCE.biome.boss.identity.cueLabel} ${this.bossPhaseRemixCueLabel}: COMMIT`
-    }
-    if (bossPhase === 'recovery') {
-      return `BOSS ${BALANCE.biome.boss.identity.cueLabel} ${this.bossPhaseRemixCueLabel}: RECOVERY`
-    }
-    if (!bestPhase) {
-      return null
-    }
-    if (bestPhase === 'commit') {
-      return 'ELITE WINDOW: COMMIT'
-    }
-    return 'ELITE WINDOW: RECOVERY'
+    return bestPhase ? formatEliteCounterplayCue(bestPhase) : null
   }
 
   private trackEliteMinibossPhaseWindow(enemy: Enemy): void {
@@ -4524,7 +4658,23 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.score += Math.floor(BALANCE.enemy.scoreOnKill * this.cfg.scoreMult)
     }
+    this.killStreak += 1
+    const streakBounty = resolveStreakBounty({
+      streak: this.killStreak,
+      awardsClaimed: this.streakBountyAwards,
+      scoreMultiplier: this.cfg.scoreMult,
+    })
+    this.streakBountyAwards = streakBounty.awardsClaimed
+    this.score += streakBounty.bonusScore
+    const droneSupport = resolveCompanionDroneSupport({
+      cooldownMs: this.companionDroneCooldownMs,
+      scoreMultiplier: this.cfg.scoreMult,
+    })
+    this.companionDroneCooldownMs = droneSupport.nextCooldownMs
+    this.score += droneSupport.bonusScore
     updateHud(this.score)
+    if (droneSupport.triggered)
+      setHintText(t('game.companionDroneTriggered', { bonus: droneSupport.bonusScore }))
     if (enemy.kind === 'stalker' || enemy.kind === 'ambusher') {
       const gateIsCritical = isObjectiveCriticalEncounter({
         isBossFloor: this.isBossFloor,
@@ -4544,11 +4694,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnParticles(cx: number, cy: number, color: number, count: number): void {
-    const finalCount = isReducedEffectsEnabled() ? Math.max(2, Math.ceil(count * 0.35)) : count
-    for (let i = 0; i < count; i += 1) {
-      if (i >= finalCount) {
-        break
-      }
+    const allocation = resolveParticleSpawnBudget({
+      requestedCount: count,
+      activeCount: this.particles.length,
+      spawnedThisFrame: this.particleSpawnedThisFrame,
+      profile: resolveParticleBudgetProfile(isReducedEffectsEnabled()),
+    })
+    this.particleSpawnedThisFrame = allocation.nextSpawnedThisFrame
+    for (let i = 0; i < allocation.emitCount; i += 1) {
       this.particles.push({
         x: cx * CELL + CELL / 2,
         y: cy * CELL + CELL / 2,
@@ -4885,7 +5038,12 @@ export class GameScene extends Phaser.Scene {
     if (head) {
       this.spawnParticles(head.x, head.y, COLORS.food, 20)
     }
-    this.shakeTimer = 0.4
+    const shakeProfile = resolveScreenShakeProfile({
+      reducedEffects: isReducedEffectsEnabled(),
+      audioProfile: getAccessibilitySettings().audioProfile,
+    })
+    this.shakeTimer = applyShakeDuration(0.4, shakeProfile)
+    this.shakeIntensity = Math.max(this.shakeIntensity, shakeProfile.amplitudeMultiplier)
     this.drawFrame()
     this.input.keyboard?.removeAllListeners()
     const timeAliveMs = Math.max(0, Math.floor(this.time.now - this.runStartMs))
@@ -4935,16 +5093,20 @@ export class GameScene extends Phaser.Scene {
 
   private drawBackground(): void {
     const g = this.bgGraphics
+    const colorScript = resolveBiomeColorScript(
+      this.currentBiomeId,
+      getAccessibilitySettings().highContrast,
+    )
     g.clear()
-    g.fillStyle(COLORS.bg)
+    g.fillStyle(colorScript.bg)
     g.fillRect(0, 0, WIDTH, HEIGHT)
 
     const t = this.time.now * 0.001
 
     // 1. Soft "Nebula" Glows
     const nebulae = [
-      { x: WIDTH * 0.22, y: HEIGHT * 0.3, r: 110, c: 0x1a0a35, a: 0.4 },
-      { x: WIDTH * 0.78, y: HEIGHT * 0.72, r: 140, c: 0x0a1a45, a: 0.3 },
+      { x: WIDTH * 0.22, y: HEIGHT * 0.3, r: 110, c: colorScript.nebulaPrimary, a: 0.4 },
+      { x: WIDTH * 0.78, y: HEIGHT * 0.72, r: 140, c: colorScript.nebulaSecondary, a: 0.3 },
     ]
     for (const n of nebulae) {
       const pulse = 1.0 + Math.sin(t * 0.8) * 0.1
@@ -4959,7 +5121,7 @@ export class GameScene extends Phaser.Scene {
     const head = this.snake[0] || { x: 0, y: 0 }
     const ox = head.x * 0.4
     const oy = head.y * 0.4
-    g.lineStyle(1, 0x1a1a45, 0.12)
+    g.lineStyle(1, colorScript.deepGrid, 0.12)
     for (let x = -2; x <= BASE_COLS + 2; x += 1) {
       g.moveTo((x + (ox % 1)) * CELL, 0)
       g.lineTo((x + (ox % 1)) * CELL, HEIGHT)
@@ -4971,7 +5133,7 @@ export class GameScene extends Phaser.Scene {
     g.strokePath()
 
     // 3. Main Action Grid
-    g.lineStyle(1, COLORS.grid, 0.28)
+    g.lineStyle(1, colorScript.mainGrid, 0.28)
     for (let x = 0; x <= BASE_COLS; x += 1) {
       g.moveTo(x * CELL, 0)
       g.lineTo(x * CELL, HEIGHT)
@@ -4986,31 +5148,35 @@ export class GameScene extends Phaser.Scene {
     for (const star of this.stars) {
       const st = t * 2 + star.x * 0.01
       const alpha = star.alpha * (Math.sin(st) * 0.3 + 0.7)
-      g.fillStyle(0x99ccff, alpha)
+      g.fillStyle(colorScript.star, alpha)
       g.fillRect(star.x, star.y, star.size, star.size)
     }
 
-    g.lineStyle(2, COLORS.wallBright, 0.8)
+    g.lineStyle(2, colorScript.wallStroke, 0.8)
     g.strokeRect(0, 0, WIDTH, HEIGHT)
   }
 
   private drawWalls(): void {
     const g = this.wallGraphics
+    const colorScript = resolveBiomeColorScript(
+      this.currentBiomeId,
+      getAccessibilitySettings().highContrast,
+    )
     g.clear()
     for (const key of this.walls) {
       const [xRaw, yRaw] = key.split(',')
       const x = Number(xRaw)
       const y = Number(yRaw)
-      g.fillStyle(COLORS.wall)
+      g.fillStyle(colorScript.wallFill)
       g.fillRect(x * CELL, y * CELL, CELL, CELL)
-      g.fillStyle(0x11183b, 0.85)
+      g.fillStyle(colorScript.wallCore, 0.85)
       g.fillRect(x * CELL + cellPx(3), y * CELL + cellPx(3), CELL - cellPx(6), CELL - cellPx(6))
-      g.fillStyle(0x4b63da, 0.5)
+      g.fillStyle(colorScript.wallAccent, 0.5)
       g.fillRect(x * CELL + cellPx(2), y * CELL + cellPx(2), cellPx(2), cellPx(2))
       g.fillRect(x * CELL + CELL - cellPx(4), y * CELL + cellPx(2), cellPx(2), cellPx(2))
       g.fillRect(x * CELL + cellPx(2), y * CELL + CELL - cellPx(4), cellPx(2), cellPx(2))
       g.fillRect(x * CELL + CELL - cellPx(4), y * CELL + CELL - cellPx(4), cellPx(2), cellPx(2))
-      g.lineStyle(1, COLORS.wallBright, 0.65)
+      g.lineStyle(1, colorScript.wallStroke, 0.65)
       g.strokeRect(x * CELL, y * CELL, CELL, CELL)
     }
   }
@@ -5398,12 +5564,32 @@ export class GameScene extends Phaser.Scene {
             g.lineTo(cx + cellPx(3), cy + cellPx(1))
             g.strokePath()
           } else {
+            const neck = enemy.body[1]
+            const enemyDirX =
+              neck && neck.x !== segment.x ? Math.sign(segment.x - neck.x) : this.currentDir.x
+            const enemyDirY =
+              neck && neck.y !== segment.y ? Math.sign(segment.y - neck.y) : this.currentDir.y
+            const enemyCue = resolveMotionCue(
+              resolveCycleProgress(this.enemyMoveTimer, this.enemyInterval),
+              isReducedEffectsEnabled(),
+            )
+            const enemyBaseSize = CELL - cellPx(2)
+            const enemyScaleX =
+              enemyDirX !== 0 ? enemyCue.forwardScale : enemyDirY !== 0 ? enemyCue.sideScale : 1
+            const enemyScaleY =
+              enemyDirY !== 0 ? enemyCue.forwardScale : enemyDirX !== 0 ? enemyCue.sideScale : 1
+            const enemyWidth = enemyBaseSize * enemyScaleX
+            const enemyHeight = enemyBaseSize * enemyScaleY
+            const enemyCenterX =
+              segment.x * CELL + CELL / 2 + enemyDirX * CELL * enemyCue.forwardOffsetCells
+            const enemyCenterY =
+              segment.y * CELL + CELL / 2 + enemyDirY * CELL * enemyCue.forwardOffsetCells
             drawPremiumSegmentPhaser(
               g,
-              segment.x * CELL + cellPx(1),
-              segment.y * CELL + cellPx(1),
-              CELL - cellPx(2),
-              CELL - cellPx(2),
+              enemyCenterX - enemyWidth / 2,
+              enemyCenterY - enemyHeight / 2,
+              enemyWidth,
+              enemyHeight,
               color,
               glow,
               1,
@@ -5455,12 +5641,38 @@ export class GameScene extends Phaser.Scene {
 
     for (const [i, segment] of this.snake.entries()) {
       if (i === 0) {
+        const reducedEffects = isReducedEffectsEnabled()
+        const sandPenalty = this.isSand(segment.x, segment.y) ? this.sandMovePenaltyMs : 0
+        const moveInterval = this.cfg.moveInterval + sandPenalty
+        const motionCue = resolveMotionCue(
+          resolveCycleProgress(this.moveTimer, moveInterval),
+          reducedEffects,
+        )
+        const headBaseSize = CELL - cellPx(2)
+        const headScaleX =
+          this.currentDir.x !== 0
+            ? motionCue.forwardScale
+            : this.currentDir.y !== 0
+              ? motionCue.sideScale
+              : 1
+        const headScaleY =
+          this.currentDir.y !== 0
+            ? motionCue.forwardScale
+            : this.currentDir.x !== 0
+              ? motionCue.sideScale
+              : 1
+        const headWidth = headBaseSize * headScaleX
+        const headHeight = headBaseSize * headScaleY
+        const headCenterX =
+          segment.x * CELL + CELL / 2 + this.currentDir.x * CELL * motionCue.forwardOffsetCells
+        const headCenterY =
+          segment.y * CELL + CELL / 2 + this.currentDir.y * CELL * motionCue.forwardOffsetCells
         drawPremiumSegmentPhaser(
           g,
-          segment.x * CELL + cellPx(1),
-          segment.y * CELL + cellPx(1),
-          CELL - cellPx(2),
-          CELL - cellPx(2),
+          headCenterX - headWidth / 2,
+          headCenterY - headHeight / 2,
+          headWidth,
+          headHeight,
           COLORS.snakeHead,
           0x00ffcc,
           1,
@@ -5472,8 +5684,8 @@ export class GameScene extends Phaser.Scene {
           this.currentDir.x === 1 ? cellPx(5) : this.currentDir.x === -1 ? -cellPx(5) : 0
         const eyeOffsetY =
           this.currentDir.y === 1 ? cellPx(5) : this.currentDir.y === -1 ? -cellPx(5) : 0
-        const eyeBaseX = segment.x * CELL + CELL / 2 + eyeOffsetX * 0.35
-        const eyeBaseY = segment.y * CELL + CELL / 2 + eyeOffsetY * 0.35
+        const eyeBaseX = headCenterX + eyeOffsetX * 0.35
+        const eyeBaseY = headCenterY + eyeOffsetY * 0.35
         g.fillStyle(0x03130e, 0.9)
         g.fillCircle(eyeBaseX - cellPx(3), eyeBaseY - cellPx(2), cellPx(1.6))
         g.fillCircle(eyeBaseX + cellPx(3), eyeBaseY - cellPx(2), cellPx(1.6))
@@ -5559,13 +5771,14 @@ export class GameScene extends Phaser.Scene {
 
     for (const pulse of this.feedbackPulses) {
       const progress = Math.min(1, pulse.elapsed / pulse.duration)
+      const vfx = resolveFeedbackVfxRender(pulse.channel, isReducedEffectsEnabled())
       const radius = cellPx(6) + (pulse.maxRadius - cellPx(6)) * progress
-      const alpha = (1 - progress) * (isReducedEffectsEnabled() ? 0.22 : 0.36)
-      const lineWidth = Math.max(1, cellPx(2.4) * (1 - progress * 0.45))
+      const alpha = (1 - progress) * (isReducedEffectsEnabled() ? 0.22 : 0.36) * vfx.alphaMultiplier
+      const lineWidth = Math.max(1, cellPx(2.4) * (1 - progress * 0.45) * vfx.lineWidthMultiplier)
       g.lineStyle(lineWidth, pulse.color, alpha)
       g.strokeCircle(pulse.x, pulse.y, radius)
-      g.lineStyle(Math.max(1, lineWidth * 0.45), 0xffffff, alpha * 0.45)
-      g.strokeCircle(pulse.x, pulse.y, radius * 0.72)
+      g.lineStyle(Math.max(1, lineWidth * 0.45), 0xffffff, alpha * vfx.innerAlphaMultiplier)
+      g.strokeCircle(pulse.x, pulse.y, radius * vfx.innerRadiusMultiplier)
     }
 
     for (let i = 0; i < this.shields; i += 1) {

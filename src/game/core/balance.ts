@@ -616,6 +616,20 @@ export const BALANCE = {
               scoreDelta: -20,
             },
           },
+          {
+            id: 'shrine_blood_oath',
+            family: 'aggro',
+            labelKey: 'game.eventChoice.shrineBloodOath.label',
+            upsideKey: 'game.eventChoice.shrineBloodOath.upside',
+            downsideKey: 'game.eventChoice.shrineBloodOath.downside',
+            summaryKey: 'game.eventChoice.shrineBloodOath.summary',
+            requiresConfirm: true,
+            effects: {
+              shieldDelta: 1,
+              scoreDelta: -18,
+              lengthDelta: -1,
+            },
+          },
         ],
       },
       {
@@ -713,6 +727,17 @@ export const BALANCE = {
             enemyIntervalMultiplier: 0.95,
             moveIntervalMultiplier: 0.97,
             scoreDelta: 14,
+          },
+        },
+        {
+          id: 'shrine_blood_oath_boon',
+          sourceOptionId: 'shrine_blood_oath',
+          minDelayFloors: 1,
+          maxDelayFloors: 2,
+          summaryKey: 'game.eventChoiceConsequence.shrineBloodOathBoon',
+          effects: {
+            scoreDelta: 36,
+            enemyIntervalMultiplier: 1.05,
           },
         },
       ] satisfies ReadonlyArray<EventChoiceConsequenceDefinition>,

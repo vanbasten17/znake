@@ -3,15 +3,15 @@ const SHELL_MARKUP = `
   <div id="hud-top">
     <div id="title-text">ZNAKE</div>
     <div id="stats-bar">
-      <div class="stat"><span class="stat-label" id="run-label">--</span><span class="stat-val" id="run-num">1</span></div>
-      <div class="stat"><span class="stat-label" id="score-label">--</span><span class="stat-val" id="score-disp">0</span></div>
-      <div class="stat"><span class="stat-label" id="floor-label">--</span><span class="stat-val" id="floor-disp">1</span></div>
-      <div class="stat"><span class="stat-label" id="kills-label">--</span><span class="stat-val" id="kills-disp">0</span></div>
+      <div class="stat stat-secondary" data-priority="secondary"><span class="stat-label" id="run-label">--</span><span class="stat-val" id="run-num">1</span></div>
+      <div class="stat stat-primary" data-priority="primary"><span class="stat-label" id="score-label">--</span><span class="stat-val" id="score-disp">0</span></div>
+      <div class="stat stat-primary" data-priority="primary"><span class="stat-label" id="floor-label">--</span><span class="stat-val" id="floor-disp">1</span></div>
+      <div class="stat stat-secondary" data-priority="secondary"><span class="stat-label" id="kills-label">--</span><span class="stat-val" id="kills-disp">0</span></div>
     </div>
   </div>
-  <div id="objective-status"></div>
+  <div id="objective-status" aria-live="polite"></div>
   <div id="route-status"></div>
-  <div id="run-status">...</div>
+  <div id="run-status" aria-live="polite">...</div>
 </div>
 <div id="game-area">
   <div id="phaser-container"></div>

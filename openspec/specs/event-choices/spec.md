@@ -76,3 +76,17 @@ The system SHALL allow configured event-choice options to schedule bounded delay
 - **THEN** gameplay schedules a deterministic consequence payload with trigger floor
 - **AND** scheduling obeys configured queue cap and delay window
 
+
+### Requirement: Shrine tradeoff delayed payoff contract
+
+Event choices SHALL support shrine-style options with explicit immediate cost and deterministic delayed payoff.
+
+#### Scenario: Shrine option payload keeps explicit upfront tradeoff
+- **WHEN** shrine option is displayed in event choice draft
+- **THEN** option surfaces explicit immediate upside and downside
+- **AND** downside cost is represented in deterministic option effects.
+
+#### Scenario: Shrine delayed payoff uses bounded consequence memory
+- **WHEN** shrine option schedules delayed consequence
+- **THEN** trigger floor and payoff effects are drafted deterministically under queue cap constraints
+- **AND** payoff resolution reuses existing delayed consequence pipeline.

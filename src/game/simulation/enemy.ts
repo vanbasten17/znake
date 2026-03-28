@@ -1,5 +1,6 @@
 import type { Enemy, EnemyKind, SnakeSegment, Vec2 } from '../core/types'
 import { ENEMY_KIND } from '../shared/gameplayIds'
+import { resolvePreferredEnemyDirections } from './enemyPathfinding'
 import type { GameRng } from './rng'
 
 export type EnemyCollisionPart = 'head' | 'body'
@@ -327,22 +328,11 @@ export const tickEnemy = (enemy: Enemy, context: TickEnemyContext): EnemyTickRes
     return toIdleTickResult(enemy)
   }
 
-  const dirs: Vec2[] = [
-    { x: 1, y: 0 },
-    { x: -1, y: 0 },
-    { x: 0, y: 1 },
-    { x: 0, y: -1 },
-  ]
-  const dx = playerHead.x - head.x
-  const dy = playerHead.y - head.y
-  const preferred = [...dirs].sort((a, b) => {
-    const sa = a.x * Math.sign(dx) + a.y * Math.sign(dy)
-    const sb = b.x * Math.sign(dx) + b.y * Math.sign(dy)
-    const randomness =
-      enemy.kind === ENEMY_KIND.STALKER || enemy.kind === ENEMY_KIND.AMBUSHER
-        ? 0
-        : (context.rng.nextFloat() - 0.5) * 0.5
-    return sb - sa + randomness
+  const preferred = resolvePreferredEnemyDirections({
+    enemyKind: enemy.kind,
+    enemyHead: head,
+    playerHead,
+    rng: context.rng,
   })
 
   for (const dir of preferred) {

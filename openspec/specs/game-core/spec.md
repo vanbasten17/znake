@@ -146,6 +146,19 @@ The system SHALL enforce this contract as part of the znake-simulation-replay-ve
 - **THEN** the defined contract behavior is applied consistently
 - **AND** deterministic simulation behavior remains unchanged.
 
+### Requirement: Simulation step orchestration is isolated from rendering code
+Game-scene simulation step composition SHALL execute through a dedicated simulation-step service boundary.
+
+#### Scenario: Scene invokes simulation-step service
+- **WHEN** `GameScene` executes live simulation during update
+- **THEN** scene routes operation callbacks through the simulation-step service boundary
+- **AND** rendering orchestration remains outside the service.
+
+#### Scenario: Simulation-step service preserves deterministic operation order
+- **WHEN** simulation-step service receives operation callbacks
+- **THEN** callbacks execute in the deterministic combat-loop order
+- **AND** resulting behavior remains equivalent to prior orchestration.
+
 
 
 ## ADDED Requirements
