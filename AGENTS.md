@@ -59,3 +59,15 @@ Use fixed seeds when randomness is involved.
 
 ## Large changes
 For large or risky changes, propose a short plan/spec before implementation.
+
+## Failure memory loop
+- Track execution failures in `FAIL_MEMORY.md` so recurring mistakes become explicit process improvements.
+- When a task fails or is blocked, append one short entry with:
+  - Date
+  - Task
+  - What failed
+  - Root cause
+  - Prevention rule
+  - AGENTS.md update candidate (yes/no + one sentence)
+- Before starting substantial work, scan the most relevant recent entries and apply any matching prevention rules.
+- Promote only repeated or high-impact prevention rules into `AGENTS.md` to keep guidance concise and useful.
