@@ -54,11 +54,11 @@ The system SHALL provide automated tests for extracted pure simulation logic and
 - **THEN** tests import pure TypeScript logic only
 - **AND** verify invariants such as connectivity, spawn safety, and RNG repeatability
 
-#### Scenario: Profile migration tests validate version transitions
+#### Scenario: Smoke playtest gate runs before verification/archive
 
-- **WHEN** profile versioning logic is tested
-- **THEN** migrations from older profile versions to current are validated
-- **AND** invalid payloads fallback safely to defaults without throwing
+- **WHEN** an autonomous release/apply loop runs quality gates
+- **THEN** `pnpm smoke` is executed after `pnpm check` and before OpenSpec verify/archive actions
+- **AND** loop progression is blocked when smoke thresholds fail
 
 ### Requirement: Internal gameplay debug controls
 
@@ -107,11 +107,11 @@ The system SHALL define a release candidate gate contract that requires engineer
 - **AND** requires successful production build validation for release-targeted candidates
 - **AND** candidate approval is blocked when any required engineering check fails
 
-#### Scenario: Visual and asset gates require explicit review evidence
-- **WHEN** a release candidate is evaluated for launch readiness
-- **THEN** gate evaluation includes explicit visual-quality checklist results and asset-quality checklist results
-- **AND** each checklist section records reviewer metadata and pass/fail outcome
-- **AND** candidate approval is blocked when required checklist evidence is missing or failed
+#### Scenario: Autonomous loop includes deterministic smoke evidence
+
+- **WHEN** autonomous loop mode is used for implementation quality checks
+- **THEN** gate output includes deterministic smoke playtest metrics artifact
+- **AND** artifacts include pass/fail status and threshold comparisons for reproducible auditing
 
 ### Requirement: Release gate metadata consistency
 The release gating flow SHALL require a shared metadata tuple across all gate outputs.
