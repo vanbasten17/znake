@@ -2291,6 +2291,10 @@ export class GameScene extends Phaser.Scene {
     return t('game.routeRiskLow')
   }
 
+  private getRouteRiskCueLabel(level: RouteRiskLevel): string {
+    return `[${this.getRouteRiskLevelLabel(level)}]`
+  }
+
   private getDepthBandLabel(depthBand: 'early' | 'mid' | 'late'): string {
     if (depthBand === 'mid') {
       return t('game.routeDepthBandMid')
@@ -2949,7 +2953,7 @@ export class GameScene extends Phaser.Scene {
         'span',
         routeStyles.preview,
         t('game.routeChoiceRiskForecast', {
-          level: this.getRouteRiskLevelLabel(insights.riskLevel),
+          level: this.getRouteRiskCueLabel(insights.riskLevel),
           score: insights.riskScore,
         }),
       )

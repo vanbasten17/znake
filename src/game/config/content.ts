@@ -3,20 +3,42 @@ import type { EnemyKind, FloorObjectiveKind, PowerupType } from '../core/types'
 import type { GameRng } from '../simulation/rng'
 
 const WEIGHTED_POWERUPS: ReadonlyArray<PowerupType> = ['shield', 'slow', 'ghost', 'score', 'venom']
+const ELITE_SPAWN_BY_FLOOR_DESC = [...BALANCE.elite.spawnByFloor].sort(
+  (a, b) => b.minFloor - a.minFloor,
+)
+
+type PowerupPoolKind = 'standard' | 'kills' | 'boss'
+
+const resolvePowerupPoolKind = (params: {
+  isBossFloor: boolean
+  objectiveType: FloorObjectiveKind
+}): PowerupPoolKind => {
+  if (params.isBossFloor) {
+    return 'boss'
+  }
+  return params.objectiveType === 'kills' ? 'kills' : 'standard'
+}
+
+const buildWeightedPowerupEntries = (params: {
+  floor: number
+  pool: PowerupPoolKind
+}): ReadonlyArray<{ value: PowerupType; weight: number }> => {
+  const profile = getPowerupWeightProfileForFloor({ floor: params.floor, pool: params.pool })
+  return WEIGHTED_POWERUPS.map((type) => ({
+    value: type,
+    weight: profile[type],
+  }))
+}
 
 export const getPowerupPool = (params: {
   floor: number
   isBossFloor: boolean
   objectiveType: FloorObjectiveKind
 }): ReadonlyArray<PowerupType> => {
-  const poolKind = params.isBossFloor
-    ? 'boss'
-    : params.objectiveType === 'kills'
-      ? 'kills'
-      : 'standard'
-  const profile = getPowerupWeightProfileForFloor({ floor: params.floor, pool: poolKind })
-  return WEIGHTED_POWERUPS.flatMap((powerup) =>
-    Array.from({ length: Math.max(0, Math.round(profile[powerup])) }, () => powerup),
+  const poolKind = resolvePowerupPoolKind(params)
+  const weighted = buildWeightedPowerupEntries({ floor: params.floor, pool: poolKind })
+  return weighted.flatMap((entry) =>
+    Array.from({ length: Math.max(0, Math.round(entry.weight)) }, () => entry.value),
   )
 }
 
@@ -30,19 +52,10 @@ export const pickPowerupType = (params: {
   if (params.forcedType) {
     return params.forcedType
   }
-  const poolKind = params.isBossFloor
-    ? 'boss'
-    : params.objectiveType === 'kills'
-      ? 'kills'
-      : 'standard'
-  const profile = getPowerupWeightProfileForFloor({ floor: params.floor, pool: poolKind })
+  const poolKind = resolvePowerupPoolKind(params)
   return (
-    params.rng.weightedPick(
-      WEIGHTED_POWERUPS.map((type) => ({
-        value: type,
-        weight: profile[type],
-      })),
-    ) ?? 'shield'
+    params.rng.weightedPick(buildWeightedPowerupEntries({ floor: params.floor, pool: poolKind })) ??
+    'shield'
   )
 }
 
@@ -51,8 +64,9 @@ export const pickEliteKind = (params: {
   rng: GameRng
   forceSpawn?: boolean
 }): Extract<EnemyKind, 'stalker' | 'ambusher'> | null => {
-  const sorted = [...BALANCE.elite.spawnByFloor].sort((a, b) => b.minFloor - a.minFloor)
-  const config = sorted.find((entry) => params.floor >= entry.minFloor) ?? sorted[0]
+  const config =
+    ELITE_SPAWN_BY_FLOOR_DESC.find((entry) => params.floor >= entry.minFloor) ??
+    ELITE_SPAWN_BY_FLOOR_DESC[0]
   if (!config) {
     return null
   }
@@ -66,16 +80,18 @@ export const pickEliteKind = (params: {
   return weighted
 }
 
+const getSpecialEnemyChances = (floor: number): { eggChance: number; mirrorChance: number } => ({
+  eggChance:
+    floor >= BALANCE.enemyVariants.egg.minFloor ? BALANCE.enemyVariants.egg.spawnChance : 0,
+  mirrorChance:
+    floor >= BALANCE.enemyVariants.mirror.minFloor ? BALANCE.enemyVariants.mirror.spawnChance : 0,
+})
+
 export const pickSpecialEnemyKind = (params: {
   floor: number
   rng: GameRng
 }): Extract<EnemyKind, 'egg' | 'mirror'> | null => {
-  const eggChance =
-    params.floor >= BALANCE.enemyVariants.egg.minFloor ? BALANCE.enemyVariants.egg.spawnChance : 0
-  const mirrorChance =
-    params.floor >= BALANCE.enemyVariants.mirror.minFloor
-      ? BALANCE.enemyVariants.mirror.spawnChance
-      : 0
+  const { eggChance, mirrorChance } = getSpecialEnemyChances(params.floor)
   const total = eggChance + mirrorChance
   if (total <= 0) {
     return null
