@@ -1,10 +1,4 @@
-export type ReplayInputType = 'dir' | 'turn' | 'ability' | 'pause' | 'key'
-
-export type ReplayInputEvent = {
-  atMs: number
-  type: ReplayInputType
-  value: string
-}
+import type { ReplayInputEvent, ReplayInputType } from '../core/types'
 
 export type RunReplayCapture = {
   seed: number

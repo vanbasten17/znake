@@ -20,6 +20,8 @@ export const gameState: GameState = {
   currentRunMutators: [],
   currentChallengePresetId: 'standard',
   currentChallengePresetForcedMutatorId: null,
+  activeContentPackId: 'base',
+  lastReplaySnapshot: null,
   biomeRuleSummary: {
     activationEvents: 0,
     transitionEvents: 0,

@@ -3,6 +3,7 @@ import styles from '../../styles/deathOverlay.module.css'
 import { getDepthBandForFloor } from '../core/balance'
 import { resolveChallengePreset } from '../core/challengePresets'
 import { STORAGE_KEYS } from '../core/constants'
+import { BASE_CONTENT_PACK } from '../core/contentPacks'
 import { type DeathRecapBuildLeaning, buildDeathRecap } from '../core/deathRecap'
 import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
 import { getRunObjectiveOffsetForSeed } from '../core/objectives'
@@ -502,6 +503,8 @@ export class DeathScene extends Phaser.Scene {
     gameState.currentRunMapNodeId = null
     gameState.pendingRunMapNodeId = null
     gameState.currentRunMutators = []
+    gameState.activeContentPackId = BASE_CONTENT_PACK.id
+    gameState.lastReplaySnapshot = null
     gameState.biomeRuleSummary = {
       activationEvents: 0,
       transitionEvents: 0,
@@ -574,6 +577,7 @@ export class DeathScene extends Phaser.Scene {
     emitFeedback('tap')
     this.teardownOverlay()
     setHintText(getStartHintText())
+    gameState.activeContentPackId = BASE_CONTENT_PACK.id
     transitionToScene(this, 'Menu', { chrome: 'menu' })
   }
 }

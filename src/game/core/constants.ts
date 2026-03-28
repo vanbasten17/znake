@@ -41,4 +41,6 @@ export const STORAGE_KEYS = {
   profileBackup: 'znake_profile_v1_backup',
   accessibility: 'znake_accessibility_v1',
   runHistory: 'znake_run_history_v1',
+  latestReplay: 'znake_latest_replay_v1',
+  onboardingAssist: 'znake_onboarding_assist_v1',
 } as const

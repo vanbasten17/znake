@@ -1,7 +1,9 @@
 import Phaser from 'phaser'
 import styles from '../../styles/menuOverlay.module.css'
 import { resolveChallengePreset } from '../core/challengePresets'
+import { createChallengeShareCode, parseChallengeShareCode } from '../core/challengeShare'
 import { STORAGE_KEYS } from '../core/constants'
+import { BASE_CONTENT_PACK } from '../core/contentPacks'
 import { DEV_SCENARIOS, type DevScenarioId, isDevMode } from '../core/devScenarios'
 import {
   GLOSSARY_CATEGORIES,
@@ -17,10 +19,17 @@ import {
   saveProfile,
   unlockTalent,
 } from '../core/meta'
+import { getMetaBoardBranchStatus } from '../core/metaBoard'
 import { getRoomObjective, getRunObjectiveOffsetForSeed } from '../core/objectives'
-import { loadRunHistory } from '../core/runHistory'
+import {
+  dismissOnboardingAssist,
+  markOnboardingAssistApplied,
+  resolveOnboardingAssistRecommendation,
+} from '../core/onboardingAssist'
+import { loadLatestReplaySnapshot } from '../core/replayStore'
+import { type RunHistoryEntry, loadRunHistory } from '../core/runHistory'
 import { gameState, playerProfile, setPlayerProfile } from '../core/state'
-import type { ChallengePresetId, GoalId } from '../core/types'
+import type { ChallengeMutatorId, ChallengePresetId, GoalId } from '../core/types'
 import { drawMarkerSpriteCanvas } from '../render/markerBitmapDraw'
 import { ensureMarkerBitmapsLoaded } from '../render/markerBitmaps'
 import {
@@ -126,6 +135,7 @@ export class MenuScene extends Phaser.Scene {
   private glossaryTabButtons: Partial<Record<GlossaryCategoryId, HTMLButtonElement>> = {}
   private glossaryListEl: HTMLDivElement | null = null
   private releaseDiagnosticsEl: HTMLParagraphElement | null = null
+  private onboardingActionButtons: HTMLButtonElement[] = []
   private glossaryCategory: GlossaryCategoryId = 'items'
   private readonly devMode = isDevMode()
 
@@ -146,6 +156,7 @@ export class MenuScene extends Phaser.Scene {
     this.glossaryOpen = false
     this.glossaryCategory = 'items'
     this.glossaryTabButtons = {}
+    this.onboardingActionButtons = []
     if (!Number.isFinite(gameState.runObjectiveOffset)) {
       gameState.runObjectiveOffset = 0
     }
@@ -269,6 +280,24 @@ export class MenuScene extends Phaser.Scene {
     weeklyStart.textContent = t('menu.startWeekly')
     weeklyStart.addEventListener('click', () => this.startRunWithPreset('weekly'))
     playActions.append(weeklyStart)
+
+    const challengeActions = document.createElement('div')
+    challengeActions.className = styles.challengeActions
+    playSection.append(challengeActions)
+
+    const shareChallenge = document.createElement('button')
+    shareChallenge.type = 'button'
+    shareChallenge.className = styles.startMinor
+    shareChallenge.textContent = 'SHARE LAST RUN'
+    shareChallenge.addEventListener('click', () => this.copyLatestChallengeCode())
+    challengeActions.append(shareChallenge)
+
+    const importChallenge = document.createElement('button')
+    importChallenge.type = 'button'
+    importChallenge.className = styles.startMinor
+    importChallenge.textContent = 'PLAY SHARED CODE'
+    importChallenge.addEventListener('click', () => this.importChallengeCode())
+    challengeActions.append(importChallenge)
 
     const historySectionTitle = document.createElement('p')
     historySectionTitle.className = styles.sectionLabel
@@ -617,6 +646,7 @@ export class MenuScene extends Phaser.Scene {
     this.glossaryTabButtons = {}
     this.glossaryListEl = null
     this.releaseDiagnosticsEl = null
+    this.onboardingActionButtons = []
     this.glossaryOpen = false
   }
 
@@ -740,7 +770,8 @@ export class MenuScene extends Phaser.Scene {
     title.textContent = 'RECENT RUNS'
     this.runHistoryEl.append(title)
 
-    const entries = loadRunHistory().slice(0, 3)
+    const allEntries = loadRunHistory()
+    const entries = allEntries.slice(0, 3)
     if (entries.length === 0) {
       const empty = document.createElement('p')
       empty.className = styles.runHistoryEmpty
@@ -764,6 +795,53 @@ export class MenuScene extends Phaser.Scene {
       list.append(row)
     }
     this.runHistoryEl.append(list)
+
+    const ghostLine = document.createElement('p')
+    ghostLine.className = styles.runHistoryMeta
+    ghostLine.textContent = this.getGhostLaneSummary(entries)
+    this.runHistoryEl.append(ghostLine)
+
+    const boardLine = document.createElement('p')
+    boardLine.className = styles.runHistoryMeta
+    boardLine.textContent = this.getMetaBoardSummary()
+    this.runHistoryEl.append(boardLine)
+
+    const onboarding = resolveOnboardingAssistRecommendation(allEntries)
+    if (onboarding.shouldSuggest) {
+      const onboardingCard = document.createElement('div')
+      onboardingCard.className = styles.onboardingCard
+      this.runHistoryEl.append(onboardingCard)
+
+      const onboardingText = document.createElement('p')
+      onboardingText.className = styles.onboardingText
+      onboardingText.textContent =
+        'Need a cleaner first 3 floors? Apply onboarding rail (clarity preset + low-fatigue audio).'
+      onboardingCard.append(onboardingText)
+
+      const actions = document.createElement('div')
+      actions.className = styles.onboardingActions
+      onboardingCard.append(actions)
+
+      const applyButton = document.createElement('button')
+      applyButton.type = 'button'
+      applyButton.className = styles.startMinor
+      applyButton.textContent = 'APPLY RAIL'
+      applyButton.addEventListener('click', () => this.applyOnboardingRail())
+      actions.append(applyButton)
+
+      const dismissButton = document.createElement('button')
+      dismissButton.type = 'button'
+      dismissButton.className = styles.startMinor
+      dismissButton.textContent = 'NOT NOW'
+      dismissButton.addEventListener('click', () => {
+        dismissOnboardingAssist()
+        this.refreshRunHistoryUi()
+      })
+      actions.append(dismissButton)
+      this.onboardingActionButtons = [applyButton, dismissButton]
+    } else {
+      this.onboardingActionButtons = []
+    }
   }
 
   private createReleaseLink(url: string, labelKey: string): HTMLAnchorElement {
@@ -859,6 +937,100 @@ export class MenuScene extends Phaser.Scene {
     this.refreshMetaUi()
   }
 
+  private getGhostLaneSummary(entries: ReadonlyArray<RunHistoryEntry>): string {
+    const latestReplay = loadLatestReplaySnapshot()
+    if (latestReplay) {
+      return `GHOST TARGET · F${latestReplay.floor} · S${latestReplay.score} · seed:${latestReplay.runSeed} · inputs:${latestReplay.events.length}`
+    }
+    const fallback = entries[0]
+    if (!fallback) {
+      return 'GHOST TARGET · no replay snapshot yet'
+    }
+    return `GHOST TARGET · F${fallback.floor} · S${fallback.score} · seed:${fallback.runSeed}`
+  }
+
+  private getMetaBoardSummary(): string {
+    const branchStatus = getMetaBoardBranchStatus(playerProfile)
+    const labels = branchStatus.map((entry) => {
+      const tierText = entry.unlockedTiers > 0 ? `T${entry.unlockedTiers}` : 'T0'
+      return `${entry.branch}:${tierText}`
+    })
+    return `META BOARD V2 · ${labels.join(' · ')}`
+  }
+
+  private async copyLatestChallengeCode(): Promise<void> {
+    const latestReplay = loadLatestReplaySnapshot()
+    const latestRun = loadRunHistory()[0]
+    const sourceSeed = latestReplay?.runSeed ?? latestRun?.runSeed
+    const sourcePreset =
+      latestReplay?.challengePresetId ?? latestRun?.challengePresetId ?? 'standard'
+    if (!Number.isFinite(sourceSeed)) {
+      emitFeedback('tap')
+      return
+    }
+    const challengeCode = createChallengeShareCode({
+      seed: sourceSeed ?? 0,
+      presetId: sourcePreset,
+      forcedMutatorId: gameState.currentChallengePresetForcedMutatorId,
+      floor: latestReplay?.floor ?? latestRun?.floor ?? 0,
+      score: latestReplay?.score ?? latestRun?.score ?? 0,
+    })
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(challengeCode)
+      } else {
+        window.prompt('Copy challenge code', challengeCode)
+      }
+      emitFeedback('success')
+      trackRetentionEvent('challenge_share_exported', {
+        presetId: sourcePreset,
+      })
+    } catch {
+      window.prompt('Copy challenge code', challengeCode)
+    }
+  }
+
+  private importChallengeCode(): void {
+    const raw = window.prompt('Paste challenge code') ?? ''
+    if (raw.trim().length <= 0) {
+      return
+    }
+    const parsed = parseChallengeShareCode(raw)
+    if (!parsed.ok || !parsed.payload) {
+      emitFeedback('tap')
+      trackRetentionEvent('challenge_share_import_failed', {
+        reason: parsed.reason ?? 'invalid',
+      })
+      return
+    }
+    emitFeedback('success')
+    trackRetentionEvent('challenge_share_imported', {
+      presetId: parsed.payload.presetId,
+      floor: parsed.payload.floor,
+      score: parsed.payload.score,
+    })
+    this.startRunInternal(undefined, parsed.payload.presetId, {
+      forcedSeed: parsed.payload.seed,
+      forcedMutatorId: parsed.payload.forcedMutatorId,
+      runStartSource: 'shared_code',
+    })
+  }
+
+  private applyOnboardingRail(): void {
+    updateAccessibilitySettings({
+      highContrast: true,
+      largeText: true,
+      reducedEffects: false,
+      audioProfile: 'low_fatigue',
+    })
+    markOnboardingAssistApplied()
+    this.refreshMetaUi()
+    emitFeedback('success')
+    trackRetentionEvent('onboarding_rail_applied', {
+      source: 'menu',
+    })
+  }
+
   private startRun(): void {
     this.startRunInternal()
   }
@@ -871,9 +1043,32 @@ export class MenuScene extends Phaser.Scene {
     this.startRunInternal(scenarioId, 'standard')
   }
 
+  private resolveForcedMutatorIdForPreset(
+    presetId: ChallengePresetId,
+    forcedMutatorId?: ChallengeMutatorId | null,
+  ): ChallengeMutatorId | null {
+    if (forcedMutatorId) {
+      return forcedMutatorId
+    }
+    if (presetId === 'standard') {
+      return null
+    }
+    const nowMs = Date.now()
+    return resolveChallengePreset({
+      presetId,
+      nowMs,
+      fallbackSeedParts: [nowMs, gameState.run, playerProfile.currency],
+    }).forcedMutatorId
+  }
+
   private startRunInternal(
     devScenarioId?: DevScenarioId,
     presetId: ChallengePresetId = 'standard',
+    options?: {
+      forcedSeed?: number
+      forcedMutatorId?: ChallengeMutatorId | null
+      runStartSource?: 'menu' | 'shared_code' | 'menu_dev'
+    },
   ): void {
     if (!this.waiting) {
       return
@@ -889,15 +1084,28 @@ export class MenuScene extends Phaser.Scene {
     gameState.eliteKills = 0
     gameState.floor = 1
     const nowMs = Date.now()
-    const resolvedPreset = resolveChallengePreset({
-      presetId: devScenarioId ? 'standard' : presetId,
-      nowMs,
-      fallbackSeedParts: [nowMs, gameState.run, playerProfile.currency],
-    })
+    const resolvedPresetId: ChallengePresetId = devScenarioId ? 'standard' : presetId
+    const resolvedPreset =
+      options?.forcedSeed !== undefined
+        ? {
+            presetId: resolvedPresetId,
+            runSeed: Math.floor(options.forcedSeed) >>> 0,
+            forcedMutatorId: this.resolveForcedMutatorIdForPreset(
+              resolvedPresetId,
+              options.forcedMutatorId,
+            ),
+          }
+        : resolveChallengePreset({
+            presetId: resolvedPresetId,
+            nowMs,
+            fallbackSeedParts: [nowMs, gameState.run, playerProfile.currency],
+          })
     gameState.currentRunSeed = resolvedPreset.runSeed
     gameState.currentChallengePresetId = resolvedPreset.presetId
     gameState.currentChallengePresetForcedMutatorId = resolvedPreset.forcedMutatorId
     gameState.runObjectiveOffset = getRunObjectiveOffsetForSeed(resolvedPreset.runSeed)
+    gameState.activeContentPackId = BASE_CONTENT_PACK.id
+    gameState.lastReplaySnapshot = null
     gameState.persistentUpgrades = []
     gameState.persistentRewards = []
     gameState.selectedRelicId = null
@@ -954,12 +1162,13 @@ export class MenuScene extends Phaser.Scene {
     playerProfile.lifetimeStats.runsPlayed += 1
     saveProfile(playerProfile)
     trackRetentionEvent('run_start', {
-      source: devScenarioId ? 'menu_dev' : 'menu',
+      source: options?.runStartSource ?? (devScenarioId ? 'menu_dev' : 'menu'),
       currency: playerProfile.currency,
       unlockedTalents: playerProfile.unlockedTalents.length,
       devScenarioId: devScenarioId ?? null,
       challengePresetId: resolvedPreset.presetId,
       challengePresetMutatorId: resolvedPreset.forcedMutatorId,
+      contentPackId: gameState.activeContentPackId,
     })
     trackRetentionEvent('input_mode', {
       mode: getControlMode(),

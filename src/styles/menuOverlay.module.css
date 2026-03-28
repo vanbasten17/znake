@@ -116,6 +116,36 @@
   color: var(--color-text-primary);
 }
 
+.runHistoryMeta {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-ui);
+  font-size: clamp(9px, 1.9vw, 11px);
+  line-height: 1.2;
+  color: var(--color-text-secondary);
+}
+
+.onboardingCard {
+  margin-top: var(--space-2);
+  border: 1px solid rgba(115, 186, 255, 0.42);
+  border-radius: 8px;
+  background: rgba(9, 21, 45, 0.9);
+  padding: var(--space-2);
+}
+
+.onboardingText {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(9px, 1.9vw, 11px);
+  color: var(--color-text-primary);
+}
+
+.onboardingActions {
+  margin-top: var(--space-2);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
 .accessibility {
   display: flex;
   flex-direction: column;
@@ -202,6 +232,12 @@
 .playActions {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.challengeActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-2);
 }
 

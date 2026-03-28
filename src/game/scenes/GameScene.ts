@@ -13,11 +13,13 @@ import {
 } from '../core/balance'
 import { resolvePresetMutatorRuntime } from '../core/challengePresets'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
+import { resolveContentPack } from '../core/contentPacks'
 import { getDevScenario, isDevMode } from '../core/devScenarios'
 import type { DevScenarioId } from '../core/devScenarios'
 import type { GlossaryMarkerTone } from '../core/glossary'
 import { applyRelicEffect, applyTalentEffects, isChallengeMutatorsUnlocked } from '../core/meta'
 import { getFloorObjective, getRoomObjectiveForRoomType } from '../core/objectives'
+import { persistLatestReplaySnapshot } from '../core/replayStore'
 import {
   applyRewardEffectsToConfig,
   formatRewardTranslationKey,
@@ -201,6 +203,7 @@ type GameSceneData = {
   score?: number
   devScenarioId?: DevScenarioId
   runSeed?: number
+  contentPackId?: string
 }
 
 type DeathReason = 'wall' | 'self' | 'enemy' | 'rift'
@@ -478,6 +481,20 @@ export class GameScene extends Phaser.Scene {
     this.rng = createSeededRng(this.runSeed)
     this.fxRng = createSeededRng(deriveRunSeed([this.runSeed, 0x9e3779b9]))
     this.replayCapture = createRunReplayCapture(this.runSeed, this.time.now)
+    const requestedPackId = data.contentPackId ?? gameState.activeContentPackId
+    const resolvedPack = resolveContentPack(requestedPackId)
+    gameState.activeContentPackId = resolvedPack.pack.id
+    if (resolvedPack.fallbackApplied) {
+      trackRetentionEvent('content_pack_fallback', {
+        requestedPackId,
+        resolvedPackId: resolvedPack.pack.id,
+      })
+    }
+    trackRetentionEvent('content_pack_resolved', {
+      contentPackId: resolvedPack.pack.id,
+      challengePresetId: gameState.currentChallengePresetId,
+      runSeed: this.runSeed,
+    })
     setDevRunSeed(this.runSeed)
     bindReplayCaptureGetter(() => this.replayCapture)
     bindRestartWithSameSeed(() => {
@@ -4827,6 +4844,15 @@ export class GameScene extends Phaser.Scene {
       enemyCount: this.enemyCount,
       enemyInterval: Math.floor(this.enemyInterval),
     })
+    const replaySnapshot = persistLatestReplaySnapshot({
+      runSeed: this.runSeed,
+      challengePresetId: gameState.currentChallengePresetId,
+      floor: gameState.floor,
+      score: this.score,
+      deathReason: reason,
+      events: this.replayCapture?.events ?? [],
+    })
+    gameState.lastReplaySnapshot = replaySnapshot
     this.time.delayedCall(600, () =>
       transitionToScene(this, 'Death', {
         chrome: 'run',

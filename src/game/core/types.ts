@@ -190,6 +190,35 @@ export type ChallengeMutatorDomain = 'pressure' | 'constraint' | 'economy' | 'ro
 export type ChallengeMutatorId = 'tempo_spike' | 'tight_turns' | 'lean_market' | 'route_tension'
 export type ChallengePresetId = 'standard' | 'daily' | 'weekly'
 
+export type ContentPackDefinition = {
+  schemaVersion: number
+  id: string
+  label: string
+  enemySetIds: string[]
+  eventPoolIds: string[]
+  mutatorBundleIds: string[]
+  rewardSetIds: string[]
+}
+
+export type ReplayInputType = 'dir' | 'turn' | 'ability' | 'pause' | 'key'
+
+export type ReplayInputEvent = {
+  atMs: number
+  type: ReplayInputType
+  value: string
+}
+
+export type ReplaySnapshot = {
+  schemaVersion: number
+  endedAtMs: number
+  runSeed: number
+  challengePresetId: ChallengePresetId
+  floor: number
+  score: number
+  deathReason: string
+  events: ReplayInputEvent[]
+}
+
 export type ChallengeMutatorEffects = {
   moveIntervalMultiplier?: number
   enemyIntervalMultiplier?: number
@@ -410,6 +439,8 @@ export type GameState = {
   currentRunMutators: ChallengeMutatorRuntime[]
   currentChallengePresetId: ChallengePresetId
   currentChallengePresetForcedMutatorId: ChallengeMutatorId | null
+  activeContentPackId: string
+  lastReplaySnapshot: ReplaySnapshot | null
   biomeRuleSummary: BiomeRuleRunSummary
 }
 
