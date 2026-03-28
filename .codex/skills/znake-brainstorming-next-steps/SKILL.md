@@ -27,6 +27,11 @@ The default artifact is:
 
 - `NEXT_STEPS.md`
 
+## Skill Choreography
+- Use `znake-architecture-guardrails` as the architecture lens when proposing systems-level ideas or refactor-sensitive directions.
+- Hand off to `znake-next-steps-openspec-sync` when the user asks for execution-ready prioritization and prompt packs.
+- Hand off to `znake-autoloop-next-steps` only when the user explicitly wants autonomous repeated execution.
+
 Do not write a separate design doc unless the user explicitly asks for one.
 
 ## Workflow

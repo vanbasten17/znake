@@ -11,6 +11,16 @@ metadata:
 
 When the user works on **glossary markers**, **sprite export**, **markerRenderer**, **markerHiRes**, **GameScene marker Images**, or **glossary canvas** in Znake, follow this pipeline so in-game and UI stay **sharp** (pixel-aligned).
 
+## Skill Choreography
+
+- Use this skill as the execution standard for marker rendering/export fidelity.
+- Use `znake-architecture-guardrails` alongside this skill when marker changes touch `GameScene` or shared render architecture.
+- If marker improvements come from backlog planning, sequence through:
+  1. `znake-brainstorming-next-steps` (idea shaping),
+  2. `znake-next-steps-openspec-sync` (priority + execution prompts),
+  3. then apply this marker pipeline skill during implementation.
+- If running autonomous backlog execution, `znake-autoloop-next-steps` may select marker items; apply this skill for the marker-specific implementation details in that cycle.
+
 ## Source of truth
 
 - **`src/game/render/markerExportSpec.ts`** — Defines `MARKER_EXPORT_LOGICAL_FRAME`, `MARKER_EXPORT_INNER_SIZE`, `MARKER_EXPORT_SCALE_DEFAULT`, `GLOSSARY_MARKER_DISPLAY_PX`. **Change dimensions only here**, then regenerate and validate.

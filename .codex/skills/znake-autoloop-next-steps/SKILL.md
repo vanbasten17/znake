@@ -7,6 +7,11 @@ description: Run a full autonomous NEXT_STEPS OpenSpec loop for Znake with minim
 
 Execute this workflow when the user asks for an autonomous loop over `NEXT_STEPS.md`.
 
+## Skill Choreography
+- Use `znake-next-steps-openspec-sync` for the sync and prioritization logic each cycle.
+- Apply `znake-architecture-guardrails` checks before implementation and before closing each cycle.
+- When the loop reaches completion (no major implementable unmatched items), hand off to `znake-brainstorming-next-steps` to regenerate backlog quality.
+
 ## Inputs
 
 - Optional: max cycles (default `5`)
@@ -40,6 +45,7 @@ Stop only when either:
 - Implement pending tasks from `tasks.md`.
 - Keep changes minimal, deterministic, and architecture-safe.
 - Mark completed tasks immediately.
+- Enforce `znake-architecture-guardrails` boundary checks before and after apply edits.
 
 5. Run gates in this strict order:
 - `pnpm check`
@@ -86,3 +92,4 @@ When stop condition is reached, output:
 3. completed/archived changes list
 4. remaining blocked items (if any)
 5. recommended next start command
+6. reminder to run `znake-brainstorming-next-steps` if backlog is exhausted

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Znake Architecture Guardrails"
+  short_description: "Enforce Znake architecture and reuse guardrails"
+  default_prompt: "Review planned or in-flight changes against Znake architecture guardrails, flag risks, and propose the smallest safe extraction-first path without changing gameplay behavior unless requested."
