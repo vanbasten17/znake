@@ -46,6 +46,7 @@ This skill is repo-specific. Assume:
    - a short note if multiple NEXT_STEPS bullets collapse into one existing OpenSpec concept
 6. Detect completion mode:
    - enter completion mode when there are no major `Unmatched` items, no `In Active Change` items, and no major items that are only `Specced in Base Specs`
+   - before enabling completion mode, verify that behavior-facing roadmap claims are reflected in current implementation (not only in specs/archive history); if verification is missing or contradictory, keep the item out of completion mode
 7. If NOT in completion mode, choose a small sample of next working items by priority.
 8. If NOT in completion mode, return copy-paste prompts optimized for actual concurrency:
    - parallel thread prompts only when safe overlap exists
@@ -79,6 +80,8 @@ Do not generate propose/apply prompt packs in completion mode.
 - Default to base specs plus active changes as primary evidence.
 - Treat archived changes plus matching base specs as strongest evidence that an item is already done at the spec level.
 - Treat a base spec without implementation proof as `Specced in Base Specs`, not fully done.
+- For behavior-facing roadmap items, require implementation-level verification before classifying as `Implemented or Archived`.
+- If spec/archive status conflicts with observed implementation behavior, classify as `Unmatched` (or `Partial match`) and do not enter completion mode.
 - If `NEXT_STEPS.md` item maps to multiple spec requirements, summarize them together.
 - Do not mark something done only because a similar word appears in OpenSpec.
 - When uncertain, say `Partial match` and explain why.
