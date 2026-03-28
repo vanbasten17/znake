@@ -291,3 +291,39 @@ The system SHALL keep death-reason trend computation compatible with existing bo
 - **THEN** reason categories map directly to existing death reason taxonomy values
 - **AND** unknown values degrade safely to fallback copy without failing recap render
 
+### Requirement: Composition window telemetry context
+
+The system SHALL include active composition window identifier in encounter role-composition telemetry.
+
+#### Scenario: Role composition events include window id
+- **WHEN** `encounter_role_composition` telemetry is emitted
+- **THEN** payload includes deterministic `roleWindowId` for the active draft window
+- **AND** field naming remains stable for dashboard aggregation
+
+### Requirement: Route package application telemetry context
+
+The system SHALL emit stable route package context when route identity effects are applied.
+
+#### Scenario: Route package event includes identity and delta fields
+- **WHEN** route package effects are resolved
+- **THEN** telemetry includes route package id/tag and applied delta context fields
+- **AND** payload supports comparison across depth bands
+
+### Requirement: Event-choice consequence-memory telemetry
+
+The system SHALL emit stable telemetry when delayed event-choice consequences are scheduled and applied.
+
+#### Scenario: Scheduling and application events include deterministic context
+- **WHEN** a qualifying option schedules a delayed consequence and when it later resolves
+- **THEN** telemetry includes source option id, consequence id, floor context, and trigger floor
+- **AND** payload remains bounded for retention analysis
+
+### Requirement: Boss telemetry includes phase-remix context
+
+The system SHALL include deterministic phase-remix context in boss encounter telemetry payloads.
+
+#### Scenario: Boss phase and damage telemetry include remix id
+- **WHEN** boss phase-window, phase-change, or boss-damage-reason telemetry is emitted
+- **THEN** payload includes stable `phaseRemixId` context field
+- **AND** fields remain bounded for cross-remix fairness analysis
+

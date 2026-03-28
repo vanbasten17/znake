@@ -788,3 +788,53 @@ The system SHALL compose first-pass challenge preset modifier behavior through e
 - **THEN** gameplay includes that mutator in run mutator context only when floor eligibility allows
 - **AND** existing guardrail constraints and deterministic ordering remain preserved
 
+### Requirement: Deterministic enemy composition director resolution
+
+The system SHALL resolve active enemy composition windows deterministically from depth band and spawn cadence context.
+
+#### Scenario: Equivalent spawn cadence yields equivalent role window
+- **WHEN** two runs share equivalent seed, floor band, and role spawn cadence state
+- **THEN** active composition window identifier is identical
+- **AND** resulting role policy overlay is identical
+
+#### Scenario: Window-aware role drafting preserves guardrails
+- **WHEN** normal enemy roles are drafted through active composition window policy
+- **THEN** existing active-cap and spawn-gap guardrails remain enforced
+- **AND** non-normal forced spawns are not rewritten by window policy
+
+### Requirement: Route package resolution applies bounded identity effects
+
+The system SHALL apply bounded package-specific effects when pending route choice resolves.
+
+#### Scenario: Route package apply includes deterministic score bonus
+- **WHEN** safer or riskier route is applied at room transition
+- **THEN** package score bonus is applied deterministically with existing score multiplier context
+- **AND** existing route pressure deltas remain active
+
+### Requirement: Due event-choice consequences resolve at floor start
+
+The system SHALL resolve due delayed event-choice consequences at floor initialization in deterministic order.
+
+#### Scenario: Due consequences apply before room setup
+- **WHEN** a new floor starts and pending delayed consequences are due
+- **THEN** consequence effects are applied to floor-start runtime state before room-specific setup
+- **AND** consumed consequences are removed from pending queue
+
+### Requirement: Expanded upgrade pool preserves deterministic draft behavior
+
+The system SHALL keep upgrade draft determinism and duplicate-avoidance when family mini-set entries are expanded.
+
+#### Scenario: Expanded catalog yields deterministic drafts
+- **WHEN** identical run seed, floor, and owned upgrade context request a draft from the expanded pool
+- **THEN** the selected upgrade ids remain deterministic
+- **AND** no duplicate upgrade id appears within the same draft
+
+### Requirement: Boss phase-remix application remains deterministic
+
+The system SHALL apply boss phase-remix profile effects deterministically by floor progression context.
+
+#### Scenario: Equivalent boss floors resolve equivalent remix behavior
+- **WHEN** equivalent runs reach the same boss floor context
+- **THEN** gameplay resolves the same boss remix id and applies the same bounded rage/support parameters
+- **AND** scene logic does not inject runtime randomness into remix selection
+

@@ -5,7 +5,10 @@ import {
   clearEventChoiceProgress,
   createEventChoiceProgressState,
   draftEventChoice,
+  draftEventChoiceConsequence,
   enterEventChoicePending,
+  partitionDueEventChoiceConsequences,
+  resolveEventChoiceConsequence,
   resolveEventChoiceOption,
   resolveEventChoiceProgress,
   setEventChoiceConfirmOption,
@@ -145,4 +148,70 @@ test('event choice progression state tracks pending, confirm, and resolved state
 
   const cleared = clearEventChoiceProgress()
   assert.equal(cleared.status, 'idle')
+})
+
+test('event choice consequence draft is deterministic and bounded by pending cap', () => {
+  const first = draftEventChoiceConsequence({
+    runSeed: 12345,
+    floor: 4,
+    optionId: 'route_risk_hunt',
+    pendingCount: 0,
+  })
+  const second = draftEventChoiceConsequence({
+    runSeed: 12345,
+    floor: 4,
+    optionId: 'route_risk_hunt',
+    pendingCount: 0,
+  })
+  assert.ok(first)
+  assert.ok(second)
+  assert.equal(first?.id, second?.id)
+  assert.equal(first?.triggerFloor, second?.triggerFloor)
+  if (!first || !second) {
+    throw new Error('Expected deterministic consequence draft')
+  }
+  assert.ok(first.triggerFloor >= 6)
+  assert.ok(first.triggerFloor <= 7)
+
+  const blocked = draftEventChoiceConsequence({
+    runSeed: 12345,
+    floor: 4,
+    optionId: 'route_risk_hunt',
+    pendingCount: BALANCE.eventChoices.consequenceMemory.maxPending,
+  })
+  assert.equal(blocked, null)
+})
+
+test('event choice consequence partition and resolution apply deterministic delayed effects', () => {
+  const drafted = draftEventChoiceConsequence({
+    runSeed: 55,
+    floor: 3,
+    optionId: 'route_safe_guarded',
+    pendingCount: 0,
+  })
+  assert.ok(drafted)
+  if (!drafted) {
+    throw new Error('Expected drafted delayed consequence')
+  }
+
+  const partitionBefore = partitionDueEventChoiceConsequences([drafted], drafted.triggerFloor - 1)
+  assert.equal(partitionBefore.due.length, 0)
+  assert.equal(partitionBefore.remaining.length, 1)
+
+  const partitionAt = partitionDueEventChoiceConsequences([drafted], drafted.triggerFloor)
+  assert.equal(partitionAt.due.length, 1)
+  assert.equal(partitionAt.remaining.length, 0)
+
+  const resolved = resolveEventChoiceConsequence({
+    consequence: drafted,
+    currentShields: 0,
+    currentPendingGrowth: 0,
+    currentScore: 20,
+    currentEnemyInterval: 400,
+    currentMoveInterval: 160,
+  })
+  assert.equal(resolved.nextShields, 1)
+  assert.equal(resolved.nextScore, 30)
+  assert.equal(resolved.nextEnemyInterval, 400)
+  assert.equal(resolved.nextMoveInterval, 160)
 })

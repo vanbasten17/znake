@@ -22,15 +22,15 @@ test('early upgrade draft surfaces family contrast when available', () => {
   )
 })
 
-test('upgrade catalog provides three families with at least three upgrades each', () => {
+test('upgrade catalog provides three families with at least four upgrades each', () => {
   const counts = UPGRADE_POOL.reduce<Record<string, number>>((acc, upgrade) => {
     acc[upgrade.family] = (acc[upgrade.family] ?? 0) + 1
     return acc
   }, {})
 
   assert.deepEqual(counts, {
-    aggro: 3,
-    control: 3,
-    survival: 3,
+    aggro: 4,
+    control: 4,
+    survival: 4,
   })
 })

@@ -498,6 +498,7 @@ export class DeathScene extends Phaser.Scene {
     gameState.persistentRewards = []
     gameState.selectedRelicId = null
     gameState.pendingFloorRoute = null
+    gameState.pendingEventChoiceConsequences = []
     gameState.currentRunMapNodeId = null
     gameState.pendingRunMapNodeId = null
     gameState.currentRunMutators = []

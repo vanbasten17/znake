@@ -75,6 +75,23 @@ export const UPGRADE_POOL: Upgrade[] = [
     },
   },
   {
+    id: 'blood_rush',
+    family: 'aggro',
+    name: 'BLOOD RUSH',
+    desc: 'Chase burst windows harder, but lanes punish late commits.',
+    icon: 'V',
+    color: 0xff5f3d,
+    gameplay: 'Converts clean pickups into faster burst tempo and bigger short-term scoring.',
+    tradeoff: 'You commit to tighter windows and lose margin when pathing gets crowded.',
+    synergy: 'Best with Time Rift or Attractor to set up controlled burst paths.',
+    tags: ['speed', 'burst', 'routing'],
+    apply: (cfg) => {
+      cfg.moveInterval = Math.max(72, Math.floor(cfg.moveInterval * 0.92))
+      cfg.powerupScoreMult *= 1.3
+      cfg.enemySlow *= 0.95
+    },
+  },
+  {
     id: 'attractor',
     family: 'control',
     name: 'ATTRACTOR',
@@ -119,6 +136,23 @@ export const UPGRADE_POOL: Upgrade[] = [
     tags: ['body-control', 'zoning'],
     apply: (cfg) => {
       cfg.bonusStartLength += 3
+    },
+  },
+  {
+    id: 'lane_lattice',
+    family: 'control',
+    name: 'LANE LATTICE',
+    desc: 'Route planning gets cleaner, but burst ceiling drops.',
+    icon: 'L',
+    color: 0x5fb8ff,
+    gameplay: 'Adds turn-buffer flexibility for safer line weaving under pressure.',
+    tradeoff: 'Raises control consistency while slightly lowering explosive payoff.',
+    synergy: 'Pairs with Biomass and Cell Regen for stable space ownership loops.',
+    tags: ['routing', 'zoning', 'stability'],
+    apply: (cfg) => {
+      cfg.maxTurnQueue = Math.max(cfg.maxTurnQueue, 4)
+      cfg.enemySlow *= 1.08
+      cfg.scoreMult *= 0.95
     },
   },
   {
@@ -167,6 +201,23 @@ export const UPGRADE_POOL: Upgrade[] = [
     apply: (cfg) => {
       cfg.bonusStartLength += 2
       cfg.powerupGrowth += 1
+    },
+  },
+  {
+    id: 'aegis_cycle',
+    family: 'survival',
+    name: 'AEGIS CYCLE',
+    desc: 'Extra safety buffer, but tempo softens slightly.',
+    icon: 'A',
+    color: 0x8cffb3,
+    gameplay: 'Adds reliable stabilization for recovery-focused route plans.',
+    tradeoff: 'Safer runs scale slower because movement tempo and score pace ease off.',
+    synergy: 'Excellent when paired with Aggro picks that compress reaction windows.',
+    tags: ['shield', 'recovery', 'stability'],
+    apply: (cfg) => {
+      cfg.bonusShields += 1
+      cfg.moveInterval = Math.max(72, Math.floor(cfg.moveInterval * 1.04))
+      cfg.scoreMult *= 0.94
     },
   },
 ]

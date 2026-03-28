@@ -300,3 +300,39 @@ The system SHALL define item spawn and usefulness policy by depth band and bound
 - **THEN** adjustments are bounded by configured min/max ranges
 - **AND** outcomes remain deterministic from seed and state inputs
 
+### Requirement: Depth-band enemy composition window config
+
+The system SHALL define deterministic role-composition windows per depth band as a data-driven overlay on base role policies.
+
+#### Scenario: Depth-band windows provide bounded role-weight modulation
+- **WHEN** a depth band is configured
+- **THEN** composition config includes bounded windows with role-weight multipliers and optional cap overrides
+- **AND** windows retain deterministic ordering and bounded window-size semantics
+
+### Requirement: Route identity package metadata contract
+
+The system SHALL define explicit identity metadata for safer/riskier route packages.
+
+#### Scenario: Route package config includes identity fields
+- **WHEN** safer/riskier route config is read
+- **THEN** each package includes stable id, label, and tactical tag fields
+- **AND** package fields remain deterministic and data-driven
+
+### Requirement: Central event-choice consequence-memory tuning
+
+The system SHALL keep delayed event-choice consequence-memory definitions in centralized balance config with bounded queue controls.
+
+#### Scenario: Consequence-memory definitions are deterministic and bounded
+- **WHEN** consequence-memory config is read
+- **THEN** each definition includes source option id, delay-floor window, and bounded effects
+- **AND** queue cap constraints are centralized and data-driven
+
+### Requirement: Central boss phase-remix profile configuration
+
+The system SHALL define deterministic boss phase-remix profiles and rotation order in centralized balance configuration.
+
+#### Scenario: Remix profiles expose bounded escalation knobs
+- **WHEN** boss remix config is resolved
+- **THEN** each remix profile includes bounded rage-threshold and support-cadence knobs
+- **AND** deterministic rotation order is centralized, not scene-local
+

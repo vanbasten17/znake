@@ -5,10 +5,11 @@ import { pickEliteKind, pickPowerupType, pickSpecialEnemyKind } from '../config/
 import {
   BALANCE,
   createBaseRunConfig,
+  getBossPhaseRemixForFloor,
   getDepthBandForFloor,
   getFloorSetup,
   getItemSpawnConfigForFloor,
-  getRoleSpawnPolicyForFloor,
+  getRoleSpawnPolicyWindowForFloor,
 } from '../core/balance'
 import { resolvePresetMutatorRuntime } from '../core/challengePresets'
 import { BASE_COLS, BASE_ROWS, CELL, COLORS, HEIGHT, WIDTH, cellPx } from '../core/constants'
@@ -127,7 +128,10 @@ import {
   clearEventChoiceProgress,
   createEventChoiceProgressState,
   draftEventChoice,
+  draftEventChoiceConsequence,
   enterEventChoicePending,
+  partitionDueEventChoiceConsequences,
+  resolveEventChoiceConsequence,
   resolveEventChoiceOption,
   resolveEventChoiceProgress,
   setEventChoiceConfirmOption,
@@ -326,6 +330,7 @@ export class GameScene extends Phaser.Scene {
   private powerup: Powerup | null = null
   private biomeItem: BiomeItem | null = null
   private bossSupportShieldRespawnMs = 0
+  private bossSupportRespawnIntervalMs: number = BALANCE.biome.boss.supportShieldRespawnMs
   private contactGraceMsRemaining = 0
   private enemyMoveTimer = 0
   private enemyInterval = 400
@@ -339,6 +344,9 @@ export class GameScene extends Phaser.Scene {
   private stars: Array<{ x: number; y: number; size: number; alpha: number }> = []
   private isBossFloor = false
   private bossPhase: BossEncounterPhase = 'alpha'
+  private bossPhaseRemixId = 'standard' as string
+  private bossPhaseRemixCueLabel = 'STANDARD' as string
+  private bossRageHealthThreshold = 1 as number
   private appliedFloorRoute: FloorRouteChoice | null = null
   private darknessActive = false
   private darknessRadius = 0
@@ -455,6 +463,9 @@ export class GameScene extends Phaser.Scene {
         activatedBiomeIds: [],
         activatedRuleIds: [],
       }
+    }
+    if (!gameState.pendingEventChoiceConsequences) {
+      gameState.pendingEventChoiceConsequences = []
     }
     this.runStartMs = this.time.now
     this.isDying = false
@@ -584,9 +595,14 @@ export class GameScene extends Phaser.Scene {
       this.currentRoomType = 'combat'
     }
     this.bossPhase = 'alpha'
+    const bossPhaseRemix = getBossPhaseRemixForFloor(gameState.floor)
+    this.bossPhaseRemixId = bossPhaseRemix.id
+    this.bossPhaseRemixCueLabel = bossPhaseRemix.cueLabel
+    this.bossRageHealthThreshold = bossPhaseRemix.rageHealthThreshold
+    this.bossSupportRespawnIntervalMs = bossPhaseRemix.supportShieldRespawnMs
     if (this.isBossFloor) {
       gameState.bossEncounterSummary.encountered = true
-      gameState.bossEncounterSummary.identityId = BALANCE.biome.boss.identity.id
+      gameState.bossEncounterSummary.identityId = `${BALANCE.biome.boss.identity.id}:${bossPhaseRemix.id}`
       gameState.bossEncounterSummary.highestPhase = resolveBossHighestPhase(
         gameState.bossEncounterSummary.highestPhase,
         'alpha',
@@ -623,6 +639,7 @@ export class GameScene extends Phaser.Scene {
       : null
     this.resolveActiveBiomeRules(composedRoomObjectiveDefinition?.kind ?? null)
     this.applyPendingFloorRoute()
+    this.applyDueEventChoiceConsequences()
     this.applyRoomTypeSetup()
 
     this.bgGraphics = this.add.graphics()
@@ -708,7 +725,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isBossFloor) {
       this.powerup = null
       this.spawnPowerup('venom')
-      this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
+      this.bossSupportShieldRespawnMs = this.bossSupportRespawnIntervalMs
     }
     if (this.usesCombatRoomFlow() && this.objectiveType === 'kills' && !this.isBossFloor) {
       this.spawnPowerup('venom')
@@ -1001,7 +1018,9 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.appliedFloorRoute) {
       activeModifiers.push(
-        this.appliedFloorRoute === 'safer' ? t('game.routeSafer') : t('game.routeRiskier'),
+        this.appliedFloorRoute === 'safer'
+          ? `${t('game.routeSafer')} (${BALANCE.portal.routeChoice.safer.packageLabel})`
+          : `${t('game.routeRiskier')} (${BALANCE.portal.routeChoice.riskier.packageLabel})`,
       )
     }
     for (const label of getChallengeMutatorHudLabels(this.challengeMutators)) {
@@ -1096,10 +1115,14 @@ export class GameScene extends Phaser.Scene {
     this.corePressureCoolantCharges = 0
     this.biomeItem = null
     this.bossSupportShieldRespawnMs = 0
+    this.bossSupportRespawnIntervalMs = BALANCE.biome.boss.supportShieldRespawnMs
     this.contactGraceMsRemaining = 0
     this.stars = []
     this.isBossFloor = false
     this.bossPhase = 'alpha'
+    this.bossPhaseRemixId = 'standard'
+    this.bossPhaseRemixCueLabel = 'STANDARD'
+    this.bossRageHealthThreshold = 1
     this.appliedFloorRoute = null
     this.darknessActive = false
     this.darknessRadius = 0
@@ -1378,7 +1401,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.spawnPowerup(this.rng.nextFloat() < 0.85 ? 'venom' : 'shield')
     }
-    this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
+    this.bossSupportShieldRespawnMs = this.bossSupportRespawnIntervalMs
   }
 
   private updateSnakeMovement(delta: number): void {
@@ -3208,6 +3231,21 @@ export class GameScene extends Phaser.Scene {
     if (resolved.routeIntent) {
       gameState.pendingFloorRoute = resolved.routeIntent
     }
+    const consequence = draftEventChoiceConsequence({
+      runSeed: this.runSeed,
+      floor: gameState.floor,
+      optionId: option.id,
+      pendingCount: gameState.pendingEventChoiceConsequences.length,
+    })
+    if (consequence) {
+      gameState.pendingEventChoiceConsequences.push(consequence)
+      trackRetentionEvent('event_choice_consequence_scheduled', {
+        floor: gameState.floor,
+        consequenceId: consequence.id,
+        sourceOptionId: option.id,
+        triggerFloor: consequence.triggerFloor,
+      })
+    }
     updateHud(this.score)
 
     this.eventChoiceProgress = resolveEventChoiceProgress(this.eventChoiceProgress, option)
@@ -3311,33 +3349,73 @@ export class GameScene extends Phaser.Scene {
     }
     this.appliedFloorRoute = route
     gameState.pendingFloorRoute = null
+    const routeConfig =
+      route === 'safer' ? BALANCE.portal.routeChoice.safer : BALANCE.portal.routeChoice.riskier
+    let resolvedEnemyDelta = 0
     if (route === 'safer') {
-      this.enemyCount = Math.max(
-        1,
-        this.enemyCount +
-          applyChallengeMutatorsToRouteChoice({
-            route: 'safer',
-            enemyDelta:
-              BALANCE.portal.routeChoice.safer.enemyDelta + this.biomeRouteEnemyDeltaSafer,
-            mutators: this.challengeMutators,
-          }),
-      )
+      resolvedEnemyDelta = applyChallengeMutatorsToRouteChoice({
+        route: 'safer',
+        enemyDelta: BALANCE.portal.routeChoice.safer.enemyDelta + this.biomeRouteEnemyDeltaSafer,
+        mutators: this.challengeMutators,
+      })
+      this.enemyCount = Math.max(1, this.enemyCount + resolvedEnemyDelta)
       this.wallCount = Math.max(1, this.wallCount + BALANCE.portal.routeChoice.safer.wallDelta)
       this.enemyInterval *= BALANCE.portal.routeChoice.safer.enemyIntervalMultiplier
+    } else {
+      resolvedEnemyDelta = applyChallengeMutatorsToRouteChoice({
+        route: 'riskier',
+        enemyDelta:
+          BALANCE.portal.routeChoice.riskier.enemyDelta + this.biomeRouteEnemyDeltaRiskier,
+        mutators: this.challengeMutators,
+      })
+      this.enemyCount = Math.max(1, this.enemyCount + resolvedEnemyDelta)
+      this.wallCount = Math.max(1, this.wallCount + BALANCE.portal.routeChoice.riskier.wallDelta)
+      this.enemyInterval *= BALANCE.portal.routeChoice.riskier.enemyIntervalMultiplier
+    }
+    const routeScoreBonus = Math.floor(routeConfig.scoreBonus * this.cfg.scoreMult)
+    this.score += routeScoreBonus
+    trackRetentionEvent('route_package_applied', {
+      route,
+      routePackageId: routeConfig.packageId,
+      routePackageTag: routeConfig.packageTag,
+      routeScoreBonus,
+      routeEnemyDelta: resolvedEnemyDelta,
+      routeWallDelta: routeConfig.wallDelta,
+      depthBand: getDepthBandForFloor(gameState.floor),
+    })
+  }
+
+  private applyDueEventChoiceConsequences(): void {
+    const consequences = partitionDueEventChoiceConsequences(
+      gameState.pendingEventChoiceConsequences,
+      gameState.floor,
+    )
+    gameState.pendingEventChoiceConsequences = consequences.remaining
+    if (consequences.due.length <= 0) {
       return
     }
-    this.enemyCount = Math.max(
-      1,
-      this.enemyCount +
-        applyChallengeMutatorsToRouteChoice({
-          route: 'riskier',
-          enemyDelta:
-            BALANCE.portal.routeChoice.riskier.enemyDelta + this.biomeRouteEnemyDeltaRiskier,
-          mutators: this.challengeMutators,
-        }),
-    )
-    this.wallCount = Math.max(1, this.wallCount + BALANCE.portal.routeChoice.riskier.wallDelta)
-    this.enemyInterval *= BALANCE.portal.routeChoice.riskier.enemyIntervalMultiplier
+    for (const consequence of consequences.due) {
+      const resolved = resolveEventChoiceConsequence({
+        consequence,
+        currentShields: this.shields,
+        currentPendingGrowth: this.pendingGrowth,
+        currentScore: this.score,
+        currentEnemyInterval: this.enemyInterval,
+        currentMoveInterval: this.cfg.moveInterval,
+      })
+      this.shields = resolved.nextShields
+      this.pendingGrowth = resolved.nextPendingGrowth
+      this.score = resolved.nextScore
+      this.enemyInterval = resolved.nextEnemyInterval
+      this.cfg.moveInterval = resolved.nextMoveInterval
+      trackRetentionEvent('event_choice_consequence_applied', {
+        floor: gameState.floor,
+        consequenceId: consequence.id,
+        sourceOptionId: consequence.sourceOptionId,
+        triggerFloor: consequence.triggerFloor,
+      })
+    }
+    updateHud(this.score)
   }
 
   private spawnSnake(): SnakeSegment[] {
@@ -3851,13 +3929,13 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (bossPhase === 'telegraph') {
-      return `BOSS ${BALANCE.biome.boss.identity.cueLabel}: TELEGRAPH`
+      return `BOSS ${BALANCE.biome.boss.identity.cueLabel} ${this.bossPhaseRemixCueLabel}: TELEGRAPH`
     }
     if (bossPhase === 'commit') {
-      return `BOSS ${BALANCE.biome.boss.identity.cueLabel}: COMMIT`
+      return `BOSS ${BALANCE.biome.boss.identity.cueLabel} ${this.bossPhaseRemixCueLabel}: COMMIT`
     }
     if (bossPhase === 'recovery') {
-      return `BOSS ${BALANCE.biome.boss.identity.cueLabel}: RECOVERY`
+      return `BOSS ${BALANCE.biome.boss.identity.cueLabel} ${this.bossPhaseRemixCueLabel}: RECOVERY`
     }
     if (!bestPhase) {
       return null
@@ -3889,6 +3967,7 @@ export class GameScene extends Phaser.Scene {
         encounterId: enemy.id,
         identityId: gameState.bossEncounterSummary.identityId,
         phase,
+        phaseRemixId: this.bossPhaseRemixId,
         counterplayTicksRemaining: enemy.readability.counterplayTicksRemaining,
         floor: gameState.floor,
       })
@@ -3970,6 +4049,7 @@ export class GameScene extends Phaser.Scene {
         encounterId: enemy.id,
         identityId: gameState.bossEncounterSummary.identityId,
         phase: this.bossPhase,
+        phaseRemixId: this.bossPhaseRemixId,
         reason,
         openNeighborCount,
         activePressureSources: this.getActiveEliteMinibossPressureSources(),
@@ -4036,7 +4116,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy(kind: Enemy['kind'] = 'normal'): void {
-    const rolePolicy = getRoleSpawnPolicyForFloor(gameState.floor)
+    const roleWindow = getRoleSpawnPolicyWindowForFloor({
+      floor: gameState.floor,
+      spawnIndex: this.roleSpawnCadence.spawnIndex + 1,
+    })
+    const rolePolicy = roleWindow.policy
     const rolePick =
       kind === 'normal'
         ? pickRoleByPolicy({
@@ -4165,6 +4249,7 @@ export class GameScene extends Phaser.Scene {
       reason: kind === 'normal' ? 'spawn' : 'forced_spawn',
       roles: summarizeActiveRoles(this.enemies),
       depthBand: getDepthBandForFloor(gameState.floor),
+      roleWindowId: roleWindow.id,
     })
   }
 
@@ -4177,6 +4262,10 @@ export class GameScene extends Phaser.Scene {
       reason,
       roles: summarizeActiveRoles(this.enemies),
       depthBand: getDepthBandForFloor(gameState.floor),
+      roleWindowId: getRoleSpawnPolicyWindowForFloor({
+        floor: gameState.floor,
+        spawnIndex: this.roleSpawnCadence.spawnIndex + 1,
+      }).id,
     })
   }
 
@@ -4269,7 +4358,11 @@ export class GameScene extends Phaser.Scene {
       if (head) {
         this.spawnParticles(head.x, head.y, COLORS.shield, 6)
       }
-      if (enemy.kind === 'boss' && enemy.health <= 1 && this.bossPhase !== 'rage') {
+      if (
+        enemy.kind === 'boss' &&
+        enemy.health <= this.bossRageHealthThreshold &&
+        this.bossPhase !== 'rage'
+      ) {
         this.bossPhase = 'rage'
         gameState.bossEncounterSummary.highestPhase = resolveBossHighestPhase(
           gameState.bossEncounterSummary.highestPhase,
@@ -4278,6 +4371,7 @@ export class GameScene extends Phaser.Scene {
         trackRetentionEvent('boss_phase_changed', {
           identityId: gameState.bossEncounterSummary.identityId,
           phase: 'rage',
+          phaseRemixId: this.bossPhaseRemixId,
           floor: gameState.floor,
         })
         setHintText(t('game.bossPhaseRageHint'))
@@ -4469,7 +4563,7 @@ export class GameScene extends Phaser.Scene {
       this.spawnParticles(nx, ny, COLORS.powerup, 10)
       this.triggerPickupFeedback(nx, ny, COLORS.powerup, true)
       if (this.isBossFloor) {
-        this.bossSupportShieldRespawnMs = BALANCE.biome.boss.supportShieldRespawnMs
+        this.bossSupportShieldRespawnMs = this.bossSupportRespawnIntervalMs
       }
       if (this.rng.nextFloat() < BALANCE.spawn.powerupRespawnChance) {
         this.time.delayedCall(BALANCE.spawn.powerupRespawnDelayMs, () => {

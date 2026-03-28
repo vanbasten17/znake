@@ -14,6 +14,7 @@ export const gameState: GameState = {
   persistentRewards: [],
   selectedRelicId: null,
   pendingFloorRoute: null,
+  pendingEventChoiceConsequences: [],
   currentRunMapNodeId: null,
   pendingRunMapNodeId: null,
   currentRunMutators: [],

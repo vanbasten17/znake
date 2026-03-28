@@ -1,5 +1,7 @@
 import { BALANCE } from '../core/balance'
 import type {
+  EventChoiceConsequenceDefinition,
+  EventChoiceDelayedConsequence,
   EventChoiceDraft,
   EventChoiceEffects,
   EventChoiceOption,
@@ -53,6 +55,18 @@ export type EventChoiceResolution = {
   nextMoveInterval: number
   consumedLength: number
   routeIntent: FloorRouteChoice | null
+}
+
+export type EventChoiceConsequenceDraftParams = {
+  runSeed: number
+  floor: number
+  optionId: string
+  pendingCount: number
+}
+
+export type EventChoiceConsequenceResolution = {
+  due: EventChoiceDelayedConsequence[]
+  remaining: EventChoiceDelayedConsequence[]
 }
 
 const hashString = (value: string): number => {
@@ -200,12 +214,12 @@ const applyIntervalMultiplier = (
 
 const getLengthDelta = (effects: EventChoiceEffects): number => effects.lengthDelta ?? 0
 
-export const resolveEventChoiceOption = (
-  params: EventChoiceResolutionParams,
-): EventChoiceResolution => {
-  const shieldDelta = params.option.effects.shieldDelta ?? 0
-  const lengthDelta = getLengthDelta(params.option.effects)
-  const scoreDelta = params.option.effects.scoreDelta ?? 0
+const resolveEventChoiceEffects = (
+  params: Omit<EventChoiceResolutionParams, 'option'> & { effects: EventChoiceEffects },
+): Omit<EventChoiceResolution, 'routeIntent'> => {
+  const shieldDelta = params.effects.shieldDelta ?? 0
+  const lengthDelta = getLengthDelta(params.effects)
+  const scoreDelta = params.effects.scoreDelta ?? 0
 
   return {
     nextShields: Math.max(0, params.currentShields + shieldDelta),
@@ -213,15 +227,104 @@ export const resolveEventChoiceOption = (
     nextScore: Math.max(0, params.currentScore + scoreDelta),
     nextEnemyInterval: applyIntervalMultiplier(
       params.currentEnemyInterval,
-      params.option.effects.enemyIntervalMultiplier,
+      params.effects.enemyIntervalMultiplier,
       BALANCE.eventChoices.minEnemyIntervalMs,
     ),
     nextMoveInterval: applyIntervalMultiplier(
       params.currentMoveInterval,
-      params.option.effects.moveIntervalMultiplier,
+      params.effects.moveIntervalMultiplier,
       BALANCE.eventChoices.minMoveIntervalMs,
     ),
     consumedLength: Math.max(0, -lengthDelta),
+  }
+}
+
+export const resolveEventChoiceOption = (
+  params: EventChoiceResolutionParams,
+): EventChoiceResolution => {
+  const resolved = resolveEventChoiceEffects({
+    effects: params.option.effects,
+    currentShields: params.currentShields,
+    currentPendingGrowth: params.currentPendingGrowth,
+    currentScore: params.currentScore,
+    currentEnemyInterval: params.currentEnemyInterval,
+    currentMoveInterval: params.currentMoveInterval,
+  })
+
+  return {
+    ...resolved,
     routeIntent: params.option.effects.routeIntent ?? null,
   }
+}
+
+const draftConsequenceDelayFloors = (params: {
+  runSeed: number
+  floor: number
+  definition: EventChoiceConsequenceDefinition
+}): number => {
+  const minDelay = Math.max(1, Math.floor(params.definition.minDelayFloors))
+  const maxDelay = Math.max(minDelay, Math.floor(params.definition.maxDelayFloors))
+  if (maxDelay === minDelay) {
+    return minDelay
+  }
+  const rng = createSeededRng(
+    deriveRunSeed([params.runSeed, params.floor, hashString(params.definition.id), 0xec74]),
+  )
+  return rng.nextInt(minDelay, maxDelay)
+}
+
+export const draftEventChoiceConsequence = (
+  params: EventChoiceConsequenceDraftParams,
+): EventChoiceDelayedConsequence | null => {
+  if (params.pendingCount >= BALANCE.eventChoices.consequenceMemory.maxPending) {
+    return null
+  }
+  const definition = BALANCE.eventChoices.consequenceMemory.definitions.find(
+    (candidate) => candidate.sourceOptionId === params.optionId,
+  )
+  if (!definition) {
+    return null
+  }
+  const delayFloors = draftConsequenceDelayFloors({
+    runSeed: params.runSeed,
+    floor: params.floor,
+    definition,
+  })
+  return {
+    id: definition.id,
+    sourceOptionId: definition.sourceOptionId,
+    triggerFloor: params.floor + delayFloors,
+    summaryKey: definition.summaryKey,
+    effects: { ...definition.effects },
+  }
+}
+
+export const resolveEventChoiceConsequence = (
+  params: Omit<EventChoiceResolutionParams, 'option'> & {
+    consequence: EventChoiceDelayedConsequence
+  },
+): Omit<EventChoiceResolution, 'routeIntent'> =>
+  resolveEventChoiceEffects({
+    effects: params.consequence.effects,
+    currentShields: params.currentShields,
+    currentPendingGrowth: params.currentPendingGrowth,
+    currentScore: params.currentScore,
+    currentEnemyInterval: params.currentEnemyInterval,
+    currentMoveInterval: params.currentMoveInterval,
+  })
+
+export const partitionDueEventChoiceConsequences = (
+  pending: ReadonlyArray<EventChoiceDelayedConsequence>,
+  floor: number,
+): EventChoiceConsequenceResolution => {
+  const due: EventChoiceDelayedConsequence[] = []
+  const remaining: EventChoiceDelayedConsequence[] = []
+  for (const consequence of pending) {
+    if (consequence.triggerFloor <= floor) {
+      due.push(consequence)
+    } else {
+      remaining.push(consequence)
+    }
+  }
+  return { due, remaining }
 }

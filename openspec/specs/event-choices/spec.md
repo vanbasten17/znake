@@ -67,3 +67,12 @@ The system SHALL support safe-vs-dangerous route decisions as bounded progressio
 - **THEN** the temporary route-intent flag is cleared
 - **AND** subsequent progression returns to default intent behavior
 
+### Requirement: Event-choice options can schedule delayed consequences
+
+The system SHALL allow configured event-choice options to schedule bounded delayed consequences across subsequent floors.
+
+#### Scenario: Qualifying option schedules deterministic delayed consequence
+- **WHEN** a selected event option has consequence-memory mapping
+- **THEN** gameplay schedules a deterministic consequence payload with trigger floor
+- **AND** scheduling obeys configured queue cap and delay window
+

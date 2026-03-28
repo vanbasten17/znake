@@ -3,10 +3,12 @@ import test from 'node:test'
 import { pickPowerupType } from '../src/game/config/content'
 import {
   BALANCE,
+  getBossPhaseRemixForFloor,
   getDepthBandForFloor,
   getFloorSetup,
   getItemSpawnConfigForFloor,
   getRoleSpawnPolicyForFloor,
+  getRoleSpawnPolicyWindowForFloor,
 } from '../src/game/core/balance'
 import { createSeededRng } from '../src/game/simulation/rng'
 
@@ -26,6 +28,31 @@ test('role spawn policy shifts toward higher pressure in late band', () => {
   assert.ok(late.weights.sniper > early.weights.sniper)
   assert.ok(late.weights.summoner > early.weights.summoner)
   assert.ok(late.weights.blocker < early.weights.blocker)
+})
+
+test('role composition director windows rotate deterministically by spawn index', () => {
+  const earlyOne = getRoleSpawnPolicyWindowForFloor({ floor: 2, spawnIndex: 1 })
+  const earlyFour = getRoleSpawnPolicyWindowForFloor({ floor: 2, spawnIndex: 4 })
+  const earlySeven = getRoleSpawnPolicyWindowForFloor({ floor: 2, spawnIndex: 7 })
+  assert.equal(earlyOne.id, 'early_stable')
+  assert.equal(earlyFour.id, 'early_poke')
+  assert.equal(earlySeven.id, 'early_stable')
+})
+
+test('boss phase remix rotation is deterministic by boss-floor ordinal', () => {
+  assert.equal(getBossPhaseRemixForFloor(3).id, 'standard')
+  assert.equal(getBossPhaseRemixForFloor(6).id, 'assault')
+  assert.equal(getBossPhaseRemixForFloor(9).id, 'siege')
+  assert.equal(getBossPhaseRemixForFloor(12).id, 'standard')
+})
+
+test('late composition window can tighten blocker cap for pressure spikes', () => {
+  const lateSpike = getRoleSpawnPolicyWindowForFloor({ floor: 12, spawnIndex: 1 })
+  const lateRecover = getRoleSpawnPolicyWindowForFloor({ floor: 12, spawnIndex: 3 })
+  assert.equal(lateSpike.id, 'late_spike')
+  assert.equal(lateRecover.id, 'late_recover')
+  assert.equal(lateSpike.policy.maxActiveByRole.blocker, 2)
+  assert.equal(lateRecover.policy.maxActiveByRole.blocker, 3)
 })
 
 test('floor setup guardrails keep enemy interval step changes bounded', () => {

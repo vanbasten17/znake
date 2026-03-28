@@ -4,6 +4,7 @@ import type {
   ChallengeMutatorDefinition,
   DepthBalanceBandId,
   EnemyRole,
+  EventChoiceConsequenceDefinition,
   EventChoiceDefinition,
   FloorObjectiveKind,
   FloorTemplate,
@@ -194,6 +195,75 @@ export const BALANCE = {
         fallbackRole: 'blocker' as EnemyRole,
       },
     } as const,
+    roleCompositionDirectorById: {
+      early: {
+        windowSizeSpawns: 3,
+        windows: [
+          {
+            id: 'early_stable',
+            weightMultipliers: {
+              blocker: 1.1,
+              charger: 0.9,
+              summoner: 0.9,
+            },
+          },
+          {
+            id: 'early_poke',
+            weightMultipliers: {
+              sniper: 1.2,
+              blocker: 0.9,
+            },
+          },
+        ],
+      },
+      mid: {
+        windowSizeSpawns: 3,
+        windows: [
+          {
+            id: 'mid_mix',
+            weightMultipliers: {
+              blocker: 1,
+              charger: 1,
+            },
+          },
+          {
+            id: 'mid_pressure',
+            weightMultipliers: {
+              charger: 1.2,
+              summoner: 1.1,
+              blocker: 0.88,
+            },
+          },
+        ],
+      },
+      late: {
+        windowSizeSpawns: 2,
+        windows: [
+          {
+            id: 'late_spike',
+            weightMultipliers: {
+              sniper: 1.2,
+              summoner: 1.2,
+              blocker: 0.85,
+            },
+            maxActiveByRole: {
+              blocker: 2,
+            },
+          },
+          {
+            id: 'late_recover',
+            weightMultipliers: {
+              blocker: 1.2,
+              leech: 1.2,
+              charger: 0.9,
+            },
+            maxActiveByRole: {
+              blocker: 3,
+            },
+          },
+        ],
+      },
+    } as const,
     itemUsefulnessProfiles: {
       early: {
         riftBatteryMultiplier: 0.88,
@@ -323,11 +393,18 @@ export const BALANCE = {
     squeezeMaxInset: 8,
     routeChoice: {
       safer: {
+        packageId: 'safe_economy',
+        packageLabel: 'SAFE ECONOMY',
+        packageTag: 'recover',
         enemyDelta: -1,
         wallDelta: -1,
         enemyIntervalMultiplier: 1.12,
+        scoreBonus: 8,
       },
       riskier: {
+        packageId: 'high_risk_tempo',
+        packageLabel: 'HIGH-RISK TEMPO',
+        packageTag: 'spike',
         enemyDelta: 1,
         wallDelta: 1,
         enemyIntervalMultiplier: 0.9,
@@ -610,6 +687,34 @@ export const BALANCE = {
         ],
       },
     ] satisfies ReadonlyArray<EventChoiceDefinition>,
+    consequenceMemory: {
+      maxPending: 2,
+      definitions: [
+        {
+          id: 'safe_cache_followup',
+          sourceOptionId: 'route_safe_guarded',
+          minDelayFloors: 1,
+          maxDelayFloors: 2,
+          summaryKey: 'game.eventChoiceConsequence.safeCache',
+          effects: {
+            shieldDelta: 1,
+            scoreDelta: 10,
+          },
+        },
+        {
+          id: 'risk_overheat_followup',
+          sourceOptionId: 'route_risk_hunt',
+          minDelayFloors: 2,
+          maxDelayFloors: 3,
+          summaryKey: 'game.eventChoiceConsequence.riskOverheat',
+          effects: {
+            enemyIntervalMultiplier: 0.95,
+            moveIntervalMultiplier: 0.97,
+            scoreDelta: 14,
+          },
+        },
+      ] satisfies ReadonlyArray<EventChoiceConsequenceDefinition>,
+    },
   },
   challengeMutators: {
     enabled: true,
@@ -1127,6 +1232,24 @@ export const BALANCE = {
       },
       supportShieldSpawnAtStart: true,
       supportShieldRespawnMs: 8500,
+      phaseRemixById: {
+        standard: {
+          cueLabel: 'STANDARD',
+          rageHealthThreshold: 1,
+          supportShieldRespawnMs: 8500,
+        },
+        assault: {
+          cueLabel: 'ASSAULT',
+          rageHealthThreshold: 2,
+          supportShieldRespawnMs: 7600,
+        },
+        siege: {
+          cueLabel: 'SIEGE',
+          rageHealthThreshold: 1,
+          supportShieldRespawnMs: 9400,
+        },
+      },
+      phaseRemixRotation: ['standard', 'assault', 'siege'] as const,
     },
   },
   food: {
@@ -1220,8 +1343,62 @@ const getRawDepthPressureForFloor = (
 export const getDepthBandForFloor = (floor: number): DepthBalanceBandId =>
   resolveDepthBandConfig(floor).id
 
+export const getBossPhaseRemixForFloor = (floor: number) => {
+  const normalizedFloor = toFloorNumber(floor)
+  const interval = Math.max(1, BALANCE.biome.boss.floorInterval)
+  const rotation = BALANCE.biome.boss.phaseRemixRotation
+  const bossOrdinal = Math.max(0, Math.floor((normalizedFloor - 1) / interval))
+  const remixId = rotation[bossOrdinal % rotation.length] ?? rotation[0]
+  return {
+    id: remixId,
+    ...BALANCE.biome.boss.phaseRemixById[remixId],
+  }
+}
+
 export const getRoleSpawnPolicyForFloor = (floor: number) =>
   BALANCE.depthBalance.roleSpawnPolicyById[resolveDepthBandConfig(floor).rolePolicyId]
+
+const applyRoleWeightMultipliers = (
+  weights: Record<EnemyRole, number>,
+  multipliers: Partial<Record<EnemyRole, number>>,
+): Record<EnemyRole, number> => ({
+  sniper: Math.max(0, weights.sniper * (multipliers.sniper ?? 1)),
+  blocker: Math.max(0, weights.blocker * (multipliers.blocker ?? 1)),
+  summoner: Math.max(0, weights.summoner * (multipliers.summoner ?? 1)),
+  charger: Math.max(0, weights.charger * (multipliers.charger ?? 1)),
+  leech: Math.max(0, weights.leech * (multipliers.leech ?? 1)),
+})
+
+export const getRoleSpawnPolicyWindowForFloor = (params: { floor: number; spawnIndex: number }) => {
+  const band = resolveDepthBandConfig(params.floor)
+  const base = BALANCE.depthBalance.roleSpawnPolicyById[band.rolePolicyId]
+  const director = BALANCE.depthBalance.roleCompositionDirectorById[band.rolePolicyId]
+  const windows = director.windows
+  const normalizedSpawnIndex = Math.max(1, Math.floor(params.spawnIndex))
+  const windowIndex =
+    Math.floor((normalizedSpawnIndex - 1) / director.windowSizeSpawns) % windows.length
+  const window = windows[windowIndex] ?? windows[0]
+  const maxActiveByRole =
+    'maxActiveByRole' in window && window.maxActiveByRole ? window.maxActiveByRole : undefined
+  const maxActiveOverride = (role: EnemyRole): number | undefined =>
+    maxActiveByRole && role in maxActiveByRole
+      ? (maxActiveByRole as Partial<Record<EnemyRole, number>>)[role]
+      : undefined
+  return {
+    id: window.id,
+    policy: {
+      ...base,
+      weights: applyRoleWeightMultipliers(base.weights, window.weightMultipliers),
+      maxActiveByRole: {
+        sniper: maxActiveOverride('sniper') ?? base.maxActiveByRole.sniper,
+        blocker: maxActiveOverride('blocker') ?? base.maxActiveByRole.blocker,
+        summoner: maxActiveOverride('summoner') ?? base.maxActiveByRole.summoner,
+        charger: maxActiveOverride('charger') ?? base.maxActiveByRole.charger,
+        leech: maxActiveOverride('leech') ?? base.maxActiveByRole.leech,
+      },
+    },
+  }
+}
 
 export const getPowerupWeightProfileForFloor = (params: {
   floor: number

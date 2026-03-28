@@ -233,6 +233,23 @@ export type EventChoiceEffects = {
   routeIntent?: FloorRouteChoice
 }
 
+export type EventChoiceConsequenceDefinition = {
+  id: string
+  sourceOptionId: string
+  minDelayFloors: number
+  maxDelayFloors: number
+  summaryKey: string
+  effects: EventChoiceEffects
+}
+
+export type EventChoiceDelayedConsequence = {
+  id: string
+  sourceOptionId: string
+  triggerFloor: number
+  summaryKey: string
+  effects: EventChoiceEffects
+}
+
 export type EventChoiceOption = {
   id: string
   family: EventChoiceFamily
@@ -382,6 +399,7 @@ export type GameState = {
   persistentRewards: RewardOption[]
   selectedRelicId: RelicId | null
   pendingFloorRoute: FloorRouteChoice | null
+  pendingEventChoiceConsequences: EventChoiceDelayedConsequence[]
   currentRunMapNodeId: string | null
   pendingRunMapNodeId: string | null
   runCleanPlaySummary: RunCleanPlaySummary
