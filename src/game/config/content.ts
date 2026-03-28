@@ -1,34 +1,15 @@
-import { BALANCE, getPowerupWeightProfileForFloor } from '../core/balance'
+import { BALANCE } from '../core/balance'
 import type { EnemyKind, FloorObjectiveKind, PowerupType } from '../core/types'
 import type { GameRng } from '../simulation/rng'
+import {
+  buildWeightedPowerupEntries,
+  getSpecialEnemyChances,
+  resolvePowerupPoolKind,
+} from './contentSelectors'
 
-const WEIGHTED_POWERUPS: ReadonlyArray<PowerupType> = ['shield', 'slow', 'ghost', 'score', 'venom']
 const ELITE_SPAWN_BY_FLOOR_DESC = [...BALANCE.elite.spawnByFloor].sort(
   (a, b) => b.minFloor - a.minFloor,
 )
-
-type PowerupPoolKind = 'standard' | 'kills' | 'boss'
-
-const resolvePowerupPoolKind = (params: {
-  isBossFloor: boolean
-  objectiveType: FloorObjectiveKind
-}): PowerupPoolKind => {
-  if (params.isBossFloor) {
-    return 'boss'
-  }
-  return params.objectiveType === 'kills' ? 'kills' : 'standard'
-}
-
-const buildWeightedPowerupEntries = (params: {
-  floor: number
-  pool: PowerupPoolKind
-}): ReadonlyArray<{ value: PowerupType; weight: number }> => {
-  const profile = getPowerupWeightProfileForFloor({ floor: params.floor, pool: params.pool })
-  return WEIGHTED_POWERUPS.map((type) => ({
-    value: type,
-    weight: profile[type],
-  }))
-}
 
 export const getPowerupPool = (params: {
   floor: number
@@ -80,18 +61,15 @@ export const pickEliteKind = (params: {
   return weighted
 }
 
-const getSpecialEnemyChances = (floor: number): { eggChance: number; mirrorChance: number } => ({
-  eggChance:
-    floor >= BALANCE.enemyVariants.egg.minFloor ? BALANCE.enemyVariants.egg.spawnChance : 0,
-  mirrorChance:
-    floor >= BALANCE.enemyVariants.mirror.minFloor ? BALANCE.enemyVariants.mirror.spawnChance : 0,
-})
-
 export const pickSpecialEnemyKind = (params: {
   floor: number
   rng: GameRng
 }): Extract<EnemyKind, 'egg' | 'mirror'> | null => {
-  const { eggChance, mirrorChance } = getSpecialEnemyChances(params.floor)
+  const { eggChance, mirrorChance } = getSpecialEnemyChances({
+    floor: params.floor,
+    egg: BALANCE.enemyVariants.egg,
+    mirror: BALANCE.enemyVariants.mirror,
+  })
   const total = eggChance + mirrorChance
   if (total <= 0) {
     return null

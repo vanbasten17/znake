@@ -898,6 +898,22 @@ The system SHALL provide a deterministic regular-floor runway where floors `1-9`
 - **THEN** floor `10` is resolved as a boss cadence floor
 - **AND** subsequent boss cadence milestones follow the same deterministic interval pattern
 
+### Requirement: Route risk signals include non-color markers
+
+Route risk readability SHALL include symbolic cues in addition to color and text.
+
+#### Scenario: Risk line includes symbol marker
+- **WHEN** route risk line is composed
+- **THEN** risk level is paired with a stable symbol marker
+
+### Requirement: Route risk formatting is utility-driven and consistent
+
+Gameplay route overlays SHALL use a reusable formatter utility for risk cue composition.
+
+#### Scenario: Formatter produces stable risk cue text
+- **WHEN** route risk level and localized label are provided
+- **THEN** formatter returns a stable cue string that scenes can render directly
+
 ### Requirement: Route risk cues are not color-only
 
 The gameplay route-choice surface SHALL express risk with text and color together.

@@ -212,6 +212,7 @@ import { t } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
 import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
+import { formatRouteRiskCue } from '../ui/formatters/routeRisk'
 import { allowsMarkerGlow } from '../visual/visualLanguage'
 
 type GameSceneData = {
@@ -2292,7 +2293,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getRouteRiskCueLabel(level: RouteRiskLevel): string {
-    return `[${this.getRouteRiskLevelLabel(level)}]`
+    return formatRouteRiskCue({
+      level,
+      localizedLabel: this.getRouteRiskLevelLabel(level),
+    })
   }
 
   private getDepthBandLabel(depthBand: 'early' | 'mid' | 'late'): string {

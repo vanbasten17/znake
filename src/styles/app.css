@@ -295,8 +295,8 @@ button:focus-visible {
 .action-btn {
   width: 56px;
   height: 56px;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: max(var(--touch-target-min), 44px);
+  min-height: max(var(--touch-target-min), 44px);
   background: var(--color-surface-850);
   border: var(--border-width) solid var(--color-line-strong);
   border-radius: 50%;

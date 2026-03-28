@@ -20,6 +20,25 @@ Generated: 2026-03-28
     - `src/game/config/content.ts`
     - `tests/content-selection.test.ts`
 
+- 10-idea modular UI + refactor sprint (3 web-backed, 3 UI reusable components, 4 technical refactors)
+  - Status: Implemented
+  - Change:
+    - `openspec/changes/archive/2026-03-28-znake-web-a11y-foundations-v1/`
+    - `openspec/changes/archive/2026-03-28-znake-ui-component-primitives-v1/`
+    - `openspec/changes/archive/2026-03-28-znake-content-selector-modularization-v1/`
+    - `openspec/changes/archive/2026-03-28-znake-route-formatter-modularization-v1/`
+  - Evidence:
+    - `src/game/systems/accessibility.ts`
+    - `src/game/ui/components/ActionButton.ts`
+    - `src/game/ui/components/PanelSection.ts`
+    - `src/game/ui/components/StatusChip.ts`
+    - `src/game/ui/formatters/routeRisk.ts`
+    - `src/game/config/contentSelectors.ts`
+    - `src/game/scenes/MenuScene.ts`
+    - `src/game/scenes/gameScene/overlayController.ts`
+    - `tests/content-selectors.test.ts`
+    - `tests/route-risk-formatter.test.ts`
+
 ## Completed
 
 - [x] 40-idea backlog execution (web-backed + graphics/layout + refactor)
@@ -65,6 +84,21 @@ Generated: 2026-03-28
   - [x] Refactor #8: Extract special-enemy chance resolver helper.
   - [x] Refactor #9: Add deterministic tests for content-selection paths.
   - [x] Refactor #10: Add pool/pick consistency assertion coverage.
+  - [x] Archived and base specs updated.
+
+- [x] 10-idea modular UI + refactor sprint
+  - Why: Improve accessibility, component reuse, and modular architecture so game surfaces are easier to extend and maintain.
+  - OpenSpec change: 2026-03-28-znake-web-a11y-foundations-v1 + 2026-03-28-znake-ui-component-primitives-v1 + 2026-03-28-znake-content-selector-modularization-v1 + 2026-03-28-znake-route-formatter-modularization-v1
+  - [x] Web-backed #1: Add system reduced-motion preference support in accessibility runtime.
+  - [x] Web-backed #2: Add shared touch target minimum token usage.
+  - [x] Web-backed #3: Add non-color route risk symbol cueing (`○/△/▲`).
+  - [x] UI reusable #1: Add `ActionButton` component helper.
+  - [x] UI reusable #2: Add `PanelSection` component helper.
+  - [x] UI reusable #3: Add `StatusChip` component helper + barrel exports.
+  - [x] Refactor #1: Extract content selector helpers into `contentSelectors.ts`.
+  - [x] Refactor #2: Integrate selector module into `content.ts`.
+  - [x] Refactor #3: Extract reusable route-risk formatter utility.
+  - [x] Refactor #4: Add deterministic tests for selectors and route formatter.
   - [x] Archived and base specs updated.
 
 ## Suggested Next Step

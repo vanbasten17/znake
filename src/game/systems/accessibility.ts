@@ -43,6 +43,8 @@ const PRESET_SETTINGS: Record<
 }
 
 let settings: AccessibilitySettings = { ...DEFAULT_SETTINGS }
+let systemReducedMotion = false
+let reducedMotionMediaQuery: MediaQueryList | null = null
 
 const parseSettings = (raw: string | null): AccessibilitySettings => {
   if (!raw) {
@@ -91,10 +93,33 @@ const applySettings = (): void => {
   const visualEnabled = VISUAL_ACCESSIBILITY_MENU_ENABLED
   body.classList.toggle('a11y-high-contrast', visualEnabled && settings.highContrast)
   body.classList.toggle('a11y-large-text', visualEnabled && settings.largeText)
-  body.classList.toggle('a11y-reduced-effects', visualEnabled && settings.reducedEffects)
+  body.classList.toggle(
+    'a11y-reduced-effects',
+    visualEnabled && (settings.reducedEffects || systemReducedMotion),
+  )
+  body.classList.toggle('a11y-system-reduced-motion', visualEnabled && systemReducedMotion)
+}
+
+const syncSystemReducedMotionPreference = (): void => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    systemReducedMotion = false
+    return
+  }
+  reducedMotionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  systemReducedMotion = reducedMotionMediaQuery.matches
+  const onChange = (event: MediaQueryListEvent): void => {
+    systemReducedMotion = event.matches
+    applySettings()
+  }
+  if (typeof reducedMotionMediaQuery.addEventListener === 'function') {
+    reducedMotionMediaQuery.addEventListener('change', onChange)
+  } else {
+    reducedMotionMediaQuery.addListener(onChange)
+  }
 }
 
 export const setupAccessibility = (): void => {
+  syncSystemReducedMotionPreference()
   settings = parseSettings(localStorage.getItem(STORAGE_KEYS.accessibility))
   applySettings()
 }
@@ -131,7 +156,7 @@ export const cycleAccessibilityPreset = (): AccessibilityPresetId => {
   return nextId
 }
 
-export const isReducedEffectsEnabled = (): boolean => settings.reducedEffects
+export const isReducedEffectsEnabled = (): boolean => settings.reducedEffects || systemReducedMotion
 
 export const getAudioProfileId = (): AudioProfileId => settings.audioProfile
 

@@ -1,4 +1,5 @@
 import { createButton, createEl } from '../../systems/domFactory'
+import { createPanelSection, createStatusChip } from '../../ui/components'
 
 type RewardOverlayShellParams = {
   cleanPlayText: string | null
@@ -68,12 +69,16 @@ export const createRewardOverlayShell = (params: RewardOverlayShellParams): Rewa
 
 export const createRouteOverlayShell = (params: RouteOverlayShellParams): RouteOverlayShell => {
   const root = createEl('div', params.styles.overlay)
-  const panel = createEl('section', params.styles.panel)
+  const panelShell = createPanelSection({
+    className: params.styles.panel,
+    titleClassName: params.styles.title,
+    titleText: params.titleText,
+  })
+  const panel = panelShell.section
   root.append(panel)
 
-  panel.append(createEl('h2', params.styles.title, params.titleText))
   panel.append(createEl('p', params.styles.subtitle, params.subtitleText))
-  panel.append(createEl('p', params.styles.body, params.legendText))
+  panel.append(createStatusChip({ className: params.styles.body, text: params.legendText }))
 
   const cards = createEl('div', params.styles.cards)
   panel.append(cards)

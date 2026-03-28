@@ -206,6 +206,31 @@ The system SHALL provide shared DOM overlay/card composition primitives for scen
 - **THEN** accessibility/readability hierarchy remains intact across supported layouts
 - **AND** click/tap/keyboard behavior remains equivalent to current scene flows unless explicitly changed
 
+### Requirement: System reduced-motion preference is respected
+
+The UI foundation SHALL treat OS/browser reduced-motion preference as an accessibility signal.
+
+#### Scenario: System preference enables reduced effects
+- **WHEN** `prefers-reduced-motion: reduce` is active
+- **THEN** reduced-effects behavior is enabled without requiring manual menu toggles
+- **AND** gameplay logic remains unchanged
+
+### Requirement: Interactive controls meet minimum target-size baseline
+
+Interactive controls SHALL expose a shared target-size baseline token for pointer usability.
+
+#### Scenario: Shared controls apply minimum target baseline
+- **WHEN** menu/run controls render
+- **THEN** they apply shared min-size constraints based on tokenized target guidance
+
+### Requirement: Scene overlays use reusable UI primitive helpers
+
+The UI layer SHALL expose reusable primitive helpers for common overlay/button/chip composition.
+
+#### Scenario: Scene code composes with primitives
+- **WHEN** scenes render interactive DOM overlays
+- **THEN** they may compose using shared primitive helpers instead of duplicating low-level DOM setup
+
 ### Requirement: UI controls preserve readability and interaction clarity under pressure
 
 The UI foundation SHALL provide minimum legibility and focus/target affordances for run and menu interactions.

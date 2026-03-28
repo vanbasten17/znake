@@ -48,6 +48,7 @@
   --space-6: 12px;
   --space-8: 16px;
   --space-12: 24px;
+  --touch-target-min: 24px;
 
   /* Radius */
   --radius-sm: 8px;

@@ -120,6 +120,14 @@ The system SHALL persist the latest replay snapshot using bounded metadata and i
 - **THEN** runtime stores replay snapshot with seed, preset, floor, score, death reason, and bounded input events
 - **AND** snapshot persistence does not alter gameplay resolution
 
+### Requirement: Content selectors are modular and deterministic
+
+Game-core SHALL keep content selector internals modular while preserving deterministic outcomes.
+
+#### Scenario: Selector internals are extracted without behavior drift
+- **WHEN** selector code is moved to dedicated helpers
+- **THEN** public selector outcomes remain deterministic for equivalent inputs
+
 ### Requirement: Content selection helpers remain deterministic after refactor
 
 Game-core content selection helpers SHALL preserve deterministic outcomes for equivalent inputs after internal refactors.

@@ -68,6 +68,7 @@ import {
   subscribeVoiceUx,
   syncVoiceInput,
 } from '../systems/voiceInput'
+import { createActionButton } from '../ui/components'
 
 const MARKER_CLASS_BY_TONE: Record<GlossaryMarkerTone, string> = {
   core: styles.glossaryMarkerCore,
@@ -252,30 +253,42 @@ export class MenuScene extends Phaser.Scene {
     const playActions = createEl('div', styles.playActions)
     playSection.append(playActions)
 
-    const start = createButton(styles.start, '')
-    start.textContent = t('menu.startPrompt')
-    start.addEventListener('click', () => this.startRun())
+    const start = createActionButton({
+      className: styles.start,
+      text: t('menu.startPrompt'),
+      onClick: () => this.startRun(),
+    })
     playActions.append(start)
 
-    const dailyStart = createButton(styles.startMinor, '')
-    dailyStart.textContent = t('menu.startDaily')
-    dailyStart.addEventListener('click', () => this.startRunWithPreset('daily'))
+    const dailyStart = createActionButton({
+      className: styles.startMinor,
+      text: t('menu.startDaily'),
+      onClick: () => this.startRunWithPreset('daily'),
+    })
     playActions.append(dailyStart)
 
-    const weeklyStart = createButton(styles.startMinor, '')
-    weeklyStart.textContent = t('menu.startWeekly')
-    weeklyStart.addEventListener('click', () => this.startRunWithPreset('weekly'))
+    const weeklyStart = createActionButton({
+      className: styles.startMinor,
+      text: t('menu.startWeekly'),
+      onClick: () => this.startRunWithPreset('weekly'),
+    })
     playActions.append(weeklyStart)
 
     const challengeActions = createEl('div', styles.challengeActions)
     playSection.append(challengeActions)
 
-    const shareChallenge = createButton(styles.startMinor, 'SHARE LAST RUN')
-    shareChallenge.addEventListener('click', () => this.copyLatestChallengeCode())
+    const shareChallenge = createActionButton({
+      className: styles.startMinor,
+      text: 'SHARE LAST RUN',
+      onClick: () => this.copyLatestChallengeCode(),
+    })
     challengeActions.append(shareChallenge)
 
-    const importChallenge = createButton(styles.startMinor, 'PLAY SHARED CODE')
-    importChallenge.addEventListener('click', () => this.importChallengeCode())
+    const importChallenge = createActionButton({
+      className: styles.startMinor,
+      text: 'PLAY SHARED CODE',
+      onClick: () => this.importChallengeCode(),
+    })
     challengeActions.append(importChallenge)
 
     const historySectionTitle = document.createElement('p')
@@ -307,11 +320,12 @@ export class MenuScene extends Phaser.Scene {
       onToggle: () => void,
       options?: { disabled?: boolean; statusText?: () => string },
     ): void => {
-      const row = document.createElement('button')
-      row.type = 'button'
-      row.className = styles.accessibilityRow
+      const row = createActionButton({
+        className: styles.accessibilityRow,
+        text: '',
+        onClick: onToggle,
+      })
       row.disabled = options?.disabled === true
-      row.addEventListener('click', onToggle)
       accessibility.append(row)
 
       const labelEl = document.createElement('span')
