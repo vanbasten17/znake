@@ -2408,7 +2408,20 @@ export class GameScene extends Phaser.Scene {
       setHintText(t('game.routeChoiceHint'))
       return
     }
-    setHintText(`${getMoveHintText()} · ${t('hint.itemLegend')}`)
+    const confidenceParts: string[] = []
+    if (this.moveQueue.length > 0) {
+      confidenceParts.push(t('hint.queueBuffered', { count: this.moveQueue.length }))
+    }
+    const abilityCooldownMs = this.shouldUseVenomAbilityContext()
+      ? this.venomCooldownMs
+      : this.bodyEconomyState.bodyPulseCooldownMs
+    if (abilityCooldownMs > 0) {
+      confidenceParts.push(
+        t('hint.abilityCooldown', { seconds: Math.ceil(abilityCooldownMs / 1000) }),
+      )
+    }
+    const confidenceSuffix = confidenceParts.length > 0 ? ` · ${confidenceParts.join(' · ')}` : ''
+    setHintText(`${getMoveHintText()} · ${t('hint.itemLegend')}${confidenceSuffix}`)
   }
 
   private getObjectiveKillsProgress(): number {

@@ -32,7 +32,12 @@ import {
 } from '../render/markerExportSpec'
 import { createEmptyBossEncounterSummary } from '../simulation/eliteMiniboss'
 import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
-import { getAccessibilitySettings, updateAccessibilitySettings } from '../systems/accessibility'
+import {
+  cycleAccessibilityPreset,
+  getAccessibilityPresetId,
+  getAccessibilitySettings,
+  updateAccessibilitySettings,
+} from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
 import { setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
@@ -222,10 +227,61 @@ export class MenuScene extends Phaser.Scene {
     currencyText.append(this.currencyValueEl)
     stats.append(currencyText)
 
+    const playSectionTitle = document.createElement('p')
+    playSectionTitle.className = styles.sectionLabel
+    playSectionTitle.textContent = t('menu.sectionPlay')
+    root.append(playSectionTitle)
+
+    const playSection = document.createElement('div')
+    playSection.className = styles.playSection
+    root.append(playSection)
+
+    const objective = document.createElement('p')
+    objective.className = styles.nextObjective
+    objective.textContent = t('menu.nextObjective', {
+      objective: this.getObjectivePreview(1),
+    })
+    playSection.append(objective)
+
+    const playActions = document.createElement('div')
+    playActions.className = styles.playActions
+    playSection.append(playActions)
+
+    const start = document.createElement('button')
+    start.type = 'button'
+    start.className = styles.start
+    start.textContent = t('menu.startPrompt')
+    start.addEventListener('click', () => this.startRun())
+    playActions.append(start)
+
+    const dailyStart = document.createElement('button')
+    dailyStart.type = 'button'
+    dailyStart.className = styles.startMinor
+    dailyStart.textContent = t('menu.startDaily')
+    dailyStart.addEventListener('click', () => this.startRunWithPreset('daily'))
+    playActions.append(dailyStart)
+
+    const weeklyStart = document.createElement('button')
+    weeklyStart.type = 'button'
+    weeklyStart.className = styles.startMinor
+    weeklyStart.textContent = t('menu.startWeekly')
+    weeklyStart.addEventListener('click', () => this.startRunWithPreset('weekly'))
+    playActions.append(weeklyStart)
+
+    const historySectionTitle = document.createElement('p')
+    historySectionTitle.className = styles.sectionLabel
+    historySectionTitle.textContent = t('menu.sectionHistory')
+    root.append(historySectionTitle)
+
     const history = document.createElement('div')
     history.className = styles.runHistory
     root.append(history)
     this.runHistoryEl = history
+
+    const buildSectionTitle = document.createElement('p')
+    buildSectionTitle.className = styles.sectionLabel
+    buildSectionTitle.textContent = t('menu.sectionBuild')
+    root.append(buildSectionTitle)
 
     const accessibility = document.createElement('div')
     accessibility.className = styles.accessibility
@@ -274,6 +330,58 @@ export class MenuScene extends Phaser.Scene {
     this.accessibilityRefreshers.push(() => {
       accessibilityTitle.textContent = t('menu.accessibility')
     })
+
+    createToggleRow(
+      'menu.a11yPreset',
+      () => true,
+      () => {
+        cycleAccessibilityPreset()
+        this.refreshMetaUi()
+        emitFeedback('confirm')
+      },
+      {
+        statusText: () => {
+          const presetId = getAccessibilityPresetId()
+          if (presetId === 'clarity') return t('menu.a11yPresetClarity')
+          if (presetId === 'comfort') return t('menu.a11yPresetComfort')
+          if (presetId === 'custom') return t('menu.a11yPresetCustom')
+          return t('menu.a11yPresetDefault')
+        },
+      },
+    )
+
+    createToggleRow(
+      'menu.a11yHighContrast',
+      () => getAccessibilitySettings().highContrast,
+      () => {
+        const { highContrast } = getAccessibilitySettings()
+        updateAccessibilitySettings({ highContrast: !highContrast })
+        this.refreshMetaUi()
+        emitFeedback('confirm')
+      },
+    )
+
+    createToggleRow(
+      'menu.a11yLargeText',
+      () => getAccessibilitySettings().largeText,
+      () => {
+        const { largeText } = getAccessibilitySettings()
+        updateAccessibilitySettings({ largeText: !largeText })
+        this.refreshMetaUi()
+        emitFeedback('confirm')
+      },
+    )
+
+    createToggleRow(
+      'menu.a11yReducedEffects',
+      () => getAccessibilitySettings().reducedEffects,
+      () => {
+        const { reducedEffects } = getAccessibilitySettings()
+        updateAccessibilitySettings({ reducedEffects: !reducedEffects })
+        this.refreshMetaUi()
+        emitFeedback('confirm')
+      },
+    )
 
     const voiceSupported = getVoiceAvailability() === 'supported'
     createToggleRow(
@@ -399,19 +507,6 @@ export class MenuScene extends Phaser.Scene {
       refresh()
     }
 
-    const start = document.createElement('button')
-    start.type = 'button'
-    start.className = styles.start
-    start.textContent = t('menu.startPrompt')
-    start.addEventListener('click', () => this.startRun())
-
-    const objective = document.createElement('p')
-    objective.className = styles.nextObjective
-    objective.textContent = t('menu.nextObjective', {
-      objective: this.getObjectivePreview(1),
-    })
-    root.append(objective)
-
     const releaseBlock = document.createElement('section')
     releaseBlock.className = styles.releaseBlock
 
@@ -470,7 +565,6 @@ export class MenuScene extends Phaser.Scene {
       root.append(devSection)
     }
 
-    root.append(start)
     this.mountGlossaryModal(root)
 
     gameArea.append(root)

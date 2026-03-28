@@ -7,6 +7,8 @@ export type AccessibilitySettings = {
   voiceEnabled: boolean
 }
 
+export type AccessibilityPresetId = 'default' | 'clarity' | 'comfort' | 'custom'
+
 const DEFAULT_SETTINGS: AccessibilitySettings = {
   highContrast: false,
   largeText: false,
@@ -14,7 +16,28 @@ const DEFAULT_SETTINGS: AccessibilitySettings = {
   voiceEnabled: false,
 }
 
-const VISUAL_ACCESSIBILITY_MENU_ENABLED = false
+const VISUAL_ACCESSIBILITY_MENU_ENABLED = true
+
+const PRESET_SETTINGS: Record<
+  Exclude<AccessibilityPresetId, 'custom'>,
+  Omit<AccessibilitySettings, 'voiceEnabled'>
+> = {
+  default: {
+    highContrast: false,
+    largeText: false,
+    reducedEffects: false,
+  },
+  clarity: {
+    highContrast: true,
+    largeText: true,
+    reducedEffects: false,
+  },
+  comfort: {
+    highContrast: false,
+    largeText: true,
+    reducedEffects: true,
+  },
+}
 
 let settings: AccessibilitySettings = { ...DEFAULT_SETTINGS }
 
@@ -35,6 +58,19 @@ const parseSettings = (raw: string | null): AccessibilitySettings => {
   }
 }
 
+const resolvePresetFromSettings = (value: AccessibilitySettings): AccessibilityPresetId => {
+  for (const [presetId, preset] of Object.entries(PRESET_SETTINGS)) {
+    if (
+      value.highContrast === preset.highContrast &&
+      value.largeText === preset.largeText &&
+      value.reducedEffects === preset.reducedEffects
+    ) {
+      return presetId as AccessibilityPresetId
+    }
+  }
+  return 'custom'
+}
+
 const saveSettings = (): void => {
   try {
     localStorage.setItem(STORAGE_KEYS.accessibility, JSON.stringify(settings))
@@ -53,11 +89,6 @@ const applySettings = (): void => {
 
 export const setupAccessibility = (): void => {
   settings = parseSettings(localStorage.getItem(STORAGE_KEYS.accessibility))
-  if (!VISUAL_ACCESSIBILITY_MENU_ENABLED) {
-    settings.highContrast = false
-    settings.largeText = false
-    settings.reducedEffects = false
-  }
   applySettings()
 }
 
@@ -68,13 +99,29 @@ export const updateAccessibilitySettings = (patch: Partial<AccessibilitySettings
     ...settings,
     ...patch,
   }
-  if (!VISUAL_ACCESSIBILITY_MENU_ENABLED) {
-    settings.highContrast = false
-    settings.largeText = false
-    settings.reducedEffects = false
+  saveSettings()
+  applySettings()
+}
+
+export const getAccessibilityPresetId = (): AccessibilityPresetId =>
+  resolvePresetFromSettings(settings)
+
+export const cycleAccessibilityPreset = (): AccessibilityPresetId => {
+  const sequence: Array<Exclude<AccessibilityPresetId, 'custom'>> = [
+    'default',
+    'clarity',
+    'comfort',
+  ]
+  const current = getAccessibilityPresetId()
+  const baseIndex = current === 'custom' ? -1 : sequence.indexOf(current)
+  const nextId = sequence[(baseIndex + 1) % sequence.length] ?? 'default'
+  settings = {
+    ...settings,
+    ...PRESET_SETTINGS[nextId],
   }
   saveSettings()
   applySettings()
+  return nextId
 }
 
 export const isReducedEffectsEnabled = (): boolean => settings.reducedEffects

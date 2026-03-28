@@ -462,3 +462,39 @@ The system SHALL render explicit synergy/conflict hint chips on upgrade draft ca
 - **THEN** card pick interactions and transition flow remain unchanged
 - **AND** simulation-owned upgrade effects remain unchanged
 
+### Requirement: Resume hint keeps orientation readable
+
+The system SHALL keep resume-orientation messaging concise and readable in existing hint surfaces.
+
+#### Scenario: Resume hint remains one-line bounded summary
+- **WHEN** continuity context is shown after lifecycle-driven resume
+- **THEN** message remains single-line and bounded to floor/objective/context essentials
+- **AND** scene does not require additional modal overlays to restore orientation
+
+### Requirement: Confidence cues stay integrated with existing hint flow
+
+The system SHALL keep input-confidence cues integrated in existing scene hint flow without modal interruption.
+
+#### Scenario: Confidence cues are additive and non-blocking
+- **WHEN** scene updates hint text during active run state
+- **THEN** confidence cues are appended as additive context only
+- **AND** scene input/update flow remains unchanged
+
+### Requirement: Menu separates start, planning, and learning paths
+
+The system SHALL present menu content in clearly separated start, planning, and history-learning groups.
+
+#### Scenario: Grouped menu labels improve path clarity
+- **WHEN** menu scene renders primary shell content
+- **THEN** run start, history-learning, and build planning are labeled as distinct sections
+- **AND** section grouping does not alter underlying run-start behavior
+
+### Requirement: Menu accessibility exposes visual controls
+
+The system SHALL expose visual accessibility controls in menu alongside voice controls.
+
+#### Scenario: Visual toggles and preset row are available
+- **WHEN** accessibility section is rendered in menu
+- **THEN** player can cycle presets and toggle high-contrast, large-text, and reduced-effects states
+- **AND** interactions update persisted accessibility state deterministically
+

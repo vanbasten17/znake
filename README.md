@@ -35,6 +35,8 @@ pnpm validate:markers   # verify manifest vs markerExportSpec + crisp-pixel chec
 
 **Asset & sprite docs (index):** [docs/assets/README.md](docs/assets/README.md)
 
+**Dev balancing cookbook:** [docs/DEV_BALANCING_COOKBOOK.md](docs/DEV_BALANCING_COOKBOOK.md)
+
 ## Project Structure
 
 ```text

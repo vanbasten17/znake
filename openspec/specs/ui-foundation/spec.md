@@ -163,3 +163,21 @@ The system SHALL provide compact readable styling for the run-history timeline b
 - **THEN** timeline text remains legible without horizontal scrolling
 - **AND** timeline block spacing does not overlap adjacent controls
 
+### Requirement: Start-action cluster remains bounded and readable
+
+The system SHALL keep the run-start action cluster bounded and readable across supported layouts.
+
+#### Scenario: Start cluster includes standard and challenge actions
+- **WHEN** menu start section is shown
+- **THEN** it includes standard, daily, and weekly run actions with concise labels
+- **AND** objective preview remains colocated with start actions for context
+
+### Requirement: Accessibility preset mapping remains deterministic
+
+The system SHALL resolve accessibility preset identity deterministically from visual settings state.
+
+#### Scenario: Mixed manual toggles report custom preset
+- **WHEN** visual accessibility toggles do not match predefined preset tuples
+- **THEN** preset status resolves to `custom`
+- **AND** body class application remains consistent with active toggle values
+

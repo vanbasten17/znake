@@ -838,3 +838,21 @@ The system SHALL apply boss phase-remix profile effects deterministically by flo
 - **THEN** gameplay resolves the same boss remix id and applies the same bounded rage/support parameters
 - **AND** scene logic does not inject runtime randomness into remix selection
 
+### Requirement: Lifecycle resume continuity cue
+
+The system SHALL emit a concise deterministic continuity cue when gameplay resumes from lifecycle auto-pause.
+
+#### Scenario: Auto-resume hint includes objective and pending context
+- **WHEN** app focus returns and lifecycle resumes an auto-paused run
+- **THEN** the hint surface includes floor, objective preview, and bounded pending-context summary
+- **AND** cue text is derived from deterministic run state
+
+### Requirement: Ability readiness cues reflect active context
+
+The system SHALL present ability-cooldown cue text from the currently active ability context.
+
+#### Scenario: Cooldown cue switches by ability context
+- **WHEN** ability hint context is evaluated
+- **THEN** cooldown cue reflects venom context when active, otherwise body-pulse context
+- **AND** cue values are derived from deterministic runtime state
+
