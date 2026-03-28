@@ -113,15 +113,13 @@ Generated: 2026-03-28
 ### Implemented or Archived
 
 - Prior high-impact content-depth cluster remains archived and reflected in base specs, including encounter/route/event/upgrade/boss depth passes.
-- Session continuity polish is archived in [2026-03-28-znake-session-continuity-polish-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-session-continuity-polish-v1), reflected in [gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md) and [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md).
-- Input confidence cues are archived in [2026-03-28-znake-input-confidence-cues-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-input-confidence-cues-v1), reflected in [input-hud/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/input-hud/spec.md), [gameplay/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/gameplay/spec.md), and [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md).
-- Menu information architecture cleanup is archived in [2026-03-28-znake-menu-ia-cleanup-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-menu-ia-cleanup-v1), reflected in [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md) and [ui-foundation/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/ui-foundation/spec.md).
-- Accessibility presets expansion is archived in [2026-03-28-znake-accessibility-presets-expansion-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-accessibility-presets-expansion-v1), reflected in [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md) and [ui-foundation/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/ui-foundation/spec.md).
-- Dev balancing cookbook is archived in [2026-03-28-znake-dev-balancing-cookbook-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-dev-balancing-cookbook-v1), reflected in [tooling/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/tooling/spec.md).
+- Operational polish set is archived and reflected in base specs:
+  - session continuity cues, input confidence cues, menu IA cleanup, accessibility presets expansion, dev balancing cookbook.
+- Audio mix profiles are archived in [2026-03-28-znake-audio-mix-profiles-v1](/Users/mrabat/Desktop/znake/openspec/changes/archive/2026-03-28-znake-audio-mix-profiles-v1), reflected in [scenes/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/scenes/spec.md) and [ui-foundation/spec.md](/Users/mrabat/Desktop/znake/openspec/specs/ui-foundation/spec.md).
 
 ### Specced in Base Specs
 
-- Core fairness/readability/progression contracts remain well-covered; remaining gaps are mostly broader product initiatives.
+- Core fairness/readability/progression contracts remain well-covered in base specs.
 
 ### In Active Change
 
@@ -129,10 +127,9 @@ Generated: 2026-03-28
 
 ### Unmatched
 
-- Medium Impact / Low Cost: audio mix profiles.
-- Very High Impact / Higher Cost: meta-progression board v2, content pack framework, replay/ghost infrastructure, social challenge layer, adaptive onboarding rails.
+- Remaining roadmap items are large strategic initiatives (meta-progression board v2, content pack framework, replay/ghost infrastructure, social challenge layer, adaptive onboarding rails) and are not practical autoloop-sized apply tasks.
 
 ### Collapse Note
 
-- The medium-priority operational polish set (session continuity, input confidence, menu IA, accessibility presets, balancing cookbook) is now matched and archived.
-- Remaining unmatched work is mostly larger-scope roadmap expansion outside this autoloop’s pragmatic implementation window.
+- No implementable unmatched items remain for this autoloop mode under the current 3-6 task scoped-change policy.
+- Next practical step is a fresh brainstorming/prioritization pass to split strategic items into smaller implementable slices.

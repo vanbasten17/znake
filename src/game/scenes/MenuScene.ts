@@ -34,8 +34,10 @@ import { createEmptyBossEncounterSummary } from '../simulation/eliteMiniboss'
 import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
 import {
   cycleAccessibilityPreset,
+  cycleAudioProfile,
   getAccessibilityPresetId,
   getAccessibilitySettings,
+  getAudioProfileId,
   updateAccessibilitySettings,
 } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
@@ -384,6 +386,24 @@ export class MenuScene extends Phaser.Scene {
     )
 
     const voiceSupported = getVoiceAvailability() === 'supported'
+    createToggleRow(
+      'menu.a11yAudioProfile',
+      () => true,
+      () => {
+        cycleAudioProfile()
+        this.refreshMetaUi()
+        emitFeedback('confirm')
+      },
+      {
+        statusText: () => {
+          const profile = getAudioProfileId()
+          if (profile === 'focused') return t('menu.a11yAudioProfileFocused')
+          if (profile === 'low_fatigue') return t('menu.a11yAudioProfileLowFatigue')
+          return t('menu.a11yAudioProfileBalanced')
+        },
+      },
+    )
+
     createToggleRow(
       'menu.a11yVoice',
       () => getAccessibilitySettings().voiceEnabled,

@@ -1,3 +1,5 @@
+import { getAudioProfileId } from './accessibility'
+
 type FeedbackKind =
   | 'tap'
   | 'confirm'
@@ -12,6 +14,46 @@ type FeedbackKind =
 
 let audioContext: AudioContext | null = null
 let audioUnlocked = false
+
+const scaleVibrationPattern = (
+  pattern: number | number[],
+  multiplier: number,
+): number | number[] => {
+  if (multiplier === 1) {
+    return pattern
+  }
+  if (Array.isArray(pattern)) {
+    return pattern.map((value) => Math.max(1, Math.round(value * multiplier)))
+  }
+  return Math.max(1, Math.round(pattern * multiplier))
+}
+
+const resolveFeedbackProfile = (): {
+  gainMultiplier: number
+  vibrationMultiplier: number
+  durationMultiplier: number
+} => {
+  const profile = getAudioProfileId()
+  if (profile === 'focused') {
+    return {
+      gainMultiplier: 1.15,
+      vibrationMultiplier: 1.12,
+      durationMultiplier: 0.95,
+    }
+  }
+  if (profile === 'low_fatigue') {
+    return {
+      gainMultiplier: 0.72,
+      vibrationMultiplier: 0.65,
+      durationMultiplier: 0.82,
+    }
+  }
+  return {
+    gainMultiplier: 1,
+    vibrationMultiplier: 1,
+    durationMultiplier: 1,
+  }
+}
 
 const vibrationForKind = (kind: FeedbackKind): number | number[] => {
   if (kind === 'tap') return 8
@@ -72,6 +114,9 @@ const playTone = (kind: FeedbackKind): void => {
   }
 
   const tone = toneForKind(kind)
+  const profile = resolveFeedbackProfile()
+  const durationMs = Math.max(20, Math.round(tone.durationMs * profile.durationMultiplier))
+  const gain = tone.gain * profile.gainMultiplier
   const now = ctx.currentTime
   const oscillator = ctx.createOscillator()
   const gainNode = ctx.createGain()
@@ -79,20 +124,20 @@ const playTone = (kind: FeedbackKind): void => {
     kind === 'crash' ? 'sawtooth' : kind === 'portal' || kind === 'reward' ? 'triangle' : 'square'
   oscillator.frequency.value = tone.freq
   if (kind === 'crash') {
-    oscillator.frequency.exponentialRampToValueAtTime(85, now + tone.durationMs / 1000)
+    oscillator.frequency.exponentialRampToValueAtTime(85, now + durationMs / 1000)
   } else if (kind === 'portal') {
-    oscillator.frequency.exponentialRampToValueAtTime(640, now + tone.durationMs / 1000)
+    oscillator.frequency.exponentialRampToValueAtTime(640, now + durationMs / 1000)
   } else if (kind === 'reward') {
-    oscillator.frequency.exponentialRampToValueAtTime(1180, now + tone.durationMs / 1000)
+    oscillator.frequency.exponentialRampToValueAtTime(1180, now + durationMs / 1000)
   }
   gainNode.gain.value = 0
   gainNode.gain.setValueAtTime(0, now)
-  gainNode.gain.linearRampToValueAtTime(tone.gain, now + 0.005)
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + tone.durationMs / 1000)
+  gainNode.gain.linearRampToValueAtTime(gain, now + 0.005)
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000)
   oscillator.connect(gainNode)
   gainNode.connect(ctx.destination)
   oscillator.start(now)
-  oscillator.stop(now + tone.durationMs / 1000 + 0.01)
+  oscillator.stop(now + durationMs / 1000 + 0.01)
 }
 
 export const setupFeedback = (): void => {
@@ -122,7 +167,8 @@ export const setupFeedback = (): void => {
 
 export const emitFeedback = (kind: FeedbackKind): void => {
   if ('vibrate' in navigator && typeof navigator.vibrate === 'function') {
-    navigator.vibrate(vibrationForKind(kind))
+    const profile = resolveFeedbackProfile()
+    navigator.vibrate(scaleVibrationPattern(vibrationForKind(kind), profile.vibrationMultiplier))
   }
   playTone(kind)
 }

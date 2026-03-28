@@ -5,22 +5,25 @@ export type AccessibilitySettings = {
   largeText: boolean
   reducedEffects: boolean
   voiceEnabled: boolean
+  audioProfile: AudioProfileId
 }
 
 export type AccessibilityPresetId = 'default' | 'clarity' | 'comfort' | 'custom'
+export type AudioProfileId = 'focused' | 'balanced' | 'low_fatigue'
 
 const DEFAULT_SETTINGS: AccessibilitySettings = {
   highContrast: false,
   largeText: false,
   reducedEffects: false,
   voiceEnabled: false,
+  audioProfile: 'balanced',
 }
 
 const VISUAL_ACCESSIBILITY_MENU_ENABLED = true
 
 const PRESET_SETTINGS: Record<
   Exclude<AccessibilityPresetId, 'custom'>,
-  Omit<AccessibilitySettings, 'voiceEnabled'>
+  Omit<AccessibilitySettings, 'voiceEnabled' | 'audioProfile'>
 > = {
   default: {
     highContrast: false,
@@ -52,6 +55,10 @@ const parseSettings = (raw: string | null): AccessibilitySettings => {
       largeText: parsed.largeText === true,
       reducedEffects: parsed.reducedEffects === true,
       voiceEnabled: parsed.voiceEnabled === true,
+      audioProfile:
+        parsed.audioProfile === 'focused' || parsed.audioProfile === 'low_fatigue'
+          ? parsed.audioProfile
+          : 'balanced',
     }
   } catch {
     return { ...DEFAULT_SETTINGS }
@@ -125,3 +132,18 @@ export const cycleAccessibilityPreset = (): AccessibilityPresetId => {
 }
 
 export const isReducedEffectsEnabled = (): boolean => settings.reducedEffects
+
+export const getAudioProfileId = (): AudioProfileId => settings.audioProfile
+
+export const cycleAudioProfile = (): AudioProfileId => {
+  const sequence: AudioProfileId[] = ['focused', 'balanced', 'low_fatigue']
+  const currentIndex = sequence.indexOf(settings.audioProfile)
+  const next = sequence[(currentIndex + 1) % sequence.length] ?? 'balanced'
+  settings = {
+    ...settings,
+    audioProfile: next,
+  }
+  saveSettings()
+  applySettings()
+  return next
+}

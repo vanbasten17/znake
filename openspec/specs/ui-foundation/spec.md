@@ -181,3 +181,12 @@ The system SHALL resolve accessibility preset identity deterministically from vi
 - **THEN** preset status resolves to `custom`
 - **AND** body class application remains consistent with active toggle values
 
+### Requirement: Feedback output follows bounded profile scaling
+
+The system SHALL apply bounded profile scaling to feedback audio and haptic output.
+
+#### Scenario: Profile modifies intensity while preserving cue semantics
+- **WHEN** feedback event is emitted under a selected audio profile
+- **THEN** vibration intensity and tone gain/duration are scaled by profile
+- **AND** cue pattern semantics remain recognizable across profiles
+
