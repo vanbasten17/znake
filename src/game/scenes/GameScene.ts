@@ -72,6 +72,18 @@ import {
 import { markerTextureKey, registerMarkerHiResTextures } from '../render/markerHiRes'
 import { PAINT_BY_TONE, drawPremiumSegmentPhaser } from '../render/markerVectorArt'
 import { ArcadeEffectsPipeline } from '../render/shaders'
+import { runCombatLoopStep } from '../scenes/gameScene/combatLoop'
+import {
+  createRewardOverlayShell,
+  createRouteOverlayShell,
+} from '../scenes/gameScene/overlayController'
+import { shouldBlockSimulationForOverlay } from '../scenes/gameScene/runFlow'
+import {
+  trackGameGoalProgressed,
+  trackGameObjectiveCompleted,
+  trackGameRewardPicked,
+  trackGameRouteMasteryDecision,
+} from '../scenes/gameScene/telemetryAdapter'
 import {
   applyBiomeRulesToRuntime,
   getBiomeRuleHudLabels,
@@ -181,6 +193,7 @@ import {
 import { pickOpenCell } from '../simulation/spawn'
 import { isReducedEffectsEnabled } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
+import { createButton, createEl } from '../systems/domFactory'
 import {
   getMoveHintText,
   getRestartHintText,
@@ -966,31 +979,35 @@ export class GameScene extends Phaser.Scene {
     this.refreshBodyTerrainSnapshot()
     this.refreshObjectiveHud()
     this.refreshRunMapHud()
-    if (this.rewardPending) {
-      this.drawBackground()
-      this.drawFrame()
-      return
-    }
-    if (this.routeOverlayRoot || this.eventChoiceOverlayRoot || this.roomResolveOverlayRoot) {
+    if (
+      shouldBlockSimulationForOverlay({
+        rewardPending: this.rewardPending,
+        hasRouteOverlay: this.routeOverlayRoot !== null,
+        hasEventChoiceOverlay: this.eventChoiceOverlayRoot !== null,
+        hasRoomResolveOverlay: this.roomResolveOverlayRoot !== null,
+      })
+    ) {
       this.drawBackground()
       this.drawFrame()
       return
     }
     this.drawBackground()
-    this.updateEnemyMovement(simDelta)
-    this.ensureObjectiveEnemyAvailability()
-    this.ensureRoomObjectiveAvailability()
-    this.updateVoidRift(simDelta)
-    this.updatePortalFlow(simDelta)
-    this.updateCorePressure(simDelta)
-    this.updateBossSupport(simDelta)
-    this.updateVenomState(simDelta)
-    this.updateBodyEconomyState(simDelta)
-    this.updateContactGrace(simDelta)
-    this.updateRegen(simDelta)
-    this.updateSnakeMovement(simDelta)
-    this.updateMagnetFood()
-    this.updateParticles(dt)
+    runCombatLoopStep({
+      updateEnemyMovement: () => this.updateEnemyMovement(simDelta),
+      ensureObjectiveEnemyAvailability: () => this.ensureObjectiveEnemyAvailability(),
+      ensureRoomObjectiveAvailability: () => this.ensureRoomObjectiveAvailability(),
+      updateVoidRift: () => this.updateVoidRift(simDelta),
+      updatePortalFlow: () => this.updatePortalFlow(simDelta),
+      updateCorePressure: () => this.updateCorePressure(simDelta),
+      updateBossSupport: () => this.updateBossSupport(simDelta),
+      updateVenomState: () => this.updateVenomState(simDelta),
+      updateBodyEconomyState: () => this.updateBodyEconomyState(simDelta),
+      updateContactGrace: () => this.updateContactGrace(simDelta),
+      updateRegen: () => this.updateRegen(simDelta),
+      updateSnakeMovement: () => this.updateSnakeMovement(simDelta),
+      updateMagnetFood: () => this.updateMagnetFood(),
+      updateParticles: () => this.updateParticles(dt),
+    })
 
     if (this.food) {
       this.food.pulse += dt * 3
@@ -2702,7 +2719,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.bodyEconomyState = resetRewardOverclockWindow(this.bodyEconomyState)
     this.rewardChoices = draftRewardOptions(getRewardPool(), BALANCE.rewards.draftSize, this.rng)
-    trackRetentionEvent('objective_completed', {
+    trackGameObjectiveCompleted({
       objectiveKind: this.roomObjective.kind,
       objectiveWindowId,
       floor: gameState.floor,
@@ -2728,7 +2745,7 @@ export class GameScene extends Phaser.Scene {
       return
     }
     const objectiveWindowId = this.getCurrentObjectiveWindowId()
-    trackRetentionEvent('reward_picked', {
+    trackGameRewardPicked({
       rewardId: reward.id,
       rewardIndex: index,
       objectiveKind: this.roomObjective?.kind ?? 'unknown',
@@ -2773,113 +2790,190 @@ export class GameScene extends Phaser.Scene {
     if (!gameArea) {
       return
     }
-    const root = document.createElement('div')
-    root.className = rewardStyles.overlay
-
-    const title = document.createElement('h2')
-    title.className = rewardStyles.title
-    title.textContent = t('reward.objectiveComplete')
-    root.append(title)
-
-    const subtitle = document.createElement('p')
-    subtitle.className = rewardStyles.subtitle
-    subtitle.textContent = t('reward.chooseOne')
-    root.append(subtitle)
-
-    const framing = document.createElement('p')
-    framing.className = rewardStyles.framing
-    framing.textContent = t('reward.decisionFrame')
-    root.append(framing)
-
-    if (this.lastCleanPlayResult) {
-      const cleanPlay = document.createElement('p')
-      cleanPlay.className = rewardStyles.subtitle
-      if (this.lastCleanPlayResult.awarded && this.lastCleanPlayResult.rewardAmount > 0) {
-        cleanPlay.textContent = t('reward.cleanPlayAwarded', {
-          bonus: this.lastCleanPlayResult.rewardAmount,
-        })
-      } else if (this.lastCleanPlayResult.eligible) {
-        cleanPlay.textContent = t('reward.cleanPlayCapped')
-      } else {
-        cleanPlay.textContent = t('reward.cleanPlayMissed')
-      }
-      root.append(cleanPlay)
-    }
-
-    const overclockButton = document.createElement('button')
-    overclockButton.type = 'button'
-    overclockButton.className = rewardStyles.overclock
-    overclockButton.addEventListener('click', () => this.tryRewardOverclock())
-    root.append(overclockButton)
-    this.rewardOverclockButton = overclockButton
-
-    const objective = document.createElement('p')
-    objective.className = rewardStyles.objective
-    objective.textContent = this.getRoomObjectiveStatusText()
-    root.append(objective)
-
-    const cards = document.createElement('div')
-    cards.className = rewardStyles.cards
-    root.append(cards)
+    const cleanPlayText = !this.lastCleanPlayResult
+      ? null
+      : this.lastCleanPlayResult.awarded && this.lastCleanPlayResult.rewardAmount > 0
+        ? t('reward.cleanPlayAwarded', {
+            bonus: this.lastCleanPlayResult.rewardAmount,
+          })
+        : this.lastCleanPlayResult.eligible
+          ? t('reward.cleanPlayCapped')
+          : t('reward.cleanPlayMissed')
+    const shell = createRewardOverlayShell({
+      styles: {
+        overlay: rewardStyles.overlay,
+        title: rewardStyles.title,
+        subtitle: rewardStyles.subtitle,
+        framing: rewardStyles.framing,
+        overclock: rewardStyles.overclock,
+        objective: rewardStyles.objective,
+        cards: rewardStyles.cards,
+      },
+      titleText: t('reward.objectiveComplete'),
+      subtitleText: t('reward.chooseOne'),
+      decisionFrameText: t('reward.decisionFrame'),
+      cleanPlayText,
+      objectiveText: this.getRoomObjectiveStatusText(),
+      onOverclock: () => this.tryRewardOverclock(),
+    })
+    this.rewardOverclockButton = shell.overclockButton
 
     for (const [index, reward] of this.rewardChoices.entries()) {
-      cards.append(this.createRewardCard(reward, index))
+      shell.cards.append(this.createRewardCard(reward, index))
     }
     this.refreshRewardOverclockButton()
 
-    gameArea.append(root)
-    this.rewardOverlayRoot = root
+    gameArea.append(shell.root)
+    this.rewardOverlayRoot = shell.root
   }
 
   private createRewardCard(reward: RewardOption, index: number): HTMLButtonElement {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = rewardStyles.card
+    const button = createButton(rewardStyles.card, '')
     button.addEventListener('click', () => this.pickRewardChoice(index))
 
-    const icon = document.createElement('span')
-    icon.className = rewardStyles.index
-    icon.textContent = reward.icon
+    const icon = createEl('span', rewardStyles.index, reward.icon)
     button.append(icon)
 
-    const content = document.createElement('span')
-    content.className = rewardStyles.content
+    const content = createEl('span', rewardStyles.content)
     button.append(content)
 
-    const name = document.createElement('span')
-    name.className = rewardStyles.name
-    name.textContent = t(formatRewardTranslationKey(reward.id, 'name'))
+    const name = createEl(
+      'span',
+      rewardStyles.name,
+      t(formatRewardTranslationKey(reward.id, 'name')),
+    )
     name.style.color = `#${reward.color.toString(16).padStart(6, '0')}`
     content.append(name)
 
-    const upside = document.createElement('span')
-    upside.className = rewardStyles.effectLine
-    const upsideTag = document.createElement('span')
-    upsideTag.className = rewardStyles.upsideTag
-    upsideTag.textContent = t('reward.upsideTag')
-    const upsideText = document.createElement('span')
-    upsideText.className = rewardStyles.upsideText
-    upsideText.textContent = t(formatRewardTranslationKey(reward.id, 'upside'))
+    const upside = createEl('span', rewardStyles.effectLine)
+    const upsideTag = createEl('span', rewardStyles.upsideTag, t('reward.upsideTag'))
+    const upsideText = createEl(
+      'span',
+      rewardStyles.upsideText,
+      t(formatRewardTranslationKey(reward.id, 'upside')),
+    )
     upside.append(upsideTag, upsideText)
     content.append(upside)
 
-    const downside = document.createElement('span')
-    downside.className = rewardStyles.effectLine
-    const downsideTag = document.createElement('span')
-    downsideTag.className = rewardStyles.downsideTag
-    downsideTag.textContent = t('reward.downsideTag')
-    const downsideText = document.createElement('span')
-    downsideText.className = rewardStyles.downsideText
-    downsideText.textContent = t(formatRewardTranslationKey(reward.id, 'downside'))
+    const downside = createEl('span', rewardStyles.effectLine)
+    const downsideTag = createEl('span', rewardStyles.downsideTag, t('reward.downsideTag'))
+    const downsideText = createEl(
+      'span',
+      rewardStyles.downsideText,
+      t(formatRewardTranslationKey(reward.id, 'downside')),
+    )
     downside.append(downsideTag, downsideText)
     content.append(downside)
 
-    const hotkey = document.createElement('span')
-    hotkey.className = rewardStyles.hotkey
-    hotkey.textContent = String(index + 1)
+    const hotkey = createEl('span', rewardStyles.hotkey, String(index + 1))
     button.append(hotkey)
 
     return button
+  }
+
+  private mountRouteOverlay(): void {
+    this.teardownRouteOverlay()
+    if (this.routeChoices.length <= 1) {
+      return
+    }
+    const gameArea = document.getElementById('game-area')
+    if (!gameArea) {
+      return
+    }
+
+    const shell = createRouteOverlayShell({
+      styles: {
+        overlay: routeStyles.overlay,
+        panel: routeStyles.panel,
+        title: routeStyles.title,
+        subtitle: routeStyles.subtitle,
+        cards: routeStyles.cards,
+      },
+      titleText: t('game.routeChoiceTitle'),
+      subtitleText: t('game.routeChoiceSubtitle'),
+    })
+
+    for (const [index, choice] of this.routeChoices.entries()) {
+      const button = createButton(routeStyles.card, '')
+      button.addEventListener('click', () => this.pickRouteChoice(index))
+
+      const hotkey = createEl('span', routeStyles.hotkey, String(index + 1))
+      button.append(hotkey)
+
+      const content = createEl('span', routeStyles.content)
+      button.append(content)
+
+      const name = createEl('span', routeStyles.name, this.getRoomTypeLabel(choice.roomType))
+      content.append(name)
+
+      const detail = createEl(
+        'span',
+        routeStyles.detail,
+        `${this.getRoomTypeDescription(choice.roomType)} · ${this.getBiomeLabel(choice.biomeId)}`,
+      )
+      content.append(detail)
+
+      const nextPreview = choice.previewRoomTypes[1]
+      if (nextPreview) {
+        const preview = createEl(
+          'span',
+          routeStyles.preview,
+          t('game.routeChoiceFuture', {
+            preview: this.getRoomTypeLabel(nextPreview),
+          }),
+        )
+        content.append(preview)
+      }
+
+      shell.cards.append(button)
+    }
+
+    gameArea.append(shell.root)
+    this.routeOverlayRoot = shell.root
+    this.refreshHintText()
+  }
+
+  private teardownRouteOverlay(): void {
+    if (this.routeOverlayRoot) {
+      this.routeOverlayRoot.remove()
+      this.routeOverlayRoot = null
+    }
+  }
+
+  private pickRouteChoice(index: number): void {
+    const choice = this.routeChoices[index]
+    if (!choice) {
+      return
+    }
+    gameState.routeMasterySummary = recordRouteMasteryDecision({
+      summary: gameState.routeMasterySummary,
+      currentBiomeId: this.currentBiomeId,
+      availableChoices: this.routeChoices.length,
+      choice: {
+        roomType: choice.roomType,
+        biomeId: choice.biomeId,
+        previewRoomTypes: choice.previewRoomTypes,
+      },
+    })
+    trackGameRouteMasteryDecision({
+      floor: gameState.floor,
+      roomType: choice.roomType,
+      biomeId: choice.biomeId,
+      previewEliteSeen: choice.previewRoomTypes.filter((room) => room === 'elite').length,
+      routeDecisions: gameState.routeMasterySummary.routeDecisions,
+      branchDecisions: gameState.routeMasterySummary.branchDecisions,
+      eliteChoices: gameState.routeMasterySummary.eliteChoices,
+      nonCombatChoices: gameState.routeMasterySummary.nonCombatChoices,
+      biomePivotChoices: gameState.routeMasterySummary.biomePivotChoices,
+    })
+    emitFeedback('confirm')
+    gameState.pendingRunMapNodeId = choice.nodeId
+    this.teardownRouteOverlay()
+    this.refreshHintText()
+    transitionToScene(this, 'Upgrade', {
+      chrome: 'run',
+      data: { score: this.score, floor: gameState.floor },
+    })
   }
 
   private teardownRewardOverlay(): void {
@@ -2917,125 +3011,6 @@ export class GameScene extends Phaser.Scene {
     }
     this.rewardOverclockButton.textContent = t('game.rewardOverclockReady', {
       cost: this.cfg.rewardOverclockCost,
-    })
-  }
-
-  private mountRouteOverlay(): void {
-    this.teardownRouteOverlay()
-    if (this.routeChoices.length <= 1) {
-      return
-    }
-    const gameArea = document.getElementById('game-area')
-    if (!gameArea) {
-      return
-    }
-
-    const root = document.createElement('div')
-    root.className = routeStyles.overlay
-
-    const panel = document.createElement('section')
-    panel.className = routeStyles.panel
-    root.append(panel)
-
-    const title = document.createElement('h2')
-    title.className = routeStyles.title
-    title.textContent = t('game.routeChoiceTitle')
-    panel.append(title)
-
-    const subtitle = document.createElement('p')
-    subtitle.className = routeStyles.subtitle
-    subtitle.textContent = t('game.routeChoiceSubtitle')
-    panel.append(subtitle)
-
-    const cards = document.createElement('div')
-    cards.className = routeStyles.cards
-    panel.append(cards)
-
-    for (const [index, choice] of this.routeChoices.entries()) {
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.className = routeStyles.card
-      button.addEventListener('click', () => this.pickRouteChoice(index))
-
-      const hotkey = document.createElement('span')
-      hotkey.className = routeStyles.hotkey
-      hotkey.textContent = String(index + 1)
-      button.append(hotkey)
-
-      const content = document.createElement('span')
-      content.className = routeStyles.content
-      button.append(content)
-
-      const name = document.createElement('span')
-      name.className = routeStyles.name
-      name.textContent = this.getRoomTypeLabel(choice.roomType)
-      content.append(name)
-
-      const detail = document.createElement('span')
-      detail.className = routeStyles.detail
-      detail.textContent = `${this.getRoomTypeDescription(choice.roomType)} · ${this.getBiomeLabel(
-        choice.biomeId,
-      )}`
-      content.append(detail)
-
-      const nextPreview = choice.previewRoomTypes[1]
-      if (nextPreview) {
-        const preview = document.createElement('span')
-        preview.className = routeStyles.preview
-        preview.textContent = t('game.routeChoiceFuture', {
-          preview: this.getRoomTypeLabel(nextPreview),
-        })
-        content.append(preview)
-      }
-
-      cards.append(button)
-    }
-
-    gameArea.append(root)
-    this.routeOverlayRoot = root
-    this.refreshHintText()
-  }
-
-  private teardownRouteOverlay(): void {
-    if (this.routeOverlayRoot) {
-      this.routeOverlayRoot.remove()
-      this.routeOverlayRoot = null
-    }
-  }
-
-  private pickRouteChoice(index: number): void {
-    const choice = this.routeChoices[index]
-    if (!choice) {
-      return
-    }
-    gameState.routeMasterySummary = recordRouteMasteryDecision({
-      summary: gameState.routeMasterySummary,
-      currentBiomeId: this.currentBiomeId,
-      availableChoices: this.routeChoices.length,
-      choice: {
-        roomType: choice.roomType,
-        biomeId: choice.biomeId,
-        previewRoomTypes: choice.previewRoomTypes,
-      },
-    })
-    trackRetentionEvent('route_mastery_decision', {
-      floor: gameState.floor,
-      roomType: choice.roomType,
-      biomeId: choice.biomeId,
-      previewEliteSeen: choice.previewRoomTypes.filter((room) => room === 'elite').length,
-      routeDecisions: gameState.routeMasterySummary.routeDecisions,
-      branchDecisions: gameState.routeMasterySummary.branchDecisions,
-      eliteChoices: gameState.routeMasterySummary.eliteChoices,
-      nonCombatChoices: gameState.routeMasterySummary.nonCombatChoices,
-      biomePivotChoices: gameState.routeMasterySummary.biomePivotChoices,
-    })
-    emitFeedback('confirm')
-    gameState.pendingRunMapNodeId = choice.nodeId
-    this.teardownRouteOverlay()
-    this.refreshHintText()
-    transitionToScene(this, 'Upgrade', {
-      chrome: 'run',
-      data: { score: this.score, floor: gameState.floor },
     })
   }
 
@@ -4422,7 +4397,7 @@ export class GameScene extends Phaser.Scene {
         floor: gameState.floor,
         score: this.score,
       })
-      trackRetentionEvent('goal_progressed', {
+      trackGameGoalProgressed({
         goalId: 'elite_hunter_12',
         delta: 1,
         runEliteKills: gameState.eliteKills,
@@ -4436,7 +4411,7 @@ export class GameScene extends Phaser.Scene {
         floor: gameState.floor,
         score: this.score,
       })
-      trackRetentionEvent('goal_progressed', {
+      trackGameGoalProgressed({
         goalId: 'elite_hunter_12',
         delta: 1,
         runEliteKills: gameState.eliteKills,

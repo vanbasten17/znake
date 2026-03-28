@@ -14,6 +14,7 @@ import { UPGRADE_FAMILIES } from '../core/upgrades'
 import { createEmptyBossEncounterSummary } from '../simulation/eliteMiniboss'
 import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
 import { getControlMode } from '../systems/controlScheme'
+import { createButton, createEl } from '../systems/domFactory'
 import {
   getMoveHintText,
   getRestartHintText,
@@ -25,7 +26,13 @@ import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
 import { transitionToScene } from '../systems/sceneFlow'
-import { trackRetentionEvent } from '../systems/telemetry'
+import {
+  trackGoalProgressed,
+  trackInputMode,
+  trackRunEnd,
+  trackRunRewardBreakdown,
+  trackRunStart,
+} from '../systems/telemetryEvents'
 
 type DeathData = {
   score?: number
@@ -88,7 +95,7 @@ export class DeathScene extends Phaser.Scene {
     setPlayerProfile(goalProgressResult.profile)
     saveProfile(goalProgressResult.profile)
 
-    trackRetentionEvent('run_reward_breakdown', {
+    trackRunRewardBreakdown({
       scorePart: rewardBreakdown.scorePart,
       killPart: rewardBreakdown.killPart,
       floorPart: rewardBreakdown.floorPart,
@@ -99,7 +106,7 @@ export class DeathScene extends Phaser.Scene {
       score,
     })
     for (const transition of goalProgressResult.transitions) {
-      trackRetentionEvent('goal_progressed', {
+      trackGoalProgressed({
         goalId: transition.goalId,
         from: transition.from,
         to: transition.to,
@@ -109,7 +116,7 @@ export class DeathScene extends Phaser.Scene {
       })
     }
 
-    trackRetentionEvent('run_end', {
+    trackRunEnd({
       score,
       kills: gameState.kills,
       floor: gameState.floor,
@@ -239,21 +246,15 @@ export class DeathScene extends Phaser.Scene {
       return
     }
 
-    const root = document.createElement('div')
-    root.className = styles.overlay
+    const root = createEl('div', styles.overlay)
 
-    const title = document.createElement('h2')
-    title.className = styles.title
-    title.textContent = t('death.title')
+    const title = createEl('h2', styles.title, t('death.title'))
     root.append(title)
 
-    const score = document.createElement('p')
-    score.className = styles.score
-    score.textContent = t('death.score', { score: data.score })
+    const score = createEl('p', styles.score, t('death.score', { score: data.score }))
     root.append(score)
 
-    const meta = document.createElement('div')
-    meta.className = styles.meta
+    const meta = createEl('div', styles.meta)
     root.append(meta)
     meta.append(this.line(t('death.finalFloor', { floor: gameState.floor })))
     meta.append(this.line(t('death.enemiesDefeated', { kills: gameState.kills })))
@@ -272,20 +273,15 @@ export class DeathScene extends Phaser.Scene {
 
     this.renderRecap(root, data.recap)
 
-    const actions = document.createElement('div')
-    actions.className = styles.actions
+    const actions = createEl('div', styles.actions)
     root.append(actions)
 
-    const nextButton = document.createElement('button')
-    nextButton.type = 'button'
-    nextButton.className = `${styles.action} ${styles.actionPrimary}`
+    const nextButton = createButton(`${styles.action} ${styles.actionPrimary}`, '')
     nextButton.textContent = t('death.nextRun')
     nextButton.addEventListener('click', () => this.restart())
     actions.append(nextButton)
 
-    const menuButton = document.createElement('button')
-    menuButton.type = 'button'
-    menuButton.className = styles.action
+    const menuButton = createButton(styles.action, '')
     menuButton.textContent = t('death.mainMenu')
     menuButton.addEventListener('click', () => this.backToMenu())
     actions.append(menuButton)
@@ -552,14 +548,14 @@ export class DeathScene extends Phaser.Scene {
     }
     playerProfile.lifetimeStats.runsPlayed += 1
     saveProfile(playerProfile)
-    trackRetentionEvent('run_start', {
+    trackRunStart({
       source: 'death_restart',
       currency: playerProfile.currency,
       unlockedTalents: playerProfile.unlockedTalents.length,
       challengePresetId: resolvedPreset.presetId,
       challengePresetMutatorId: resolvedPreset.forcedMutatorId,
     })
-    trackRetentionEvent('input_mode', {
+    trackInputMode({
       mode: getControlMode(),
       source: 'run_start_death_restart',
       run: gameState.run,

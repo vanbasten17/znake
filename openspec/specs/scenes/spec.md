@@ -37,22 +37,17 @@ The system SHALL support a reference-driven polished menu visual identity withou
 
 The system SHALL render gameplay UI text in the active locale and orchestrate local run-map route presentation without taking ownership of progression rules.
 
-#### Scenario: Biome name localized in-game
+#### Scenario: Game scene delegates non-simulation orchestration through shared helpers
 
-- **WHEN** game scene updates floor progress label
-- **THEN** biome name is rendered in the selected locale
+- **WHEN** gameplay flow, overlays, and telemetry orchestration logic are updated
+- **THEN** `GameScene` delegates reusable orchestration concerns to shared helper modules
+- **AND** gameplay-rule ownership remains in deterministic simulation/core helpers
 
-#### Scenario: Route choices are scene-orchestrated from run-map state
+#### Scenario: Scene-local duplication is reduced for shared overlay and copy flows
 
-- **WHEN** the player reaches a route-decision point
-- **THEN** `GameScene` reads the reachable room choices from shared run-map state
-- **AND** presents them through existing HUD or DOM overlay patterns without generating branch rules inline
-
-#### Scenario: Scene enters selected room through room-type contract
-
-- **WHEN** the player selects an available next room
-- **THEN** `GameScene` starts the resolved room using the selected node type and metadata
-- **AND** room-specific logic remains delegated to shared gameplay or future room-resolution helpers
+- **WHEN** reward, route, event-choice, or related copy-heavy overlays are maintained
+- **THEN** scene code uses shared overlay/copy presenter helpers instead of repeating near-identical builders
+- **AND** UX behavior remains equivalent unless explicitly changed by a separate gameplay/UI proposal
 
 ### Requirement: Dev reference board marker preview
 

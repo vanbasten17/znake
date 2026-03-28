@@ -20,7 +20,7 @@ import {
   unlockTalent,
 } from '../core/meta'
 import { getMetaBoardBranchStatus } from '../core/metaBoard'
-import { getRoomObjective, getRunObjectiveOffsetForSeed } from '../core/objectives'
+import { getRunObjectiveOffsetForSeed } from '../core/objectives'
 import {
   dismissOnboardingAssist,
   markOnboardingAssistApplied,
@@ -50,13 +50,16 @@ import {
   updateAccessibilitySettings,
 } from '../systems/accessibility'
 import { getControlMode } from '../systems/controlScheme'
+import { createButton, createEl } from '../systems/domFactory'
 import { setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { getLanguage, t, toggleLanguage } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
+import { getObjectivePreviewText } from '../systems/objectivePresenter'
 import { getReleaseDisclosureLinks, getReleaseMetadata } from '../systems/release'
 import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
+import { trackInputMode, trackRunStart } from '../systems/telemetryEvents'
 import {
   type VoiceRuntimeStatus,
   getVoiceAvailability,
@@ -187,31 +190,21 @@ export class MenuScene extends Phaser.Scene {
       return
     }
 
-    const root = document.createElement('div')
-    root.className = styles.overlay
-
-    const top = document.createElement('div')
-    top.className = styles.top
+    const root = createEl('div', styles.overlay)
+    const top = createEl('div', styles.top)
     root.append(top)
 
-    const title = document.createElement('h1')
-    title.className = styles.title
-    title.textContent = 'ZNAKE'
+    const title = createEl('h1', styles.title, 'ZNAKE')
     top.append(title)
 
-    const topActions = document.createElement('div')
-    topActions.className = styles.topActions
+    const topActions = createEl('div', styles.topActions)
     top.append(topActions)
 
-    this.guideButtonEl = document.createElement('button')
-    this.guideButtonEl.type = 'button'
-    this.guideButtonEl.className = styles.guide
+    this.guideButtonEl = createButton(styles.guide, '')
     this.guideButtonEl.addEventListener('click', () => this.toggleGlossary())
     topActions.append(this.guideButtonEl)
 
-    this.languageEl = document.createElement('button')
-    this.languageEl.type = 'button'
-    this.languageEl.className = styles.lang
+    this.languageEl = createButton(styles.lang, '')
     this.languageEl.addEventListener('click', () => {
       void this.switchLanguage()
     })
@@ -245,57 +238,42 @@ export class MenuScene extends Phaser.Scene {
     playSectionTitle.textContent = t('menu.sectionPlay')
     root.append(playSectionTitle)
 
-    const playSection = document.createElement('div')
-    playSection.className = styles.playSection
+    const playSection = createEl('div', styles.playSection)
     root.append(playSection)
 
     const objective = document.createElement('p')
     objective.className = styles.nextObjective
     objective.textContent = t('menu.nextObjective', {
-      objective: this.getObjectivePreview(1),
+      objective: getObjectivePreviewText(1, gameState.runObjectiveOffset),
     })
     playSection.append(objective)
 
-    const playActions = document.createElement('div')
-    playActions.className = styles.playActions
+    const playActions = createEl('div', styles.playActions)
     playSection.append(playActions)
 
-    const start = document.createElement('button')
-    start.type = 'button'
-    start.className = styles.start
+    const start = createButton(styles.start, '')
     start.textContent = t('menu.startPrompt')
     start.addEventListener('click', () => this.startRun())
     playActions.append(start)
 
-    const dailyStart = document.createElement('button')
-    dailyStart.type = 'button'
-    dailyStart.className = styles.startMinor
+    const dailyStart = createButton(styles.startMinor, '')
     dailyStart.textContent = t('menu.startDaily')
     dailyStart.addEventListener('click', () => this.startRunWithPreset('daily'))
     playActions.append(dailyStart)
 
-    const weeklyStart = document.createElement('button')
-    weeklyStart.type = 'button'
-    weeklyStart.className = styles.startMinor
+    const weeklyStart = createButton(styles.startMinor, '')
     weeklyStart.textContent = t('menu.startWeekly')
     weeklyStart.addEventListener('click', () => this.startRunWithPreset('weekly'))
     playActions.append(weeklyStart)
 
-    const challengeActions = document.createElement('div')
-    challengeActions.className = styles.challengeActions
+    const challengeActions = createEl('div', styles.challengeActions)
     playSection.append(challengeActions)
 
-    const shareChallenge = document.createElement('button')
-    shareChallenge.type = 'button'
-    shareChallenge.className = styles.startMinor
-    shareChallenge.textContent = 'SHARE LAST RUN'
+    const shareChallenge = createButton(styles.startMinor, 'SHARE LAST RUN')
     shareChallenge.addEventListener('click', () => this.copyLatestChallengeCode())
     challengeActions.append(shareChallenge)
 
-    const importChallenge = document.createElement('button')
-    importChallenge.type = 'button'
-    importChallenge.className = styles.startMinor
-    importChallenge.textContent = 'PLAY SHARED CODE'
+    const importChallenge = createButton(styles.startMinor, 'PLAY SHARED CODE')
     importChallenge.addEventListener('click', () => this.importChallengeCode())
     challengeActions.append(importChallenge)
 
@@ -858,22 +836,6 @@ export class MenuScene extends Phaser.Scene {
     return t(`talent.${talentId}_name`, { defaultValue: fallbackName })
   }
 
-  private getObjectivePreview(floor: number): string {
-    const objective = getRoomObjective(floor, gameState.runObjectiveOffset)
-    if (objective.kind === 'collect_cores') {
-      return t('game.roomObjectiveCollectCoresPreview', { target: objective.target })
-    }
-    if (objective.kind === 'defeat_elite') {
-      return t('game.roomObjectiveDefeatElitePreview', { target: objective.target })
-    }
-    if (objective.kind === 'activate_terminals') {
-      return t('game.roomObjectiveActivateTerminalsPreview', { target: objective.target })
-    }
-    return t('game.roomObjectiveSurvivePreview', {
-      seconds: Math.ceil(objective.target / 1000),
-    })
-  }
-
   private getMasteryFocusText(): string {
     if (PROGRESSION_GOALS.length <= 0) {
       return 'MASTERY FOCUS · none'
@@ -1161,7 +1123,7 @@ export class MenuScene extends Phaser.Scene {
     }
     playerProfile.lifetimeStats.runsPlayed += 1
     saveProfile(playerProfile)
-    trackRetentionEvent('run_start', {
+    trackRunStart({
       source: options?.runStartSource ?? (devScenarioId ? 'menu_dev' : 'menu'),
       currency: playerProfile.currency,
       unlockedTalents: playerProfile.unlockedTalents.length,
@@ -1170,7 +1132,7 @@ export class MenuScene extends Phaser.Scene {
       challengePresetMutatorId: resolvedPreset.forcedMutatorId,
       contentPackId: gameState.activeContentPackId,
     })
-    trackRetentionEvent('input_mode', {
+    trackInputMode({
       mode: getControlMode(),
       source: devScenarioId ? 'run_start_menu_dev' : 'run_start_menu',
       run: gameState.run,

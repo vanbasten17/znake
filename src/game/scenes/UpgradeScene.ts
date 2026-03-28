@@ -1,14 +1,15 @@
 import Phaser from 'phaser'
 import styles from '../../styles/upgradeOverlay.module.css'
-import { getRoomObjective } from '../core/objectives'
 import { gameState } from '../core/state'
 import type { Upgrade } from '../core/types'
 import { UPGRADE_FAMILIES, drawUpgradeDraft } from '../core/upgrades'
 import { deriveRunSeed } from '../simulation/rng'
+import { createButton, createEl } from '../systems/domFactory'
 import { getMoveHintText, getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
+import { getObjectivePreviewText } from '../systems/objectivePresenter'
 import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
 
@@ -136,37 +137,32 @@ export class UpgradeScene extends Phaser.Scene {
       return
     }
 
-    const root = document.createElement('div')
-    root.className = styles.overlay
+    const root = createEl('div', styles.overlay)
 
-    const title = document.createElement('h2')
-    title.className = styles.title
-    title.textContent = t('upgrade.floorCleared')
+    const title = createEl('h2', styles.title, t('upgrade.floorCleared'))
     root.append(title)
 
-    const subtitle = document.createElement('p')
-    subtitle.className = styles.subtitle
-    subtitle.textContent = t('upgrade.chooseOne')
+    const subtitle = createEl('p', styles.subtitle, t('upgrade.chooseOne'))
     root.append(subtitle)
 
-    const objective = document.createElement('p')
-    objective.className = styles.objective
+    const objective = createEl('p', styles.objective)
     objective.textContent = t('menu.nextObjective', {
-      objective: this.getObjectivePreview(this.floor + 1),
+      objective: getObjectivePreviewText(this.floor + 1, gameState.runObjectiveOffset),
     })
     root.append(objective)
 
-    const cards = document.createElement('div')
-    cards.className = styles.cards
+    const cards = createEl('div', styles.cards)
     root.append(cards)
 
     for (const [index, upgrade] of this.choices.entries()) {
       cards.append(this.createUpgradeCard(upgrade, index))
     }
 
-    const footer = document.createElement('p')
-    footer.className = styles.footer
-    footer.textContent = t('upgrade.scoreFloor', { score: this.score, floor: this.floor })
+    const footer = createEl(
+      'p',
+      styles.footer,
+      t('upgrade.scoreFloor', { score: this.score, floor: this.floor }),
+    )
     root.append(footer)
 
     gameArea.append(root)
@@ -174,9 +170,7 @@ export class UpgradeScene extends Phaser.Scene {
   }
 
   private createUpgradeCard(upgrade: Upgrade, index: number): HTMLButtonElement {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = styles.card
+    const button = createButton(styles.card, '')
     button.addEventListener('click', () => this.pick(upgrade))
 
     const icon = document.createElement('span')
@@ -247,22 +241,6 @@ export class UpgradeScene extends Phaser.Scene {
     button.append(hotkey)
 
     return button
-  }
-
-  private getObjectivePreview(floor: number): string {
-    const objective = getRoomObjective(floor, gameState.runObjectiveOffset)
-    if (objective.kind === 'collect_cores') {
-      return t('game.roomObjectiveCollectCoresPreview', { target: objective.target })
-    }
-    if (objective.kind === 'defeat_elite') {
-      return t('game.roomObjectiveDefeatElitePreview', { target: objective.target })
-    }
-    if (objective.kind === 'activate_terminals') {
-      return t('game.roomObjectiveActivateTerminalsPreview', { target: objective.target })
-    }
-    return t('game.roomObjectiveSurvivePreview', {
-      seconds: Math.ceil(objective.target / 1000),
-    })
   }
 
   private teardownOverlay(): void {

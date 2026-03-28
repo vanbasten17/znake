@@ -1,14 +1,15 @@
 import Phaser from 'phaser'
 import styles from '../../styles/relicDraftOverlay.module.css'
 import { drawRelicDraft } from '../core/meta'
-import { getRoomObjective } from '../core/objectives'
 import { gameState } from '../core/state'
 import type { RelicDefinition } from '../core/types'
 import { createSeededRng, deriveRunSeed } from '../simulation/rng'
+import { createButton, createEl } from '../systems/domFactory'
 import { getUpgradeHintText, setHintText, setSceneChrome } from '../systems/domHud'
 import { emitFeedback } from '../systems/feedback'
 import { t } from '../systems/i18n'
 import { resetVirtualInput } from '../systems/input'
+import { getObjectivePreviewText } from '../systems/objectivePresenter'
 import { transitionToScene } from '../systems/sceneFlow'
 import { trackRetentionEvent } from '../systems/telemetry'
 
@@ -65,28 +66,21 @@ export class RelicDraftScene extends Phaser.Scene {
       return
     }
 
-    const root = document.createElement('div')
-    root.className = styles.overlay
+    const root = createEl('div', styles.overlay)
 
-    const title = document.createElement('h2')
-    title.className = styles.title
-    title.textContent = t('relic.selectTitle')
+    const title = createEl('h2', styles.title, t('relic.selectTitle'))
     root.append(title)
 
-    const subtitle = document.createElement('p')
-    subtitle.className = styles.subtitle
-    subtitle.textContent = t('upgrade.chooseOne')
+    const subtitle = createEl('p', styles.subtitle, t('upgrade.chooseOne'))
     root.append(subtitle)
 
-    const objective = document.createElement('p')
-    objective.className = styles.objective
+    const objective = createEl('p', styles.objective)
     objective.textContent = t('menu.nextObjective', {
-      objective: this.getObjectivePreview(gameState.floor),
+      objective: getObjectivePreviewText(gameState.floor, gameState.runObjectiveOffset),
     })
     root.append(objective)
 
-    const cards = document.createElement('div')
-    cards.className = styles.cards
+    const cards = createEl('div', styles.cards)
     root.append(cards)
 
     for (const [index, relic] of this.choices.entries()) {
@@ -97,26 +91,8 @@ export class RelicDraftScene extends Phaser.Scene {
     this.overlayRoot = root
   }
 
-  private getObjectivePreview(floor: number): string {
-    const objective = getRoomObjective(floor, gameState.runObjectiveOffset)
-    if (objective.kind === 'collect_cores') {
-      return t('game.roomObjectiveCollectCoresPreview', { target: objective.target })
-    }
-    if (objective.kind === 'defeat_elite') {
-      return t('game.roomObjectiveDefeatElitePreview', { target: objective.target })
-    }
-    if (objective.kind === 'activate_terminals') {
-      return t('game.roomObjectiveActivateTerminalsPreview', { target: objective.target })
-    }
-    return t('game.roomObjectiveSurvivePreview', {
-      seconds: Math.ceil(objective.target / 1000),
-    })
-  }
-
   private createRelicCard(relic: RelicDefinition, index: number): HTMLButtonElement {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = styles.card
+    const button = createButton(styles.card, '')
     button.addEventListener('click', () => this.pick(relic))
 
     const indexLabel = document.createElement('span')
