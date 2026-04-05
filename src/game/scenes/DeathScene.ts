@@ -8,7 +8,12 @@ import { type DeathRecapBuildLeaning, buildDeathRecap } from '../core/deathRecap
 import { applyRunGoalProgress, calculateRunRewardBreakdown, saveProfile } from '../core/meta'
 import { getRunObjectiveOffsetForSeed } from '../core/objectives'
 import { appendRunHistoryEntry, loadRunHistory } from '../core/runHistory'
-import { gameState, playerProfile, setPlayerProfile } from '../core/state'
+import {
+  gameState,
+  playerProfile,
+  resetFoodBonusWindowState,
+  setPlayerProfile,
+} from '../core/state'
 import type { UpgradeFamily } from '../core/types'
 import { UPGRADE_FAMILIES } from '../core/upgrades'
 import { createEmptyBossEncounterSummary } from '../simulation/eliteMiniboss'
@@ -502,6 +507,7 @@ export class DeathScene extends Phaser.Scene {
     gameState.currentRunMapNodeId = null
     gameState.pendingRunMapNodeId = null
     gameState.currentRunMutators = []
+    resetFoodBonusWindowState()
     gameState.activeContentPackId = BASE_CONTENT_PACK.id
     gameState.lastReplaySnapshot = null
     gameState.biomeRuleSummary = {

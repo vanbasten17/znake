@@ -28,7 +28,12 @@ import {
 } from '../core/onboardingAssist'
 import { loadLatestReplaySnapshot } from '../core/replayStore'
 import { type RunHistoryEntry, loadRunHistory } from '../core/runHistory'
-import { gameState, playerProfile, setPlayerProfile } from '../core/state'
+import {
+  gameState,
+  playerProfile,
+  resetFoodBonusWindowState,
+  setPlayerProfile,
+} from '../core/state'
 import type { ChallengeMutatorId, ChallengePresetId, GoalId } from '../core/types'
 import { drawMarkerSpriteCanvas } from '../render/markerBitmapDraw'
 import { ensureMarkerBitmapsLoaded } from '../render/markerBitmaps'
@@ -1204,6 +1209,7 @@ export class MenuScene extends Phaser.Scene {
     gameState.currentRunMapNodeId = null
     gameState.pendingRunMapNodeId = null
     gameState.currentRunMutators = []
+    resetFoodBonusWindowState()
     gameState.biomeRuleSummary = {
       activationEvents: 0,
       transitionEvents: 0,

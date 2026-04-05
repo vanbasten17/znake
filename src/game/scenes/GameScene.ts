@@ -26,7 +26,7 @@ import {
   formatRewardTranslationKey,
   getRewardPool,
 } from '../core/rewards'
-import { gameState, playerProfile } from '../core/state'
+import { gameState, playerProfile, resolveFoodPickupScoreDelta } from '../core/state'
 import type {
   BiomeId,
   BiomeItem,
@@ -64,12 +64,12 @@ import type {
   WorldItemType,
 } from '../core/types'
 import { applyUpgradeStrategy } from '../core/upgrades'
-import { setupRuntimeDevtools } from '../devtools/runtime'
 import {
   bindReplayCaptureGetter,
   bindRestartWithSameSeed,
   getSlowMotionFactor,
   setDevRunSeed,
+  setupRuntimeDevtools,
 } from '../devtools/runtime'
 import { markerTextureKey } from '../render/markerHiRes'
 import { PAINT_BY_TONE, drawPremiumSegmentPhaser } from '../render/markerVectorArt'
@@ -4789,7 +4789,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.food && nx === this.food.x && ny === this.food.y) {
       this.triggerPickupFeedback(nx, ny, COLORS.food)
-      this.score += Math.floor(BALANCE.food.scoreOnEat * this.cfg.scoreMult)
+      this.score += resolveFoodPickupScoreDelta(BALANCE.food.scoreOnEat, this.cfg.scoreMult)
       this.pendingGrowth += 1
       if (this.corePressureActive) {
         const nextPressure = resetCorePressureTimer({

@@ -1,3 +1,4 @@
+import { createInitialFoodBonusWindowState, resolveFoodPickupScore } from './foodBonusWindow'
 import { loadProfile } from './meta'
 import type { GameState } from './types'
 import type { PlayerProfile } from './types'
@@ -22,6 +23,10 @@ export const gameState: GameState = {
   currentChallengePresetForcedMutatorId: null,
   activeContentPackId: 'base',
   lastReplaySnapshot: null,
+  foodBonusWindow: {
+    foodsEaten: 0,
+    pendingBonusFoods: 0,
+  },
   biomeRuleSummary: {
     activationEvents: 0,
     transitionEvents: 0,
@@ -92,4 +97,17 @@ export let playerProfile: PlayerProfile = loadProfile()
 
 export const setPlayerProfile = (profile: PlayerProfile): void => {
   playerProfile = profile
+}
+
+export const resetFoodBonusWindowState = (): void => {
+  gameState.foodBonusWindow = createInitialFoodBonusWindowState()
+}
+
+export const resolveFoodPickupScoreDelta = (
+  baseFoodScore: number,
+  scoreMultiplier: number,
+): number => {
+  const resolved = resolveFoodPickupScore(gameState.foodBonusWindow, baseFoodScore, scoreMultiplier)
+  gameState.foodBonusWindow = resolved.nextState
+  return resolved.scoreDelta
 }

@@ -477,6 +477,10 @@ export type GameState = {
   currentChallengePresetForcedMutatorId: ChallengeMutatorId | null
   activeContentPackId: string
   lastReplaySnapshot: ReplaySnapshot | null
+  foodBonusWindow: {
+    foodsEaten: number
+    pendingBonusFoods: number
+  }
   biomeRuleSummary: BiomeRuleRunSummary
 }
 
