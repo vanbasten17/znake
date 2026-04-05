@@ -15,6 +15,28 @@ Priorities:
 - Treat GameScene as an orchestrator, not the home of gameplay rules
 - Do not mix rendering and simulation unless the task explicitly requires it
 
+## Routing guide
+- Gameplay rules, progression, economy, unlock logic -> `src/game/core/**`
+- Deterministic run simulation, spawning, pathing, RNG flow -> `src/game/simulation/**`
+- Scene orchestration, update-loop wiring, lifecycle coordination -> `src/game/scenes/**` and `src/game/scenes/gameScene/**`
+- UI state adapters, DOM/HUD bridges, input command mapping, telemetry gateways -> `src/game/systems/**`
+- Rendering assets/utilities, marker/shader drawing paths -> `src/game/render/**` and `src/game/visual/**`
+- Shared constants/IDs used across layers -> `src/game/shared/**` and `src/game/config/**`
+- Bootstrap and app entry wiring -> `src/game/phaser.ts` and `src/main.ts`
+- Validation/automation/playtest scripts -> `tools/**`
+- Behavior and regression checks -> `tests/**/*.test.ts`
+- OpenSpec source of truth for behavior changes -> `openspec/specs/**` and active `openspec/changes/<change>/*`
+
+## Routing constraints
+- Put gameplay decisions in `core`/`simulation`, not in `scenes`.
+- Treat `scenes` as orchestration only: wiring, lifecycle, and presentation triggers.
+- Prefer changing the lowest valid layer first (`core`/`simulation` -> `systems` -> `scenes`).
+- Keep rendering and UI work in `systems`/`render`/`styles`; do not embed rule logic there.
+- Minimize cross-layer edits; touch only the layers required by the task.
+- Reuse existing modules before adding new files or abstractions.
+- Do not change balance constants in `src/game/core/balance.ts` unless explicitly requested.
+- For behavior changes, route through active OpenSpec artifacts before apply.
+
 ## Commands
 Use:
 - pnpm build
@@ -84,3 +106,30 @@ For large or risky changes, propose a short plan/spec before implementation.
 ## Scene size guardrail behavior
 - When `src/game/scenes/GameScene.ts` (or similar oversized orchestrator files) is near architecture guardrails, default feature work to extraction/compaction.
 - Do not add new inline feature branches in near-threshold scene files unless extraction is explicitly blocked.
+
+## Fast map
+- Entrypoint app: `src/main.ts`
+- Phaser bootstrap: `src/game/phaser.ts`
+- Main orchestrator scene: `src/game/scenes/GameScene.ts`
+- Pure gameplay/domain logic: `src/game/core/**`
+- Input/UI bridge: `src/game/systems/**`
+- Tests: `tests/**/*.test.ts`
+- Automation/scripts: `tools/**`
+
+## Safe change zones
+- UI/HUD tweaks: prefer `src/game/systems/**` and `src/styles/**`
+- Gameplay rules: prefer `src/game/core/**`
+- Avoid adding new gameplay logic directly into Phaser scene files unless unavoidable
+- Avoid changing balancing constants unless task explicitly asks for it
+
+## Definition of done
+- Small refactor/bugfix: `pnpm check` + targeted tests if relevant
+- Gameplay change: `pnpm check && pnpm test`
+- Risky/systemic change: `pnpm check && pnpm test && pnpm build`
+- Rendering/UX changes: include a short manual verification note
+
+## Prompting conventions for Codex
+- Prefer minimal diffs
+- Preserve current architecture guardrails
+- When uncertain, inspect existing patterns before inventing new ones
+- Summarize changed files and residual risks at the end
