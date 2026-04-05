@@ -1,6 +1,7 @@
 import type { RunMapPreviewChoice, RunMapRoomType } from '../core/types'
 
 export type RouteRiskLevel = 'low' | 'medium' | 'high'
+export type RouteRiskReasonTag = 'elite_ahead' | 'recovery_ahead' | 'pressure_spike'
 
 type RouteRiskForecastInput = Pick<RunMapPreviewChoice, 'roomType' | 'previewRoomTypes'>
 
@@ -35,4 +36,32 @@ export const resolveRouteRiskForecast = (
     return { score, level: 'low' }
   }
   return { score, level: 'medium' }
+}
+
+export const resolveRouteRiskPreview = (
+  choice: RouteRiskForecastInput,
+): {
+  score: number
+  level: RouteRiskLevel
+  reasonTags: RouteRiskReasonTag[]
+} => {
+  const forecast = resolveRouteRiskForecast(choice)
+  const tags: RouteRiskReasonTag[] = []
+  const eliteAhead = choice.previewRoomTypes.filter((room) => room === 'elite').length
+  const recoveryAhead = choice.previewRoomTypes.filter(
+    (room) => room === 'rest' || room === 'shop',
+  ).length
+  if (eliteAhead > 0) {
+    tags.push('elite_ahead')
+  }
+  if (recoveryAhead > 0) {
+    tags.push('recovery_ahead')
+  }
+  if (forecast.level === 'high') {
+    tags.push('pressure_spike')
+  }
+  return {
+    ...forecast,
+    reasonTags: tags.slice(0, 2),
+  }
 }

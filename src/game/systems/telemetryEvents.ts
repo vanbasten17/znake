@@ -35,3 +35,7 @@ export const trackRunRewardBreakdown = (payload: TelemetryPayload): void => {
 export const trackRunEnd = (payload: TelemetryPayload): void => {
   emitTelemetryEvent('run_end', normalizeTelemetryPayload(payload))
 }
+
+export const trackBalanceSnapshot = (payload: TelemetryPayload): void => {
+  emitTelemetryEvent('balance_snapshot', normalizeTelemetryPayload(payload))
+}

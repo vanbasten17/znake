@@ -258,6 +258,16 @@ The system SHALL emit bounded deterministic fail-point telemetry fields for each
 ### Requirement: Depth-balance tuning outcome telemetry
 The system SHALL emit bounded telemetry describing resolved depth-tuning outcomes for enemy composition and item usefulness.
 
+#### Scenario: Composition and item outcome fields are emitted
+- **WHEN** room/floor setup resolves depth-aware enemy and item tuning
+- **THEN** telemetry includes compact outcome fields for selected role-composition profile and item usefulness profile
+- **AND** payload values align with centralized depth-balance taxonomy
+
+#### Scenario: Outcome telemetry remains deterministic and non-invasive
+- **WHEN** depth-balance outcome telemetry is emitted
+- **THEN** emission is best-effort and non-blocking
+- **AND** telemetry collection does not alter deterministic gameplay resolution
+
 ### Requirement: Telemetry emission uses gateway interfaces and contract checks
 Telemetry event helpers SHALL emit through a gateway interface so transport dependencies remain replaceable and payload contracts remain deterministic.
 
@@ -407,3 +417,13 @@ The system SHALL enforce this contract as part of the znake-observability-ui-eve
 - **WHEN** the relevant runtime or UI path executes
 - **THEN** the defined contract behavior is applied consistently
 - **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: Balance telemetry emits normalized versioned snapshots
+
+The system SHALL emit normalized, versioned telemetry snapshots for balance-critical events.
+
+#### Scenario: Objective completion snapshot is emitted
+- **WHEN** a balance-critical event occurs
+- **THEN** telemetry includes a versioned snapshot envelope with required canonical fields
+- **AND** snapshot values are deterministic for identical simulation state
+

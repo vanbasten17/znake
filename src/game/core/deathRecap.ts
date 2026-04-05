@@ -6,6 +6,7 @@ export type DeathRecapViewModel = {
   deathReason: string
   buildLeaning: DeathRecapBuildLeaning
   notableChoices: Upgrade[]
+  causeTags: string[]
   routeMastery: {
     label: string
     detail: string
@@ -15,6 +16,31 @@ export type DeathRecapViewModel = {
 
 const FAMILY_ORDER: UpgradeFamily[] = ['aggro', 'control', 'survival']
 const MAX_NOTABLE_CHOICES = 3
+const MAX_CAUSE_TAGS = 3
+
+const CAUSE_WEIGHT: Record<string, number> = {
+  boss: 6,
+  elite: 5,
+  projectile: 4,
+  enemy: 3,
+  wall: 2,
+  unknown: 1,
+}
+
+const rankCauseTags = (deathReason: string, history: ReadonlyArray<string>): string[] => {
+  const tally = new Map<string, number>()
+  const currentWeight = CAUSE_WEIGHT[deathReason] ?? CAUSE_WEIGHT.unknown
+  tally.set(deathReason, currentWeight + 3)
+  for (const reason of history) {
+    const normalized = reason.trim() || 'unknown'
+    const next = (tally.get(normalized) ?? 0) + (CAUSE_WEIGHT[normalized] ?? CAUSE_WEIGHT.unknown)
+    tally.set(normalized, next)
+  }
+  return [...tally.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, MAX_CAUSE_TAGS)
+    .map(([tag]) => tag)
+}
 
 const getRouteMasteryRecap = (summary: RouteMasterySummary): { label: string; detail: string } => {
   if (summary.routeDecisions <= 0) {
@@ -70,12 +96,14 @@ const getBuildLeaning = (upgrades: ReadonlyArray<Upgrade>): DeathRecapBuildLeani
 export const buildDeathRecap = (params: {
   deathReason?: string
   upgrades: ReadonlyArray<Upgrade>
+  deathReasonHistory?: ReadonlyArray<string>
   routeMastery?: RouteMasterySummary
   cleanPlay?: Pick<RunCleanPlaySummary, 'completedObjectives' | 'cleanClears' | 'totalBonusScore'>
 }): DeathRecapViewModel => ({
   deathReason: params.deathReason ?? 'unknown',
   buildLeaning: getBuildLeaning(params.upgrades),
   notableChoices: params.upgrades.slice(-MAX_NOTABLE_CHOICES),
+  causeTags: rankCauseTags(params.deathReason ?? 'unknown', params.deathReasonHistory ?? []),
   routeMastery: getRouteMasteryRecap(
     params.routeMastery ?? {
       routeDecisions: 0,

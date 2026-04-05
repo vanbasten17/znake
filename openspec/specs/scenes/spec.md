@@ -574,3 +574,22 @@ The system SHALL enforce this contract as part of the znake-scene-flow-transitio
 - **WHEN** the relevant runtime or UI path executes
 - **THEN** the defined contract behavior is applied consistently
 - **AND** deterministic simulation behavior remains unchanged.
+
+### Requirement: Overlay lifecycle transitions are explicitly guarded
+
+The system SHALL enforce explicit overlay lifecycle transition contracts.
+
+#### Scenario: Overlay transition performs deterministic ownership handoff
+- WHEN an overlay enters or exits an interactive state
+- THEN transition guards validate state change legality
+- AND gameplay/input ownership handoff occurs deterministically at defined boundaries
+
+### Requirement: Pause and resume preserve deterministic gameplay state
+
+The system SHALL restore gameplay-critical state deterministically after pause.
+
+#### Scenario: Resume returns to equivalent simulation boundary
+- WHEN the player pauses mid-run and then resumes
+- THEN simulation state restores from a defined snapshot boundary
+- AND scene overlays/input ownership restore in deterministic order
+

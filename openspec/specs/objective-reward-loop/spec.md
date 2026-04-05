@@ -130,3 +130,13 @@ Run map branch previews SHALL include objective and reward context so players ca
 - **WHEN** route preview generation receives identical floor, branch, and objective offset inputs
 - **THEN** resulting preview text stays identical across runs
 - **AND** no randomization alters branch messaging.
+
+### Requirement: Reward reroll costs follow deterministic guardrails
+
+The system SHALL apply deterministic reroll economy guardrails across a run.
+
+#### Scenario: Consecutive rerolls avoid degenerate economy collapse
+- WHEN the player performs consecutive rerolls
+- THEN reroll cost follows configured scaling with guardrail boundaries
+- AND identical run state yields identical reroll-cost outcomes
+

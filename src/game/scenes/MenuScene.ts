@@ -894,7 +894,8 @@ export class MenuScene extends Phaser.Scene {
           : entry.challengePresetId === 'daily'
             ? 'DAY'
             : 'WK'
-      row.textContent = `${preset} · F${entry.floor} · ${entry.deathReason} · B:${entry.buildLeaning} · seed:${entry.runSeed}`
+      const tags = entry.causeTags.length > 0 ? ` · tags:${entry.causeTags.join('/')}` : ''
+      row.textContent = `${preset} · F${entry.floor} · ${entry.deathReason}${tags} · B:${entry.buildLeaning} · seed:${entry.runSeed}`
       list.append(row)
     }
     this.runHistoryEl.append(list)

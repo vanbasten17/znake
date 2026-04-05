@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { resolveRouteRiskForecast } from '../src/game/simulation/routeRiskForecast'
+import {
+  resolveRouteRiskForecast,
+  resolveRouteRiskPreview,
+} from '../src/game/simulation/routeRiskForecast'
+import { buildRouteRiskPreviewFixture } from '../src/game/tooling/scenarioFixtures'
 
 test('route risk forecast is deterministic for equivalent route preview input', () => {
-  const apply = () =>
-    resolveRouteRiskForecast({
-      roomType: 'elite',
-      previewRoomTypes: ['elite', 'combat', 'elite'],
-    })
+  const fixture = buildRouteRiskPreviewFixture()
+  const apply = () => resolveRouteRiskForecast(fixture)
   assert.deepEqual(apply(), apply())
 })
 
@@ -32,4 +33,13 @@ test('route risk forecast labels low, medium, and high thresholds from weighted 
   })
   assert.equal(high.level, 'high')
   assert.equal(high.score, 6)
+})
+
+test('route risk preview exposes deterministic bounded reason tags', () => {
+  const preview = resolveRouteRiskPreview({
+    roomType: 'elite',
+    previewRoomTypes: ['elite', 'rest', 'elite'],
+  })
+  assert.equal(preview.level, 'high')
+  assert.deepEqual(preview.reasonTags, ['elite_ahead', 'recovery_ahead'])
 })

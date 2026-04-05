@@ -922,6 +922,22 @@ export const BALANCE = {
   },
   rewards: {
     draftSize: 3,
+    reroll: {
+      minCost: 1,
+      maxCost: 4,
+      growthPerUse: 0.6,
+      floorBandMultiplier: {
+        early: 1,
+        mid: 1.15,
+        late: 1.3,
+      },
+      objectiveMultiplier: {
+        survive: 1,
+        collect_cores: 1.05,
+        defeat_elite: 1.2,
+        activate_terminals: 1.1,
+      },
+    },
     pool: [
       {
         id: 'fortified_core',

@@ -7,6 +7,7 @@ export type RunHistoryEntry = {
   floor: number
   score: number
   deathReason: string
+  causeTags: string[]
   buildLeaning: string
   challengePresetId: ChallengePresetId
 }
@@ -22,6 +23,8 @@ const normalizeEntry = (value: unknown): RunHistoryEntry | null => {
     typeof entry.floor !== 'number' ||
     typeof entry.score !== 'number' ||
     typeof entry.deathReason !== 'string' ||
+    !Array.isArray(entry.causeTags) ||
+    entry.causeTags.some((tag) => typeof tag !== 'string') ||
     typeof entry.buildLeaning !== 'string' ||
     (entry.challengePresetId !== 'standard' &&
       entry.challengePresetId !== 'daily' &&
@@ -35,6 +38,7 @@ const normalizeEntry = (value: unknown): RunHistoryEntry | null => {
     floor: Math.max(0, Math.floor(entry.floor)),
     score: Math.max(0, Math.floor(entry.score)),
     deathReason: entry.deathReason,
+    causeTags: entry.causeTags.slice(0, 3),
     buildLeaning: entry.buildLeaning,
     challengePresetId: entry.challengePresetId,
   }

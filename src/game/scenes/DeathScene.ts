@@ -66,9 +66,11 @@ export class DeathScene extends Phaser.Scene {
     const timeAliveMs = Math.max(0, Math.floor(data.timeAliveMs ?? 0))
     const rewardBreakdown = calculateRunRewardBreakdown(score, gameState.kills, gameState.floor)
     const reward = rewardBreakdown.finalReward
+    const recentRunReasons = loadRunHistory().map((entry) => entry.deathReason)
     const recap = buildDeathRecap({
       deathReason,
       upgrades: gameState.persistentUpgrades,
+      deathReasonHistory: recentRunReasons,
       routeMastery: gameState.routeMasterySummary,
       cleanPlay: {
         completedObjectives: gameState.runCleanPlaySummary.completedObjectives,
@@ -189,6 +191,7 @@ export class DeathScene extends Phaser.Scene {
         floor: gameState.floor,
         score,
         deathReason,
+        causeTags: recap.causeTags,
         buildLeaning: recap.buildLeaning,
         challengePresetId: gameState.currentChallengePresetId,
       })

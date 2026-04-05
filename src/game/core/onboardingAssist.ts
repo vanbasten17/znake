@@ -6,6 +6,13 @@ export type OnboardingAssistRecommendation = {
   reason: string
 }
 
+export type OnboardingIntentTag = 'danger_now' | 'objective_next' | 'route_safe'
+
+export type OnboardingIntentCue = {
+  tag: OnboardingIntentTag
+  priority: number
+}
+
 type OnboardingAssistState = {
   dismissedAtMs: number
   appliedAtMs: number
@@ -13,6 +20,7 @@ type OnboardingAssistState = {
 
 const WINDOW_SIZE = 5
 const EARLY_FLOOR_THRESHOLD = 3
+const MAX_ACTIVE_CUES = 2
 
 const loadState = (): OnboardingAssistState => {
   try {
@@ -65,4 +73,40 @@ export const resolveOnboardingAssistRecommendation = (
     return { shouldSuggest: false, reason: 'already_handled' }
   }
   return { shouldSuggest: true, reason: 'repeated_early_failures' }
+}
+
+export const resolveOnboardingIntentCues = (
+  entries: ReadonlyArray<RunHistoryEntry>,
+): OnboardingIntentCue[] => {
+  if (entries.length <= 0) {
+    return []
+  }
+  const window = entries.slice(0, WINDOW_SIZE)
+  const aggregate = {
+    earlyFails: 0,
+    eliteDeaths: 0,
+    safeRouteNeed: 0,
+  }
+  for (const entry of window) {
+    if (entry.floor <= EARLY_FLOOR_THRESHOLD) {
+      aggregate.earlyFails += 1
+    }
+    if (entry.deathReason === 'elite' || entry.deathReason === 'boss') {
+      aggregate.eliteDeaths += 1
+    }
+    if (entry.causeTags.includes('wall') || entry.causeTags.includes('projectile')) {
+      aggregate.safeRouteNeed += 1
+    }
+  }
+  const cues: OnboardingIntentCue[] = []
+  if (aggregate.earlyFails >= 2) {
+    cues.push({ tag: 'danger_now', priority: 3 })
+  }
+  if (aggregate.eliteDeaths >= 2) {
+    cues.push({ tag: 'objective_next', priority: 2 })
+  }
+  if (aggregate.safeRouteNeed >= 2) {
+    cues.push({ tag: 'route_safe', priority: 1 })
+  }
+  return cues.sort((left, right) => right.priority - left.priority).slice(0, MAX_ACTIVE_CUES)
 }
