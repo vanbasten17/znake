@@ -1,7 +1,6 @@
 import Phaser from 'phaser'
 import styles from '../../styles/menuOverlay.module.css'
 import { resolveChallengePreset } from '../core/challengePresets'
-import { createChallengeShareCode, parseChallengeShareCode } from '../core/challengeShare'
 import { STORAGE_KEYS } from '../core/constants'
 import { BASE_CONTENT_PACK } from '../core/contentPacks'
 import { DEV_SCENARIOS, type DevScenarioId, isDevMode } from '../core/devScenarios'
@@ -44,6 +43,10 @@ import {
   MARKER_EXPORT_LOGICAL_FRAME,
   MARKER_EXPORT_SCALE_DEFAULT,
 } from '../render/markerExportSpec'
+import {
+  createLatestChallengeShareCode,
+  resolveImportedChallengeShare,
+} from '../scenes/menuScene/challengeShareFlow'
 import { createEmptyBossEncounterSummary } from '../simulation/eliteMiniboss'
 import { createEmptyRouteMasterySummary } from '../simulation/routeMastery'
 import {
@@ -1054,20 +1057,17 @@ export class MenuScene extends Phaser.Scene {
   private async copyLatestChallengeCode(): Promise<void> {
     const latestReplay = loadLatestReplaySnapshot()
     const latestRun = loadRunHistory()[0]
-    const sourceSeed = latestReplay?.runSeed ?? latestRun?.runSeed
-    const sourcePreset =
-      latestReplay?.challengePresetId ?? latestRun?.challengePresetId ?? 'standard'
-    if (!Number.isFinite(sourceSeed)) {
+    const challengeCode = createLatestChallengeShareCode({
+      latestReplay,
+      latestRun,
+      forcedMutatorId: gameState.currentChallengePresetForcedMutatorId,
+    })
+    if (!challengeCode) {
       emitFeedback('tap')
       return
     }
-    const challengeCode = createChallengeShareCode({
-      seed: sourceSeed ?? 0,
-      presetId: sourcePreset,
-      forcedMutatorId: gameState.currentChallengePresetForcedMutatorId,
-      floor: latestReplay?.floor ?? latestRun?.floor ?? 0,
-      score: latestReplay?.score ?? latestRun?.score ?? 0,
-    })
+    const sourcePreset =
+      latestReplay?.challengePresetId ?? latestRun?.challengePresetId ?? 'standard'
     const copy = resolveChallengeSharePromptCopy(t)
     try {
       if (navigator.clipboard?.writeText) {
@@ -1086,27 +1086,26 @@ export class MenuScene extends Phaser.Scene {
 
   private importChallengeCode(): void {
     const copy = resolveChallengeSharePromptCopy(t)
-    const raw = window.prompt(copy.pastePromptTitle) ?? ''
-    if (raw.trim().length <= 0) {
+    const decision = resolveImportedChallengeShare(window.prompt(copy.pastePromptTitle) ?? '')
+    if (decision.kind === 'empty') {
       return
     }
-    const parsed = parseChallengeShareCode(raw)
-    if (!parsed.ok || !parsed.payload) {
+    if (decision.kind === 'invalid') {
       emitFeedback('tap')
       trackRetentionEvent('challenge_share_import_failed', {
-        reason: parsed.reason ?? 'invalid',
+        reason: decision.reason,
       })
       return
     }
     emitFeedback('success')
     trackRetentionEvent('challenge_share_imported', {
-      presetId: parsed.payload.presetId,
-      floor: parsed.payload.floor,
-      score: parsed.payload.score,
+      presetId: decision.payload.presetId,
+      floor: decision.payload.floor,
+      score: decision.payload.score,
     })
-    this.startRunInternal(undefined, parsed.payload.presetId, {
-      forcedSeed: parsed.payload.seed,
-      forcedMutatorId: parsed.payload.forcedMutatorId,
+    this.startRunInternal(undefined, decision.payload.presetId, {
+      forcedSeed: decision.payload.seed,
+      forcedMutatorId: decision.payload.forcedMutatorId,
       runStartSource: 'shared_code',
     })
   }

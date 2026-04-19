@@ -92,6 +92,7 @@ import {
   trackGameRewardPicked,
   trackGameRouteMasteryDecision,
 } from '../scenes/gameScene/telemetryAdapter'
+import { consumeVirtualInputFrame } from '../scenes/gameScene/virtualInputFrameOrchestrator'
 import {
   applyBiomeRulesToRuntime,
   getBiomeRuleHudLabels,
@@ -964,42 +965,30 @@ export class GameScene extends Phaser.Scene {
     }
     this.particleSpawnedThisFrame = 0
 
-    if (window.virtualInput.pause) {
-      window.virtualInput.pause = false
-      this.recordReplayInput('pause', 'virtual')
-      this.togglePause()
-    }
-
-    if (window.virtualInput.dir) {
-      const dmap: Record<string, Vec2> = {
-        up: { x: 0, y: -1 },
-        down: { x: 0, y: 1 },
-        left: { x: -1, y: 0 },
-        right: { x: 1, y: 0 },
-      }
-      const dir = dmap[window.virtualInput.dir]
-      if (dir) {
-        this.pushDirection(dir)
-      }
-      window.virtualInput.dir = null
-    }
-    if (window.virtualInput.turn) {
-      this.recordReplayInput('turn', window.virtualInput.turn)
-      const turnDirection = this.resolveRelativeTurn(window.virtualInput.turn)
-      if (turnDirection) {
-        this.pushDirection(turnDirection)
-      }
-      window.virtualInput.turn = null
-    }
-    if (window.virtualInput.ability) {
-      this.recordReplayInput('ability', 'virtual')
-      if (this.rewardPending) {
-        this.tryRewardOverclock()
-      } else {
-        this.tryUseCombatAbility()
-      }
-      window.virtualInput.ability = false
-    }
+    consumeVirtualInputFrame(window.virtualInput, {
+      onPause: () => {
+        this.recordReplayInput('pause', 'virtual')
+        this.togglePause()
+      },
+      onDirection: (next) => {
+        this.pushDirection(next)
+      },
+      onTurn: (turn) => {
+        this.recordReplayInput('turn', turn)
+        const turnDirection = this.resolveRelativeTurn(turn)
+        if (turnDirection) {
+          this.pushDirection(turnDirection)
+        }
+      },
+      onAbility: () => {
+        this.recordReplayInput('ability', 'virtual')
+        if (this.rewardPending) {
+          this.tryRewardOverclock()
+        } else {
+          this.tryUseCombatAbility()
+        }
+      },
+    })
 
     this.updateFeedbackPulses(delta / 1000)
     this.updateFeedbackLabels(delta)
