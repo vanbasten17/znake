@@ -133,21 +133,44 @@ For large or risky changes, propose a short plan/spec before implementation.
 - Preserve current architecture guardrails
 - When uncertain, inspect existing patterns before inventing new ones
 - Summarize changed files and residual risks at the end
-- Read `AGENTS.md` first before any broad repo exploration
-- If `graphify-out/GRAPH_REPORT.md` exists, use it before scanning raw files
-- Never scan the whole repo blindly when a Graphify report is available
-- Use the Graphify report to identify the smallest relevant file set, then inspect only those files
-- For behavior changes, consult current `openspec/specs/**` and active `openspec/changes/**`
 
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.
 
-Rules:
-- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
-- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+Maintenance:
 - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
 
 Codex-local skill:
 - `graphify` skill file: `.codex/skills/graphify/SKILL.md`
 - Trigger from Codex: `$graphify`
+
+## Mandatory Graph Query Workflow
+
+For architecture, flow, dependency, and “where/how is X handled?” questions:
+
+1. You MUST run the local graph query workflow first:
+   - `pnpm graph:query -- "<question>"`
+2. You MUST summarize the graph query output first.
+3. Only then may you inspect source files.
+4. You MUST inspect the smallest possible set of files (ideally ≤5).
+5. You MUST NOT begin with broad file scanning.
+
+Fallback:
+- If the graph query workflow fails, you MUST read `graphify-out/GRAPH_REPORT.md` before opening files.
+
+For behavior changes:
+
+- You MUST consult `openspec/specs/**` and active `openspec/changes/**` before modifying code.
+
+## Execution Protocol
+
+When answering a question, follow this order:
+
+1. Read `AGENTS.md`
+2. Run `pnpm graph:query -- "<question>"`
+3. Analyze graph query results
+4. (Fallback) Read `graphify-out/GRAPH_REPORT.md` if needed
+5. Inspect minimal set of files
+6. Answer
+7. Ensure clarity

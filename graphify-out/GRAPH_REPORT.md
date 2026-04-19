@@ -1,7 +1,7 @@
 # Graph Report - /Users/mrabat/Desktop/znake  (2026-04-19)
 
 ## Corpus Check
-- 200 files · ~387,846 words
+- 200 files · ~388,052 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary

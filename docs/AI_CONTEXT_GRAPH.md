@@ -11,15 +11,26 @@ This repository uses a lightweight "Option A" context model:
 - Graphify captures where things are connected (`graphify-out/GRAPH_REPORT.md`, `graphify-out/graph.json`).
 - Together they reduce context-loading cost while preserving behavior traceability.
 
+## Local Query Wrapper
+
+This repo includes a local wrapper at `tools/graph-query.sh`.
+
+What it does:
+- Accepts a free-form question string.
+- Runs `graphify query "<question>"`.
+- Prints query output directly.
+- If Graphify is missing or query execution fails, it tells you to consult `graphify-out/GRAPH_REPORT.md`.
+
 ## Expected Workflow
 
 1. Read `AGENTS.md` first.
 2. If behavior is involved, read current OpenSpec context in:
    - `openspec/specs/**`
    - active `openspec/changes/**`
-3. Read `graphify-out/GRAPH_REPORT.md` first (if it exists).
-4. Use the graph report to identify relevant components/files.
-5. Open only the smallest relevant set of files before editing.
+3. Run `pnpm graph:query -- "<question>"`.
+4. Summarize graph query results (components, files, relationships).
+5. If query fails, read `graphify-out/GRAPH_REPORT.md`.
+6. Open only the smallest relevant set of files before editing (ideally ≤5).
 
 ## Install Graphify (Manual)
 
@@ -38,8 +49,16 @@ pipx install graphifyy && graphify install
 From repo root:
 
 ```bash
-pnpm graphify:build
+pnpm graph:build
 pnpm graphify:report
+```
+
+Run a query:
+
+```bash
+pnpm graph:query -- "input rendering"
+pnpm graph:query -- "collision handling"
+pnpm graph:query -- "game loop"
 ```
 
 Optional cleanup:
@@ -77,8 +96,11 @@ pip install graphifyy && graphify install
 # or: pipx install graphifyy && graphify install
 
 # 2) build graph
-pnpm graphify:build
+pnpm graph:build
 
-# 3) consult report before broad file reads
+# 3) query graph first before opening source files
+pnpm graph:query -- "input rendering"
+
+# 4) fallback report when query fails/unavailable
 pnpm graphify:report
 ```
