@@ -133,3 +133,21 @@ For large or risky changes, propose a short plan/spec before implementation.
 - Preserve current architecture guardrails
 - When uncertain, inspect existing patterns before inventing new ones
 - Summarize changed files and residual risks at the end
+- Read `AGENTS.md` first before any broad repo exploration
+- If `graphify-out/GRAPH_REPORT.md` exists, use it before scanning raw files
+- Never scan the whole repo blindly when a Graphify report is available
+- Use the Graphify report to identify the smallest relevant file set, then inspect only those files
+- For behavior changes, consult current `openspec/specs/**` and active `openspec/changes/**`
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
+
+Codex-local skill:
+- `graphify` skill file: `.codex/skills/graphify/SKILL.md`
+- Trigger from Codex: `$graphify`

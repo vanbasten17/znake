@@ -92,11 +92,14 @@ pnpm format
 ## Working with Codex Desktop App
 
 - Treat `AGENTS.md` as the source of truth for architecture, routing, and validation policy.
+- If `graphify-out/GRAPH_REPORT.md` exists, read it before broad file searches.
 - Prefer small, safe, incremental changes over broad rewrites.
 - Follow the routing guide: modify the lowest valid layer first and keep scene changes orchestration-only.
 - Respect existing skills in `.codex/skills/**` and reuse them before introducing new workflow instructions.
 - For behavior changes, use OpenSpec context in `openspec/specs/**` and active `openspec/changes/<change>/*`.
+- Use the graph report to narrow context, then open only the smallest relevant file set.
 - Run the minimal required validation from the matrix before handoff.
+- See `docs/AI_CONTEXT_GRAPH.md` for the OpenSpec + Graphify workflow.
 
 ## Scripts
 
@@ -108,10 +111,30 @@ pnpm test       # deterministic test suite
 pnpm check      # biome checks + architecture guardrails + fairness validation
 pnpm check:fix  # biome auto-fix
 pnpm format     # format all files
+pnpm graphify:build   # build/update Graphify knowledge graph output
+pnpm graphify:report  # print graphify-out/GRAPH_REPORT.md path (fails if missing)
+pnpm graphify:clean   # remove generated graphify-out/ directory
 pnpm smoke      # scripted smoke playtest
 pnpm generate:sprites   # export procedural marker PNGs + manifest (see docs/assets/MARKER_PIXEL_PIPELINE.md)
 pnpm validate:markers   # verify manifest vs markerExportSpec + crisp-pixel checklist
 pnpm validate:visual-language # visual-language consistency checks
+```
+
+### Graphify CLI compatibility note
+
+Some Graphify CLI builds do not support positional mode (`graphify .`) and require
+`graphify update .` instead. If you want `graphify .` to work in zsh, add this
+reversible shim to `~/.zshrc`:
+
+```bash
+# Compatibility shim: map `graphify .` to `graphify update .`
+graphify() {
+  if [ "$1" = "." ]; then
+    command /Users/mrabat/.local/pipx/venvs/graphifyy/bin/graphify update .
+  else
+    command /Users/mrabat/.local/pipx/venvs/graphifyy/bin/graphify "$@"
+  fi
+}
 ```
 
 **Glossary / marker art pipeline:** `docs/assets/MARKER_PIXEL_PIPELINE.md` — dimensions live in `src/game/render/markerExportSpec.ts`. Cursor: skill **`znake-marker-pipeline`**, command **`/znake-markers`**.

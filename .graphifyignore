@@ -1,0 +1,13 @@
+# Dependencies and build artifacts
+node_modules/
+dist/
+.pnpm-store/
+
+# VCS metadata
+.git/
+
+# Graphify cache only (keep report/html/json outputs)
+graphify-out/cache/
+
+# Generated asset exports (noise for architectural context)
+assets/sprites/generated/
