@@ -139,7 +139,8 @@ For large or risky changes, propose a short plan/spec before implementation.
 This project has a graphify knowledge graph at graphify-out/.
 
 Maintenance:
-- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
+- Use `pnpm graph:build` to refresh graph context when architecture/flow changes.
+- Run `pnpm graph:build` before large PRs or architecture-impact analysis.
 
 Codex-local skill:
 - `graphify` skill file: `.codex/skills/graphify/SKILL.md`
@@ -162,6 +163,8 @@ Fallback:
 For behavior changes:
 
 - You MUST consult `openspec/specs/**` and active `openspec/changes/**` before modifying code.
+- You MUST use OpenSpec as functional source of truth and Graphify as technical navigation.
+- You MUST run `pnpm graph:query -- "<topic>"` after OpenSpec review and before opening source files.
 
 ## Execution Protocol
 
@@ -174,3 +177,13 @@ When answering a question, follow this order:
 5. Inspect minimal set of files
 6. Answer
 7. Ensure clarity
+
+For behavior-change work, follow this order:
+
+1. Read `AGENTS.md`
+2. Review `openspec/specs/**` and active `openspec/changes/**`
+3. Run `pnpm graph:query -- "<topic>"`
+4. Analyze graph results and identify minimal touchpoints
+5. Edit minimum required files
+6. Run `pnpm graph:build` if structure/flow changed
+7. Validate according to risk tier
