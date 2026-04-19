@@ -44,12 +44,14 @@ high
 
 ## Steps
 1. Read `AGENTS.md`.
-2. Apply routing guide to identify likely layers and risk class.
-3. Match request against each candidate skill `Triggers`.
-4. Resolve conflicts using `../references/conflict-policy.md`.
-5. Select exactly one implementation skill (`explore-safe`, `bugfix-safe`, `gameplay-change`, or `rendering-only`), then append `test-and-verify` only when validation is requested/required.
-6. Execute the selected skill’s `Steps` with smallest safe scope.
-7. Run required validation tier and report selected skill + reason.
+2. For architecture/flow/dependency/"where is X handled" questions, run `pnpm graph:query -- "<question>"` first and summarize graph output before any file inspection.
+3. For behavior-change requests, route to OpenSpec-first flow: consult `openspec/specs/**` and active `openspec/changes/**`, then run `pnpm graph:query -- "<topic>"`.
+4. Apply routing guide to identify likely layers and risk class.
+5. Match request against each candidate skill `Triggers`.
+6. Resolve conflicts using `../references/conflict-policy.md`.
+7. Select exactly one implementation skill (`explore-safe`, `bugfix-safe`, `gameplay-change`, or `rendering-only`), then append `test-and-verify` only when validation is requested/required.
+8. Execute the selected skill’s `Steps` with smallest safe scope.
+9. Run required validation tier and report selected skill + reason.
 
 ## Validation
 - Small/localized changes: `pnpm check`.
@@ -61,6 +63,7 @@ high
 - Skipping conflict-policy tiebreaks.
 - Bypassing routing constraints or cross-layer guardrails.
 - Editing unrelated files or expanding scope during routing.
+- Starting architecture answers by broad file scanning without graph query context.
 
 ## Conflict resolution
 Apply `../references/conflict-policy.md` exactly.

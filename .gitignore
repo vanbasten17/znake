@@ -5,3 +5,5 @@ dist
 .env
 .autoloop
 graphify-out/cache/
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md

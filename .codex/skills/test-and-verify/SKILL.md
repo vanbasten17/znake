@@ -38,13 +38,15 @@ high
 3. Inspect existing tests/patterns for the changed paths.
 4. Identify minimal required validation scope.
 5. Run required commands by tier and capture pass/fail output.
-6. Avoid cross-layer code changes during verification unless fixing a blocking check is explicitly requested.
-7. Report results, residual risks, and any manual verification needed.
+6. If changes touched architecture/flow/component boundaries, run `pnpm graph:build` to refresh graph context.
+7. Avoid cross-layer code changes during verification unless fixing a blocking check is explicitly requested.
+8. Report results, residual risks, and any manual verification needed.
 
 ## Validation
 - Small/localized changes: `pnpm check`.
 - Logic/gameplay changes: `pnpm check && pnpm test`.
 - Risky/systemic changes: `pnpm check && pnpm test && pnpm build`.
+- Architecture/flow-structure changes: `pnpm graph:build` after required gates.
 
 ## What to avoid
 - Declaring success if required gates failed.

@@ -37,12 +37,14 @@ high
 
 ## Steps
 1. Read `AGENTS.md`.
-2. Apply the routing guide from `AGENTS.md` to identify the likely layer.
-3. Inspect existing patterns in the smallest relevant set of files.
-4. Identify minimal change scope (1-3 files) and likely risk points.
-5. Propose the smallest safe change plan; do not implement yet unless explicitly asked.
-6. Avoid cross-layer modifications in the proposed plan.
-7. If implementation is requested, hand off to the matching execution skill and run required validation.
+2. For architecture/flow/dependency questions, run `pnpm graph:query -- "<question>"` and summarize components/files/relationships.
+3. If behavior change is involved, consult `openspec/specs/**` and active `openspec/changes/<change>/*` before source inspection.
+4. Apply the routing guide from `AGENTS.md` to identify the likely layer.
+5. Inspect existing patterns in the smallest relevant set of files (target: `<=5`).
+6. Identify minimal change scope (1-3 files) and likely risk points.
+7. Propose the smallest safe change plan; do not implement yet unless explicitly asked.
+8. Avoid cross-layer modifications in the proposed plan.
+9. If implementation is requested, hand off to the matching execution skill and run required validation.
 
 ## Validation
 - Exploration-only: no commands required.
@@ -52,6 +54,7 @@ high
 
 ## What to avoid
 - Modifying code before scope is clear.
+- Opening source files before graph query on architecture/flow-style questions.
 - Jumping directly to `src/game/scenes/**` for gameplay behavior fixes.
 - Reading `openspec/changes/archive/**` by default.
 - Touching `src/game/core/balance.ts` unless explicitly requested.

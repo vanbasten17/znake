@@ -36,12 +36,13 @@ low
 
 ## Steps
 1. Read `AGENTS.md`.
-2. Apply routing guide and confirm behavior scope in active OpenSpec artifacts.
-3. Inspect existing mechanic patterns in `core/simulation` and related tests.
-4. Identify minimal change scope and explicit non-goals.
-5. Implement smallest safe rule change in `core/simulation`; wire through `systems`, then `scenes` only if required.
-6. Avoid cross-layer modifications and inline scene complexity.
-7. Add deterministic tests (fixed seeds where randomness exists) and run required validation.
+2. Confirm behavior scope in active OpenSpec artifacts (`openspec/specs/**`, `openspec/changes/<change>/*`) before source inspection.
+3. Run `pnpm graph:query -- "<topic>"` and summarize relevant components/files/relationships.
+4. Inspect existing mechanic patterns in `core/simulation` and related tests using the smallest relevant file set (target: `<=5` when feasible).
+5. Identify minimal change scope and explicit non-goals.
+6. Implement smallest safe rule change in `core/simulation`; wire through `systems`, then `scenes` only if required.
+7. Avoid cross-layer modifications and inline scene complexity.
+8. Add deterministic tests (fixed seeds where randomness exists) and run required validation.
 
 ## Validation
 - Small change with limited impact: `pnpm check`.
@@ -53,6 +54,7 @@ low
 - Editing `src/game/core/balance.ts` unless explicitly required.
 - Broad architectural rewrites not required by scope.
 - Touching unrelated files.
+- Skipping OpenSpec-first + graph-query context before edits.
 
 ## Conflict resolution
 Apply shared policy first: `../references/conflict-policy.md`.

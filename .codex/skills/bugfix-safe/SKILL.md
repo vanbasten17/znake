@@ -35,12 +35,14 @@ high
 
 ## Steps
 1. Read `AGENTS.md`.
-2. Apply the routing guide and locate the lowest valid fix layer.
-3. Inspect existing patterns in adjacent files/tests.
-4. Identify the minimal change scope and non-goals.
-5. Implement the smallest safe fix in `core/simulation` first; use `systems/scenes` only when required.
-6. Avoid cross-layer modifications beyond required wiring.
-7. Add/update deterministic regression tests and run required validation.
+2. If the bug question is architectural/flow-oriented, run `pnpm graph:query -- "<question>"` and summarize relevant nodes/files.
+3. For behavior-sensitive bugfixes, consult `openspec/specs/**` and active `openspec/changes/<change>/*` before edits.
+4. Apply the routing guide and locate the lowest valid fix layer.
+5. Inspect existing patterns in adjacent files/tests with minimal file reads (target: `<=5` when feasible).
+6. Identify the minimal change scope and non-goals.
+7. Implement the smallest safe fix in `core/simulation` first; use `systems/scenes` only when required.
+8. Avoid cross-layer modifications beyond required wiring.
+9. Add/update deterministic regression tests and run required validation.
 
 ## Validation
 - Small/localized bugfix: `pnpm check`.
@@ -52,6 +54,7 @@ high
 - Mixing gameplay rule logic into scene rendering/orchestration code.
 - Introducing new dependencies or large refactors for a narrow fix.
 - Touching unrelated files.
+- Starting with broad repo scanning instead of graph/OpenSpec context where applicable.
 
 ## Conflict resolution
 Apply shared policy first: `../references/conflict-policy.md`.

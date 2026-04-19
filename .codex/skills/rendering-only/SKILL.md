@@ -36,12 +36,14 @@ medium
 
 ## Steps
 1. Read `AGENTS.md`.
-2. Apply routing guide and confirm non-goal: no gameplay rule changes.
-3. Inspect existing UI/render patterns in target modules.
-4. Identify minimal change scope and manual-check expectations.
-5. Implement the smallest safe presentation change in `systems/render/styles`.
-6. Avoid cross-layer modifications into `core/simulation`.
-7. Add/update relevant tests and run required validation.
+2. For architecture/flow/dependency context, run `pnpm graph:query -- "<question>"` and summarize relevant components/files before opening source files.
+3. If behavior-change intent appears, consult `openspec/specs/**` and active `openspec/changes/**`, then hand off to `gameplay-change` or `explore-safe`.
+4. Apply routing guide and confirm non-goal: no gameplay rule changes.
+5. Inspect existing UI/render patterns in target modules using the smallest relevant file set (target: `<=5` when feasible).
+6. Identify minimal change scope and manual-check expectations.
+7. Implement the smallest safe presentation change in `systems/render/styles`.
+8. Avoid cross-layer modifications into `core/simulation`.
+9. Add/update relevant tests and run required validation.
 
 ## Validation
 - Small presentation change: `pnpm check`.
@@ -54,6 +56,7 @@ medium
 - Editing `src/game/core/balance.ts`.
 - Coupling rendering decisions with gameplay rule logic.
 - Touching unrelated files.
+- Starting with broad repo scanning instead of graph-query context.
 
 ## Conflict resolution
 Apply shared policy first: `../references/conflict-policy.md`.

@@ -72,6 +72,12 @@ pnpm graph:build
 pnpm graphify:report
 ```
 
+Policy check:
+
+```bash
+pnpm graph:policy-check
+```
+
 Rebuild is strongly recommended:
 - after adding/moving systems
 - after adding trace annotations
@@ -92,6 +98,23 @@ Technical-understanding protocol:
 3. inspect only 2-5 files
 4. answer
 
+Onboarding example (model answer shape):
+
+- User question: "what connects input handling to rendering?"
+- Run: `pnpm graph:query -- "input rendering"`
+- Graph summary first:
+  - input entrypoints (`input.ts`, `voiceInput.ts`)
+  - input routing (`inputCommandPipeline.ts`)
+  - scene orchestrator touchpoint (`GameScene.ts`, e.g. direction handling)
+  - presentation bridge (`domHud.ts`)
+- Inspect only a minimal set of files (example 4):
+  - `src/game/systems/input.ts`
+  - `src/game/systems/inputCommandPipeline.ts`
+  - `src/game/scenes/GameScene.ts`
+  - `src/game/systems/domHud.ts`
+- Then answer with the flow:
+  - input adapters -> command routing -> scene update/orchestration -> frame/HUD rendering
+
 Behavior-change protocol:
 1. review OpenSpec (`openspec/specs/**` + active `openspec/changes/**`)
 2. run `pnpm graph:query -- "<topic>"`
@@ -104,6 +127,12 @@ Optional cleanup:
 ```bash
 pnpm graphify:clean
 ```
+
+## Versioning Policy for graphify-out
+
+- Treat Graphify outputs as mostly local working context.
+- Keep `graphify-out/GRAPH_REPORT.md` as the single sharable summary artifact.
+- Ignore other `graphify-out/*` generated files by default to reduce repository noise.
 
 ## Intentionally Included in Graph Context
 
