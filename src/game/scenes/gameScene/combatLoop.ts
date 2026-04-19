@@ -1,3 +1,8 @@
+/**
+ * @spec collision-resolution
+ * @component combat
+ * @flow collision-to-damage
+ */
 type CombatLoopOps = {
   updateEnemyMovement: () => void
   ensureObjectiveEnemyAvailability: () => void

@@ -1,3 +1,8 @@
+/**
+ * @spec input-routing
+ * @component input
+ * @flow input-to-motion
+ */
 import type { VirtualInput } from '../core/types'
 import {
   INPUT_TOUCH_DIAGONAL_AMBIGUITY_RATIO,

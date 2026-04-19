@@ -1,3 +1,8 @@
+/**
+ * @spec input-routing
+ * @component input
+ * @flow input-to-motion
+ */
 import type { Vec2 } from '../core/types'
 
 export type DirectionCommandDecision = {

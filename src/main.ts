@@ -1,3 +1,8 @@
+/**
+ * @spec input-routing
+ * @component ui
+ * @flow scene-to-hud
+ */
 import './styles/tokens.css'
 import './styles/shell.css'
 import './styles/app.css'

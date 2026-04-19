@@ -1,3 +1,8 @@
+/**
+ * @spec input-routing
+ * @component input
+ * @flow input-to-motion
+ */
 import { getAccessibilitySettings } from './accessibility'
 import { emitFeedback } from './feedback'
 import { t } from './i18n'

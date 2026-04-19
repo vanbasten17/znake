@@ -1,3 +1,8 @@
+/**
+ * @spec player-movement
+ * @component scene
+ * @flow state-to-render
+ */
 import Phaser from 'phaser'
 import rewardStyles from '../../styles/rewardOverlay.module.css'
 import routeStyles from '../../styles/routeOverlay.module.css'

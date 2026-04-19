@@ -1,3 +1,8 @@
+/**
+ * @spec pause-control
+ * @component scene
+ * @flow input-to-pause
+ */
 export type GameLoopPhase =
   | 'paused'
   | 'reference_board'

@@ -1,3 +1,8 @@
+/**
+ * @spec frame-rendering
+ * @component scene
+ * @flow state-to-render
+ */
 import Phaser from 'phaser'
 import { HEIGHT, WIDTH } from './core/constants'
 import { ArcadeEffectsPipeline } from './render/shaders'

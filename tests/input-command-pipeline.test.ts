@@ -1,3 +1,8 @@
+/**
+ * @spec input-routing
+ * @component input
+ * @flow input-to-motion
+ */
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {

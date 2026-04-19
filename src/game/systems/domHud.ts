@@ -1,3 +1,8 @@
+/**
+ * @spec hud-updates
+ * @component hud
+ * @flow scene-to-hud
+ */
 import { gameState } from '../core/state'
 import { isKeyboardMode } from './controlScheme'
 import { t } from './i18n'
